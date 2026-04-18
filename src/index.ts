@@ -32,6 +32,9 @@ export * from './evaluator/index.js';
 // Room Solver (NEW - Sprint 2)
 export * from './room-solver/index.js';
 
+// SIM Module - Physics & Kinematics (NEW - Sprint 3)
+export * from './sim/index.js';
+
 // Re-export commonly used types
 export type {
   Node,
