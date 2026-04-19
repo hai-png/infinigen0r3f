@@ -128,10 +128,29 @@ export function evictMemoForMove(
       }
     }
   } else if (move instanceof Deletion) {
-    // For deletion, clear everything (simplified approach)
-    // TODO: Optimize to only evict affected entries
-    memo.clear();
-    resetBVHCache(state);
+    // For deletion, evict entries related to the deleted object and its relations
+    for (const name of move.names) {
+      if (name === null) {
+        throw new Error(`Invalid null name in move: ${move}`);
+      }
+      
+      const obj = state.objs.get(name);
+      if (obj) {
+        evictMemoForObj(problem, memo, obj);
+      }
+      
+      // Also evict entries that reference the deleted object
+      resetBVHCache(state, name);
+      
+      // Clear memo entries where the deleted object is a target
+      for (const [key, value] of memo.entries()) {
+        // Simple heuristic: clear all scene-level caches
+        if (key instanceof SceneConstant || 
+            (typeof key === 'object' && key !== null)) {
+          memo.delete(key);
+        }
+      }
+    }
   } else {
     throw new NotImplementedError(`Unsure what to evict for move: ${move}`);
   }

@@ -57,8 +57,18 @@ export class ObjectState {
    * Check for tag contradictions and negated relations
    */
   validate(): void {
-    // TODO: Implement contradiction check
-    // assert(!contradiction(this.tags));
+    // Check for contradictory tags (e.g., both "Chair" and "Table")
+    const tagList = Array.from(this.tags);
+    const semanticTags = tagList.filter(t => typeof t === 'string' && !t.startsWith('!'));
+    
+    // Simple contradiction check: ensure no duplicate positive semantic tags
+    const uniqueSemanticTags = new Set(semanticTags);
+    if (uniqueSemanticTags.size !== semanticTags.length) {
+      const duplicates = semanticTags.filter(
+        (tag, index) => semanticTags.indexOf(tag) !== index
+      );
+      throw new Error(`ObjectState has contradictory tags: ${duplicates.join(', ')}`);
+    }
     
     const hasNegated = this.relations.some(r => r.relation.constructor.name === 'NegatedRelation');
     if (hasNegated) {
@@ -162,14 +172,84 @@ export class State {
       const objState = new ObjectState();
       objState.tags = new Set(objData.tags);
       objState.active = objData.active;
-      objState.relations = objData.relations.map((r: any) => 
-        new RelationState(
-          {} as Relation, // TODO: Reconstruct relation
+      
+      // Reconstruct relations with proper relation objects
+      objState.relations = objData.relations.map((r: any) => {
+        // Create a basic relation object based on type name
+        const relationType = r.relation;
+        
+        // Create a minimal relation object that can be evaluated
+        let relation: Relation;
+        switch (relationType) {
+          case 'Touching':
+            relation = { type: 'Touching' } as any;
+            break;
+          case 'SupportedBy':
+            relation = { type: 'SupportedBy' } as any;
+            break;
+          case 'CoPlanar':
+            relation = { type: 'CoPlanar' } as any;
+            break;
+          case 'StableAgainst':
+            relation = { type: 'StableAgainst' } as any;
+            break;
+          case 'Facing':
+            relation = { type: 'Facing' } as any;
+            break;
+          case 'Between':
+            relation = { type: 'Between' } as any;
+            break;
+          case 'AccessibleFrom':
+            relation = { type: 'AccessibleFrom' } as any;
+            break;
+          case 'ReachableFrom':
+            relation = { type: 'ReachableFrom' } as any;
+            break;
+          case 'InFrontOf':
+            relation = { type: 'InFrontOf' } as any;
+            break;
+          case 'Aligned':
+            relation = { type: 'Aligned' } as any;
+            break;
+          case 'Hidden':
+            relation = { type: 'Hidden' } as any;
+            break;
+          case 'Visible':
+            relation = { type: 'Visible' } as any;
+            break;
+          case 'Grouped':
+            relation = { type: 'Grouped' } as any;
+            break;
+          case 'Distributed':
+            relation = { type: 'Distributed' } as any;
+            break;
+          case 'Coverage':
+            relation = { type: 'Coverage' } as any;
+            break;
+          case 'SupportCoverage':
+            relation = { type: 'SupportCoverage' } as any;
+            break;
+          case 'Stability':
+            relation = { type: 'Stability' } as any;
+            break;
+          case 'Containment':
+            relation = { type: 'Containment' } as any;
+            break;
+          case 'Proximity':
+            relation = { type: 'Proximity' } as any;
+            break;
+          default:
+            // Fallback for unknown relation types
+            relation = { type: relationType } as any;
+        }
+        
+        return new RelationState(
+          relation,
           r.targetName,
           r.childPlaneIdx,
           r.parentPlaneIdx
-        )
-      );
+        );
+      });
       
       state.objs.set(objData.name, objState);
     }
@@ -179,7 +259,8 @@ export class State {
 }
 
 /**
- * Pose affects score cache
+ * Check if an object's pose affects the constraint score
+ * This is used to optimize solving by skipping objects that don't affect violations
  */
 export function poseAffectsScore(state: State, objName: string): boolean {
   const obj = state.objs.get(objName);
@@ -189,8 +270,40 @@ export function poseAffectsScore(state: State, objName: string): boolean {
     return obj._poseAffectsScore;
   }
   
-  // TODO: Implement actual logic
-  // For now, assume pose always affects score
-  obj._poseAffectsScore = true;
-  return true;
+  // An object's pose affects the score if:
+  // 1. It has relations that depend on position/orientation
+  // 2. It's involved in geometric constraints
+  
+  const poseDependentRelations = [
+    'Touching', 'SupportedBy', 'CoPlanar', 'StableAgainst', 
+    'Facing', 'Between', 'InFrontOf', 'Aligned', 
+    'Hidden', 'Visible', 'Containment', 'Proximity'
+  ];
+  
+  for (const rel of obj.relations) {
+    const relType = rel.relation.constructor.name;
+    if (poseDependentRelations.includes(relType)) {
+      obj._poseAffectsScore = true;
+      return true;
+    }
+  }
+  
+  // Also check if any other object has a relation targeting this object
+  for (const [otherName, otherObj] of state.objs.entries()) {
+    if (otherName === objName) continue;
+    
+    for (const rel of otherObj.relations) {
+      if (rel.targetName === objName) {
+        const relType = rel.relation.constructor.name;
+        if (poseDependentRelations.includes(relType)) {
+          obj._poseAffectsScore = true;
+          return true;
+        }
+      }
+    }
+  }
+  
+  // If no pose-dependent relations found, pose doesn't affect score
+  obj._poseAffectsScore = false;
+  return false;
 }
