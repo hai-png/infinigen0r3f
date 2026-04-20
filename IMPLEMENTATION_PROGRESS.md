@@ -1748,3 +1748,90 @@ The appliance generator follows the established pattern from other furniture gen
 
 ---
 
+
+## Phase 4A: Basic Invertebrates & Simple Creatures ✅ COMPLETED
+
+**Date:** 2024-04-20
+**Status:** ✅ COMPLETE
+**Files Created:** 1 new file (creatures.ts - 818 lines)
+
+### Implemented Creature Types (6 base types):
+
+#### 1. Jellyfish
+- Parametric bell with lathe geometry
+- Multiple tentacles (8-24) with sinusoidal animation
+- Oral arms (3-6)
+- Presets: moon, lion-mane, box
+- Translucent PBR materials
+
+#### 2. Worm
+- Segmented body (12-20 segments)
+- Sinusoidal animation curve
+- Tapered tube geometry
+- Head sphere
+- Fleshy material system
+
+#### 3. Slug
+- Elongated flattened body
+- Eye stalks with spheres
+- Fleshy material
+- Animated eye movement
+
+#### 4. Snail
+- Body similar to slug
+- Spiral shell using Catmull-Rom curve
+- 4+ shell turns with tapering
+- Shell material variants
+- Smaller eye stalks than slug
+
+#### 5. Crab
+- Carapace (flattened sphere)
+- 8 legs (4 per side) with multiple segments
+- 2 claws with animated fingers
+- Eye stalks
+- Shell material
+
+#### 6. Starfish
+- 5 arms with tapering
+- Center disk
+- Flattened geometry
+- Shell material
+
+### Key Features:
+- **Procedural Animation Support:** All creatures support animationPhase parameter for motion
+- **Multiple Material Zones:** Translucent (jellyfish), fleshy (worms/slugs), shell (crabs/snails/starfish)
+- **LOD Generation:** Automatic LOD levels based on detail parameter
+- **Collision Geometry:** Simplified collision meshes for physics
+- **Semantic Tagging:** Full constraint system integration
+- **Seeded Randomization:** Reproducible variations
+- **Specialized Generators:** JellyfishGenerator, CrabGenerator with presets
+
+### Technical Implementation:
+- LatheGeometry for rotationally symmetric parts (bells, shells)
+- TubeGeometry along CatmullRomCurve3 for tentacles, arms, segmented bodies
+- SphereGeometry deformation for bodies
+- CylinderGeometry for legs, stalks, segments
+- ConeGeometry for claws
+- Custom material creation methods for each creature type
+
+### Progress Metrics:
+- **Total Asset Files:** 17 TypeScript files
+- **Total Lines of Code:** ~15,000+ lines
+- **Base Generators:** 22 generators
+- **Asset Types:** 130+ procedural types
+- **Phase 4 Progress:** 10% complete (6/60 creature types)
+- **Overall Progress:** ~37% of 350+ target asset types
+
+### Next Steps (Phase 4B):
+1. Fish & Aquatic Vertebrates
+   - Basic fish generator
+   - Eel-like creatures
+   - Rays and flatfish
+   - Seahorses
+   
+2. Continue with:
+   - Insects (beetles, dragonflies)
+   - Birds
+   - Reptiles
+   - Mammals
+

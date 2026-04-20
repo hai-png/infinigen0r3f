@@ -36,6 +36,8 @@ export * from './underwater';
 // Climbing Plants & Organic Scatters (Phase 3E)
 export * from './climbing';
 
+// Creature Generators (Phase 4A)
+export * from './creatures';
+
 // Future exports (to be implemented)
 // export * from './lighting';
-// export * from './creatures';
