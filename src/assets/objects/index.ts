@@ -45,5 +45,8 @@ export * from './cloud';
 // Particle Systems (Phase 5B)
 export * from './particles';
 
+// Reptiles & Amphibians (Phase 4D)
+export * from './reptiles-amphibians';
+
 // Future exports (to be implemented)
 // export * from './lighting';
