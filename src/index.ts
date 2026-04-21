@@ -44,6 +44,9 @@ export * from './decorate/index.js';
 // Animation Policy System (NEW - Sprint 6)
 export * from './animation/index.js';
 
+// Node System (NEW - Phase 1)
+export * from './nodes/index.js';
+
 // Shared Types
 export * from './types.js';
 
