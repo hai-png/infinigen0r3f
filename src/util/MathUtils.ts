@@ -514,6 +514,68 @@ export function voronoi2D(x: number, y: number, scale: number = 1.0): number {
   return minDist;
 }
 
+/**
+ * Ridged multifractal noise function
+ * Creates sharp, mountain-like features by inverting and combining noise octaves
+ * Based on Ken Musgrave's ridged multifractal algorithm
+ * 
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param z - Z coordinate
+ * @param octaves - Number of noise octaves
+ * @param lacunarity - Frequency multiplier per octave (typically 2.0)
+ * @param gain - Amplitude multiplier per octave (typically 0.5)
+ * @param roughness - Overall roughness control (0-1)
+ * @returns Ridged multifractal noise value (-1 to 1 range, typically 0-1 after processing)
+ */
+export function ridgedMultifractal(
+  x: number,
+  y: number,
+  z: number,
+  octaves: number = 6,
+  lacunarity: number = 2.0,
+  gain: number = 0.5,
+  roughness: number = 0.5
+): number {
+  let signal = 0;
+  let weight = 1.0;
+  let frequency = 1.0;
+  let amplitude = 1.0;
+  
+  // Offset to ensure all values are positive after ridge operation
+  const offset = 1.0;
+  
+  for (let i = 0; i < octaves; i++) {
+    // Get noise value at current frequency
+    let n = noise3D(x * frequency, y * frequency, z * frequency, 1.0);
+    
+    // Create ridge by inverting and taking absolute value
+    // This creates sharp peaks where noise crosses zero
+    n = offset - Math.abs(n);
+    
+    // Apply weight based on previous octave's contribution
+    // This creates the characteristic self-similar ridge pattern
+    n *= weight;
+    
+    // Accumulate signal
+    signal += n * amplitude;
+    
+    // Update weight for next octave
+    // Clamp to prevent runaway feedback
+    weight = Math.min(n * gain, 1.0);
+    weight = Math.max(weight, 0);
+    
+    // Increase frequency and decrease amplitude for next octave
+    frequency *= lacunarity;
+    amplitude *= gain;
+  }
+  
+  // Normalize result to 0-1 range
+  // The theoretical maximum is approximately sum of amplitudes
+  const maxSignal = 1.0 / (1.0 - gain);
+  return MathUtils.clamp(signal / maxSignal, 0, 1) * roughness;
+}
+
 // Permutation table for noise
 const p: number[] = [];
 for (let i = 0; i < 256; i++) {
