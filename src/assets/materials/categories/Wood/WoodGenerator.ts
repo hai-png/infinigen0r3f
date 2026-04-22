@@ -1,240 +1,136 @@
 /**
- * Wood Material Generator
- * 
- * Generates procedural wood materials with various species.
- * Features grain patterns, color variations, and surface imperfections.
+ * Wood Material Generator - Hardwood, softwood, plywood, reclaimed
  */
+import { Color, Texture, CanvasTexture } from 'three';
+import { BaseMaterialGenerator, MaterialOutput } from '../BaseMaterialGenerator';
+import { FixedSeed } from '../../../math/utils';
+import { Noise3D } from '../../../math/noise';
 
-import { Color } from 'three';
-import { NoiseGenerator } from '../../procedural/NoiseGenerator';
-import { GeneratedMaterial, MaterialProperties } from '../../MaterialSystem';
-
-export type WoodSpecies = 'oak' | 'pine' | 'walnut' | 'mahogany' | 'cherry' | 'maple' | 'birch' | 'ash';
-
-export interface WoodParameters {
-  species: WoodSpecies;
-  grainScale?: number;
-  grainContrast?: number;
-  colorVariation?: number;
-  hasKnots?: boolean;
-  knotDensity?: number;
-  finish?: 'matte' | 'satin' | 'gloss';
+export interface WoodParams {
+  type: 'oak' | 'pine' | 'walnut' | 'mahogany' | 'plywood' | 'reclaimed';
+  color: Color;
+  grainIntensity: number;
+  grainScale: number;
+  roughness: number;
+  knotDensity: number;
+  finishType: 'matte' | 'satin' | 'gloss';
 }
 
-export class WoodGenerator {
-  private noise: NoiseGenerator;
-  
-  constructor(seed?: number) {
-    this.noise = new NoiseGenerator(seed);
+export class WoodGenerator extends BaseMaterialGenerator<WoodParams> {
+  private static readonly DEFAULT_PARAMS: WoodParams = {
+    type: 'oak',
+    color: new Color(0x8b6f47),
+    grainIntensity: 0.6,
+    grainScale: 1.0,
+    roughness: 0.5,
+    knotDensity: 0.3,
+    finishType: 'satin',
+  };
+
+  constructor() { super(); }
+  getDefaultParams(): WoodParams { return { ...WoodGenerator.DEFAULT_PARAMS }; }
+
+  generate(params: Partial<WoodParams> = {}, seed?: number): MaterialOutput {
+    const finalParams = this.mergeParams(WoodGenerator.DEFAULT_PARAMS, params);
+    const rng = seed !== undefined ? new FixedSeed(seed) : this.rng;
+    const material = this.createBaseMaterial();
+    
+    material.color = finalParams.color;
+    material.roughness = finalParams.roughness;
+    material.metalness = 0.0;
+    
+    material.map = this.generateGrainTexture(finalParams, rng);
+    material.normalMap = this.generateNormalMap(finalParams, rng);
+    
+    if (finalParams.finishType === 'gloss') material.roughness = 0.2;
+    else if (finalParams.finishType === 'matte') material.roughness = 0.6;
+    
+    return { material, maps: { map: material.map, roughnessMap: null, normalMap: material.normalMap }, params: finalParams };
   }
-  
-  generate(params: WoodParameters): GeneratedMaterial {
-    const {
-      species,
-      grainScale = 10,
-      grainContrast = 0.3,
-      colorVariation = 0.1,
-      hasKnots = true,
-      knotDensity = 0.05,
-      finish = 'satin'
-    } = params;
+
+  private generateGrainTexture(params: WoodParams, rng: FixedSeed): Texture {
+    const size = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new CanvasTexture(canvas);
     
-    const baseColor = this.getSpeciesColor(species);
-    const grainColor = this.getGrainColor(species);
+    ctx.fillStyle = `#${params.color.getHexString()}`;
+    ctx.fillRect(0, 0, size, size);
     
-    // Calculate PBR properties based on finish
-    let roughness = 0.6;
-    let metalness = 0.0;
+    const noise = new Noise3D(rng.seed);
     
-    switch (finish) {
-      case 'matte':
-        roughness = 0.8;
-        break;
-      case 'satin':
-        roughness = 0.5;
-        break;
-      case 'gloss':
-        roughness = 0.2;
-        break;
+    // Draw grain lines
+    for (let y = 0; y < size; y += 2) {
+      const offset = noise.perlin(0, y / 50 * params.grainScale, 0) * 20 * params.grainIntensity;
+      for (let x = 0; x < size; x += 2) {
+        const grainX = x + offset;
+        const n = noise.perlin(grainX / 100, y / 100, 0) * params.grainIntensity * 40;
+        const r = Math.max(0, Math.min(255, params.color.r * 255 + n));
+        const g = Math.max(0, Math.min(255, params.color.g * 255 + n * 0.8));
+        const b = Math.max(0, Math.min(255, params.color.b * 255 + n * 0.6));
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x, y, 2, 2);
+      }
     }
     
-    const properties: MaterialProperties = {
-      baseColor,
-      roughness,
-      metalness,
-      hasNormalMap: true,
-      hasRoughnessMap: true,
-      hasMetalnessMap: false,
-      hasAOMap: false,
-      wearLevel: 0,
-      dirtLevel: 0,
-      customMaps: {}
-    };
-    
-    // Generate grain texture
-    properties.customMaps['grain'] = (u: number, v: number) => {
-      const grainX = u * grainScale;
-      const grainY = v * grainScale * 0.1;
-      
-      // Primary grain lines
-      let grain = this.noise.simplex(grainX, grainY * 0.5, { octaves: 4, persistence: 0.5 });
-      
-      // Add fine grain details
-      const fineGrain = this.noise.simplex(grainX * 3, grainY * 2, { octaves: 2 });
-      grain += fineGrain * 0.3;
-      
-      // Add knots if enabled
-      if (hasKnots) {
-        const knotNoise = this.noise.voronoi(u * 20, v * 20);
-        const knots = knotNoise < knotDensity ? 1 : 0;
-        grain += knots * grainContrast;
+    // Add knots
+    if (params.knotDensity > 0) {
+      const numKnots = Math.floor(params.knotDensity * 10);
+      for (let i = 0; i < numKnots; i++) {
+        const kx = rng.nextFloat() * size;
+        const ky = rng.nextFloat() * size;
+        const kr = 10 + rng.nextFloat() * 30;
+        
+        const gradient = ctx.createRadialGradient(kx, ky, 0, kx, ky, kr);
+        gradient.addColorStop(0, '#3d2817');
+        gradient.addColorStop(1, `#${params.color.getHexString()}`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(kx, ky, kr, 0, Math.PI * 2);
+        ctx.fill();
       }
-      
-      // Normalize and apply contrast
-      grain = (grain + 1) / 2; // Normalize to [0, 1]
-      grain = Math.pow(grain, 1 / grainContrast);
-      
-      return grain;
-    };
+    }
     
-    // Generate color variation
-    properties.customMaps['colorVariation'] = (u: number, v: number) => {
-      const variation = this.noise.perlin(u * 5, v * 5, undefined, { octaves: 3 });
-      return (variation + 1) / 2 * colorVariation;
-    };
+    return new CanvasTexture(canvas);
+  }
+
+  private generateNormalMap(params: WoodParams, rng: FixedSeed): Texture {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new CanvasTexture(canvas);
     
-    // Generate normal map for grain relief
-    properties.customMaps['normalStrength'] = (u: number, v: number) => {
-      const grainX = u * grainScale;
-      const grain = this.noise.simplex(grainX, v * grainScale * 0.1, { octaves: 3 });
-      return Math.abs(grain) * 0.02; // Small displacement
-    };
+    ctx.fillStyle = '#8080ff';
+    ctx.fillRect(0, 0, size, size);
     
-    return {
-      type: 'wood',
-      properties,
-      metadata: {
-        species,
-        finish,
-        hasKnots,
-        generatedAt: Date.now()
+    const noise = new Noise3D(rng.seed);
+    for (let y = 0; y < size; y += 4) {
+      const offset = noise.perlin(0, y / 50, 0) * 10;
+      for (let x = 0; x < size; x += 4) {
+        const n = noise.perlin((x + offset) / 80, y / 80, 0) * 15;
+        ctx.fillStyle = `rgb(${128+n}, ${128+n}, 255)`;
+        ctx.fillRect(x, y, 4, 4);
       }
-    };
+    }
+    return new CanvasTexture(canvas);
   }
-  
-  private getSpeciesColor(species: WoodSpecies): Color {
-    const colors: Record<WoodSpecies, number> = {
-      oak: 0xC4A484,
-      pine: 0xD2B48C,
-      walnut: 0x5C4033,
-      mahogany: 0x4A2C2A,
-      cherry: 0x8B4513,
-      maple: 0xF5DEB3,
-      birch: 0xF5F5DC,
-      ash: 0xD2B48C
-    };
-    
-    const color = new Color(colors[species]);
-    
-    // Add slight random variation
-    const variation = (Math.random() - 0.5) * 0.1;
-    color.offsetHSL(0, 0, variation);
-    
-    return color;
-  }
-  
-  private getGrainColor(species: WoodSpecies): Color {
-    const baseColor = this.getSpeciesColor(species);
-    const grainColor = baseColor.clone();
-    
-    // Grain is typically darker
-    grainColor.multiplyScalar(0.7);
-    
-    return grainColor;
-  }
-  
-  /**
-   * Generate aged/weathered wood
-   */
-  generateWeathered(params: WoodParameters, age: number = 0.5): GeneratedMaterial {
-    const material = this.generate(params);
-    
-    // Increase roughness with age
-    material.properties.roughness = Math.min(1, material.properties.roughness + age * 0.3);
-    
-    // Desaturate color
-    material.properties.baseColor.offsetHSL(0, -age * 0.3, -age * 0.2);
-    
-    // Add weathering patterns
-    material.properties.customMaps['weathering'] = (u: number, v: number) => {
-      const weather = this.noise.ridge(u * 3, v * 3);
-      return weather * age;
-    };
-    
-    material.metadata!.weathered = true;
-    material.metadata!.age = age;
-    
-    return material;
-  }
-  
-  /**
-   * Generate stained wood
-   */
-  generateStained(params: WoodParameters, stainColor: Color, intensity: number = 0.5): GeneratedMaterial {
-    const material = this.generate(params);
-    
-    // Blend base color with stain
-    material.properties.baseColor.lerp(stainColor, intensity);
-    
-    // Stain typically darkens and adds slight gloss
-    material.properties.roughness *= (1 - intensity * 0.3);
-    
-    material.metadata!.stained = true;
-    material.metadata!.stainColor = stainColor.getHex();
-    material.metadata!.stainIntensity = intensity;
-    
-    return material;
+
+  getVariations(count: number): WoodParams[] {
+    const variations: WoodParams[] = [];
+    const types: WoodParams['type'][] = ['oak', 'pine', 'walnut', 'mahogany', 'plywood', 'reclaimed'];
+    for (let i = 0; i < count; i++) {
+      variations.push({
+        type: types[this.rng.nextInt(0, types.length - 1)],
+        color: new Color().setHSL(0.05 + this.rng.nextFloat() * 0.1, 0.4 + this.rng.nextFloat() * 0.3, 0.3 + this.rng.nextFloat() * 0.4),
+        grainIntensity: 0.4 + this.rng.nextFloat() * 0.5,
+        grainScale: 0.5 + this.rng.nextFloat() * 1.5,
+        roughness: 0.3 + this.rng.nextFloat() * 0.4,
+        knotDensity: this.rng.nextFloat() * 0.5,
+        finishType: ['matte', 'satin', 'gloss'][this.rng.nextInt(0, 2)] as any,
+      });
+    }
+    return variations;
   }
 }
-
-// Pre-configured wood presets
-export const WoodPresets = {
-  rusticOak: (seed?: number) => new WoodGenerator(seed).generate({
-    species: 'oak',
-    grainScale: 15,
-    grainContrast: 0.4,
-    hasKnots: true,
-    knotDensity: 0.08,
-    finish: 'matte'
-  }),
-  
-  polishedWalnut: (seed?: number) => new WoodGenerator(seed).generate({
-    species: 'walnut',
-    grainScale: 8,
-    grainContrast: 0.3,
-    hasKnots: false,
-    finish: 'gloss'
-  }),
-  
-  naturalPine: (seed?: number) => new WoodGenerator(seed).generate({
-    species: 'pine',
-    grainScale: 12,
-    grainContrast: 0.25,
-    hasKnots: true,
-    knotDensity: 0.06,
-    finish: 'satin'
-  }),
-  
-  antiqueMahogany: (seed?: number) => {
-    const gen = new WoodGenerator(seed);
-    return gen.generateWeathered({
-      species: 'mahogany',
-      grainScale: 10,
-      grainContrast: 0.35,
-      hasKnots: true,
-      finish: 'satin'
-    }, 0.7);
-  }
-};
-
-export default WoodGenerator;
