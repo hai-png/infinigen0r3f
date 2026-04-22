@@ -1,3 +1,17 @@
-export function createPanShot(center: any, radius: number, angleRange: [number, number], duration: number): any[] { return []; }
-export function createTiltShot(center: any, radius: number, angleRange: [number, number], duration: number): any[] { return []; }
-export default { createPanShot, createTiltShot };
+// Re-export from CraneShot.ts for backwards compatibility
+export {
+  createPanShot,
+  createTiltShot,
+  type PanShotConfig,
+  type TiltShotConfig,
+} from './CraneShot';
+
+import { createPanShot, createTiltShot } from './CraneShot';
+
+/**
+ * Legacy default export for backwards compatibility
+ */
+export default {
+  createPanShot,
+  createTiltShot,
+};
