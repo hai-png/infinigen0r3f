@@ -108,3 +108,5 @@ export { SoilSurface } from './SoilSurface';
 export type { SoilParams } from './SoilSurface';
 export { CobblestoneSurface } from './CobblestoneSurface';
 export type { CobblestoneParams } from './CobblestoneSurface';
+export { MountainSurface } from './MountainSurface';
+export type { MountainParams } from './MountainSurface';
