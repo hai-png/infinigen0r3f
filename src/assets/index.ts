@@ -2,6 +2,19 @@
  * Assets Index - Export all asset generation modules
  */
 
+// Core utilities
+export * from './core/surface';
+export { 
+  AutoTag, 
+  tagSystem, 
+  printTagSummary,
+  createTagAttribute,
+  extractTagMask,
+  combineTagMasks,
+  type TagEntry,
+  type ExtractedTags
+} from './core/AutoTag';
+
 // Lighting
 export * from './lighting/index';
 

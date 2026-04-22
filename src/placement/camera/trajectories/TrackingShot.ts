@@ -1,2 +1,14 @@
-export function createTrackingShot(subject: any, offset: any, duration: number): any[] { return []; }
-export default { createTrackingShot };
+// Re-export from DollyShot.ts for backwards compatibility
+export {
+  createTrackingShot,
+  type DollyShotConfig as TrackingShotConfig,
+} from './DollyShot';
+
+import { createTrackingShot } from './DollyShot';
+
+/**
+ * Legacy default export for backwards compatibility
+ */
+export default {
+  createTrackingShot,
+};

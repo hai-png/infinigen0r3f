@@ -1,2 +1,14 @@
-export function simulateHandheld(basePosition: any, intensity: number, duration: number): any[] { return []; }
-export default { simulateHandheld };
+// Re-export from CraneShot.ts for backwards compatibility
+export {
+  createHandheldSim as simulateHandheld,
+  type HandheldConfig,
+} from './CraneShot';
+
+import { createHandheldSim } from './CraneShot';
+
+/**
+ * Legacy default export for backwards compatibility
+ */
+export default {
+  simulateHandheld: createHandheldSim,
+};
