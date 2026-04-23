@@ -4,6 +4,7 @@
 *.tsbuildinfo
 dist/
 build/
+lib/
 
 # Dependencies
 node_modules/
@@ -24,9 +25,10 @@ node_modules/
 
 # Coverage
 coverage/
-htmlcov/
-.coverage
+.nyc_output/
 
 # Temporary files
 *.tmp
+.DS_Store
+Thumbs.db
 ```
