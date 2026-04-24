@@ -60,7 +60,7 @@ export {
   BiomeSystem, 
   type BiomeType, 
   type BiomeConfig 
-} from './biomes/BiomeSystem';
+} from '../biomes/core/BiomeSystem';
 
 // Vegetation
 export { 
