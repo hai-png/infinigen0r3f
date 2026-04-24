@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { TerrainGenerator, type TerrainData } from '../core/TerrainGenerator';
 import { TerrainMesher } from '../mesher/TerrainMesher';
-import { BiomeSystem, BiomeType } from '../biomes/BiomeSystem';
+import { BiomeSystem, BiomeType } from '../../biomes/BiomeSystem';
 import { VegetationScatter } from '../vegetation/VegetationScatter';
 import { TerrainUtils } from '../utils/TerrainUtils';
 import { Vector3 } from 'three';
