@@ -21,6 +21,9 @@ export * from './reasoning/index.js';
 // Room Solver - Specialized room layout solving
 export * from './room-solver/index.js';
 
+// Tags - Semantic tagging system
+export * from './tags/index.js';
+
 // Additional constraint utilities
 export * from './core/index.js';
 export * from './dsl/index.js';

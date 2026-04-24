@@ -8,6 +8,8 @@
 
 export { ShaderCompiler, type ShaderVariant, type ShaderCompilationResult, PREDEFINED_VARIANTS } from './shader-compiler';
 export * from './postprocessing';
+export * as io from './io';
+export * as shaders from './shaders';
 
 // Re-export Three.js postprocessing for convenience
 export { EffectComposer } from '@react-three/postprocessing';
