@@ -1,0 +1,1 @@
+{"version":3,"file":"IdleAnimation.js","sourceRoot":"","sources":["../../../../../src/assets/objects/creatures/animation/IdleAnimation.ts"],"names":[],"mappings":"AACA,MAAM,OAAO,aAAa;IACxB,YAAoB,IAAa;QAAb,SAAI,GAAJ,IAAI,CAAS;IAAG,CAAC;CACkD;AAAC,CAAC;IACvF,MAAM,MAAM,GAAoB,EAAE,CAAC;IACnC,OAAO,IAAI,aAAa,CAAC,MAAM,EAAE,GAAG,EAAE,MAAM,CAAC,CAAC;AAChD,CAAC"}
