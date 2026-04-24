@@ -1,3 +1,14 @@
+```
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment files
+.env
+.env.local
+*.env.*
+
 # Dependencies
 node_modules/
 
@@ -6,43 +17,48 @@ dist/
 build/
 target/
 
-# Python
+# Python related
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.py.class
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-.mypy_cache/
-.pytest_cache/
+*.so
+*.egg-info/
+.eggs/
 .coverage
 coverage/
+htmlcov/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.nyc_output/
+istanbul/
+junit.xml
+coverage.xml
 
-# Logs
-*.log
+# TypeScript/JavaScript related
+*.tsbuildinfo
+*.js.map
+*.jsx.map
+*.ts.map
+*.tsx.map
 
-# Environment variables
-.env
-.env.local
-.env.*
-
-# IDE
+# IDE specific
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
 
-# OS
+# OS specific
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Icon?
+apidoc/
+doc/
+docs/
 
-# Archives
+# Compression and archives
 *.zip
 *.gz
 *.tar
@@ -65,3 +81,7 @@ Thumbs.db
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+
+# Original rules preserved
+*.log
+```
