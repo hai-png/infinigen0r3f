@@ -1,20 +1,11 @@
-/**
- * Asset Library
- *
- * Comprehensive asset generation system including:
- * - Materials: Procedural material library
- * - Objects: 3D object generators (furniture, decor, plants, creatures)
- * - Composition: Scene composition rules and templates
- * - Scatters: Scattering systems for vegetation, rocks, etc.
- * - Weather: Atmospheric and weather effects
- * - Lighting: Lighting setups and configurations
- */
-export * from './materials';
-export * from './objects';
-export * from './composition';
-export * from './scatters';
-export * from './weather';
-export * from './lighting';
-export * from './loaders';
-export * from './utils';
+// Procedural generators
+export * from './procedural/index.js';
+// Material generators
+export * from './materials/index.js';
+// Specialized shaders
+export * from './shaders/index.js';
+// Scatter systems
+export * from './scatters/index.js';
+// Lighting systems
+export * from './lighting/index.js';
 //# sourceMappingURL=index.js.map
