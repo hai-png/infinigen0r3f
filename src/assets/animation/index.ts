@@ -48,6 +48,13 @@ export type {
   PathSample 
 } from './procedural/PathFollowing';
 
+export { WindAnimationSystem, WindZone } from './procedural/WindAnimationSystem';
+export type { 
+  WindLayer, 
+  WindParams, 
+  AnimationConfig 
+} from './procedural/WindAnimationSystem';
+
 // Character Animation & IK
 export { 
   InverseKinematics, 

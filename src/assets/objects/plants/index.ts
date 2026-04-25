@@ -10,3 +10,4 @@ export { ShrubGenerator, ShrubSpeciesPresets, type ShrubSpeciesConfig } from './
 export { VineGenerator, VineSpeciesPresets, type VineSpeciesConfig } from './VineGenerator';
 export { MonocotGenerator, MonocotSpeciesPresets, type MonocotConfig } from './MonocotGenerator';
 export { TropicPlantGenerator, TropicSpeciesPresets, type TropicPlantConfig } from './TropicPlantGenerator';
+export { CreeperGenerator, CreeperParams, CreeperType, LeafShape, GrowthPattern } from './CreeperGenerator';

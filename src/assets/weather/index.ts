@@ -8,4 +8,7 @@
  */
 
 export { WeatherSystem, WeatherType, WeatherParams, WeatherState } from './WeatherSystem';
+export { RainSystem, RainParams } from './RainSystem';
+export { SnowSystem, SnowParams } from './SnowSystem';
+export { FogSystem, FogParams } from './FogSystem';
 export default WeatherSystem;
