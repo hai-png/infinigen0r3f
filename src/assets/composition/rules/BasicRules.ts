@@ -183,12 +183,12 @@ export const gridDistributionRule: CompositionRule = {
       },
     };
 
-    const columns = gridArrangementRule.parameters.columns || 3;
-    const rows = gridArrangementRule.parameters.rows || 3;
-    const xSpacing = gridArrangementRule.parameters.xSpacing || 1.0;
-    const ySpacing = gridArrangementRule.parameters.ySpacing || 1.0;
-    const zSpacing = gridArrangementRule.parameters.zSpacing || 0;
-    const centerGrid = gridArrangementRule.parameters.centerGrid !== false;
+    const columns = gridDistributionRule.parameters.columns || 3;
+    const rows = gridDistributionRule.parameters.rows || 3;
+    const xSpacing = gridDistributionRule.parameters.xSpacing || 1.0;
+    const ySpacing = gridDistributionRule.parameters.ySpacing || 1.0;
+    const zSpacing = gridDistributionRule.parameters.zSpacing || 0;
+    const centerGrid = gridDistributionRule.parameters.centerGrid !== false;
 
     const totalObjects = Math.min(context.existingObjects.length, columns * rows);
     
@@ -258,11 +258,11 @@ export const radialArrangementRule: CompositionRule = {
 
     if (context.existingObjects.length < 2) return result;
 
-    const radius = circularArrangementRule.parameters.radius || 2.0;
-    const startAngle = circularArrangementRule.parameters.startAngle || 0;
-    const endAngle = circularArrangementRule.parameters.endAngle || Math.PI * 2;
-    const axis = circularArrangementRule.parameters.axis || 'y';
-    const faceCenter = circularArrangementRule.parameters.faceCenter !== false;
+    const radius = radialArrangementRule.parameters.radius || 2.0;
+    const startAngle = radialArrangementRule.parameters.startAngle || 0;
+    const endAngle = radialArrangementRule.parameters.endAngle || Math.PI * 2;
+    const axis = radialArrangementRule.parameters.axis || 'y';
+    const faceCenter = radialArrangementRule.parameters.faceCenter !== false;
 
     const angleStep = (endAngle - startAngle) / (context.existingObjects.length - 1);
     const center = context.center?.clone() || new Vector3();
@@ -347,9 +347,9 @@ export const separationRule: CompositionRule = {
 
     if (context.existingObjects.length < 2) return result;
 
-    const minDistance = overlapResolutionRule.parameters.minDistance || 0.5;
-    const maxIterations = overlapResolutionRule.parameters.maxIterations || 10;
-    const relaxationFactor = overlapResolutionRule.parameters.relaxationFactor || 0.3;
+    const minDistance = separationRule.parameters.minDistance || 0.5;
+    const maxIterations = separationRule.parameters.maxIterations || 10;
+    const relaxationFactor = separationRule.parameters.relaxationFactor || 0.3;
 
     // Create working copies of positions
     const positions = context.existingObjects.map(obj => 
