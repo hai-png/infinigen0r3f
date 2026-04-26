@@ -4,7 +4,7 @@
  * Ported from Blender Geometry Nodes
  */
 
-import type { NodeBase, Domain } from '../core/types';
+import type { NodeBase, AttributeDomain } from '../core/types';
 
 // ============================================================================
 // Type Definitions
@@ -36,7 +36,7 @@ export class VolumeToMeshNode implements VolumeNodeBase {
   readonly nodeType = 'volume_to_mesh';
   readonly inputs: VolumeToMeshInputs;
   readonly outputs: VolumeToMeshOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: VolumeToMeshInputs = {}) {
     this.inputs = inputs;
@@ -81,7 +81,7 @@ export class SampleVolumeNode implements VolumeNodeBase {
   readonly nodeType = 'sample_volume';
   readonly inputs: SampleVolumeInputs;
   readonly outputs: SampleVolumeOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: SampleVolumeInputs = {}) {
     this.inputs = inputs;
@@ -125,7 +125,7 @@ export class VolumeAttributeStatsNode implements VolumeNodeBase {
   readonly nodeType = 'volume_attribute_stats';
   readonly inputs: VolumeAttributeStatsInputs;
   readonly outputs: VolumeAttributeStatsOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: VolumeAttributeStatsInputs = {}) {
     this.inputs = inputs;
@@ -163,7 +163,7 @@ export class DensityToAlphaNode implements VolumeNodeBase {
   readonly nodeType = 'density_to_alpha';
   readonly inputs: DensityToAlphaInputs;
   readonly outputs: DensityToAlphaOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: DensityToAlphaInputs = {}) {
     this.inputs = inputs;

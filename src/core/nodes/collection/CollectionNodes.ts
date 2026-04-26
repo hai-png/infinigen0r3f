@@ -5,7 +5,7 @@
  */
 
 import { Object3D, Group } from 'three';
-import type { NodeBase, Domain } from '../core/types';
+import type { NodeBase, AttributeDomain } from '../core/types';
 
 // ============================================================================
 // Type Definitions
@@ -37,7 +37,7 @@ export class CollectionInfoNode implements CollectionNodeBase {
   readonly nodeType = 'collection_info';
   readonly inputs: CollectionInfoInputs;
   readonly outputs: CollectionInfoOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: CollectionInfoInputs = {}) {
     this.inputs = inputs;
@@ -101,7 +101,7 @@ export class ObjectInfoNode implements CollectionNodeBase {
   readonly nodeType = 'object_info';
   readonly inputs: ObjectInfoInputs;
   readonly outputs: ObjectInfoOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: ObjectInfoInputs = {}) {
     this.inputs = inputs;
@@ -153,7 +153,7 @@ export class InstanceOnPointsNode implements CollectionNodeBase {
   readonly nodeType = 'instance_on_points';
   readonly inputs: InstanceOnPointsInputs;
   readonly outputs: InstanceOnPointsOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: InstanceOnPointsInputs = {}) {
     this.inputs = inputs;
@@ -217,7 +217,7 @@ export class DuplicateElementsNode implements CollectionNodeBase {
   readonly nodeType = 'duplicate_elements';
   readonly inputs: DuplicateElementsInputs;
   readonly outputs: DuplicateElementsOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: DuplicateElementsInputs = {}) {
     this.inputs = inputs;
@@ -268,7 +268,7 @@ export class ChildrenOfSceneNode implements CollectionNodeBase {
   readonly nodeType = 'children_of_scene';
   readonly inputs: ChildrenOfSceneInputs;
   readonly outputs: ChildrenOfSceneOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: ChildrenOfSceneInputs = {}) {
     this.inputs = inputs;

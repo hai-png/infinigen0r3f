@@ -5,7 +5,7 @@
  */
 
 import { Vector3, Quaternion } from 'three';
-import type { NodeBase, Domain } from '../core/types';
+import type { NodeBase, AttributeDomain } from '../core/types';
 
 // ============================================================================
 // Type Definitions
@@ -40,7 +40,7 @@ export class RigidBodyWorldNode implements SimulationNodeBase {
   readonly nodeType = 'rigid_body_world';
   readonly inputs: RigidBodyWorldInputs;
   readonly outputs: RigidBodyWorldOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: RigidBodyWorldInputs = {}) {
     this.inputs = inputs;
@@ -85,7 +85,7 @@ export class RigidBodyConstraintsNode implements SimulationNodeBase {
   readonly nodeType = 'rigid_body_constraints';
   readonly inputs: RigidBodyConstraintsInputs;
   readonly outputs: RigidBodyConstraintsOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: RigidBodyConstraintsInputs = {}) {
     this.inputs = inputs;
@@ -137,7 +137,7 @@ export class SoftBodySetupNode implements SimulationNodeBase {
   readonly nodeType = 'soft_body_setup';
   readonly inputs: SoftBodySetupInputs;
   readonly outputs: SoftBodySetupOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: SoftBodySetupInputs = {}) {
     this.inputs = inputs;
@@ -188,7 +188,7 @@ export class ParticleSystemNode implements SimulationNodeBase {
   readonly nodeType = 'particle_system';
   readonly inputs: ParticleSystemInputs;
   readonly outputs: ParticleSystemOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: ParticleSystemInputs = {}) {
     this.inputs = inputs;
@@ -253,7 +253,7 @@ export class ParticleCollisionNode implements SimulationNodeBase {
   readonly nodeType = 'particle_collision';
   readonly inputs: ParticleCollisionInputs;
   readonly outputs: ParticleCollisionOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: ParticleCollisionInputs = {}) {
     this.inputs = inputs;
@@ -299,7 +299,7 @@ export class FluidDomainNode implements SimulationNodeBase {
   readonly nodeType = 'fluid_domain';
   readonly inputs: FluidDomainInputs;
   readonly outputs: FluidDomainOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: FluidDomainInputs = {}) {
     this.inputs = inputs;
@@ -342,7 +342,7 @@ export class FluidFlowNode implements SimulationNodeBase {
   readonly nodeType = 'fluid_flow';
   readonly inputs: FluidFlowInputs;
   readonly outputs: FluidFlowOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: FluidFlowInputs = {}) {
     this.inputs = inputs;
@@ -391,7 +391,7 @@ export class ClothSetupNode implements SimulationNodeBase {
   readonly nodeType = 'cloth_setup';
   readonly inputs: ClothSetupInputs;
   readonly outputs: ClothSetupOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: ClothSetupInputs = {}) {
     this.inputs = inputs;
@@ -433,7 +433,7 @@ export class ClothPinGroupNode implements SimulationNodeBase {
   readonly nodeType = 'cloth_pin_group';
   readonly inputs: ClothPinGroupInputs;
   readonly outputs: ClothPinGroupOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: ClothPinGroupInputs = {}) {
     this.inputs = inputs;

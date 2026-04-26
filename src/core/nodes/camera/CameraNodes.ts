@@ -5,8 +5,7 @@
  */
 
 import { Camera } from 'three';
-import type { NodeBase, Domain } from '../core/types';
-import type { AttributeDomain } from '../helpers/attribute-helpers';
+import type { NodeBase, AttributeDomain } from '../core/types';
 
 // ============================================================================
 // Type Definitions
@@ -37,7 +36,7 @@ export class CameraDataNode implements CameraNodeBase {
   readonly nodeType = 'camera_data';
   readonly inputs: CameraDataInputs;
   readonly outputs: CameraDataOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: CameraDataInputs = {}) {
     this.inputs = inputs;
@@ -95,7 +94,7 @@ export class DepthOfFieldNode implements CameraNodeBase {
   readonly nodeType = 'depth_of_field';
   readonly inputs: DepthOfFieldInputs;
   readonly outputs: DepthOfFieldOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: DepthOfFieldInputs = {}) {
     this.inputs = inputs;
@@ -149,7 +148,7 @@ export class FocalLengthNode implements CameraNodeBase {
   readonly nodeType = 'focal_length';
   readonly inputs: FocalLengthInputs;
   readonly outputs: FocalLengthOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: FocalLengthInputs = {}) {
     this.inputs = inputs;
@@ -201,7 +200,7 @@ export class ViewMatrixNode implements CameraNodeBase {
   readonly nodeType = 'view_matrix';
   readonly inputs: ViewMatrixInputs;
   readonly outputs: ViewMatrixOutputs;
-  readonly domain: Domain = 'point';
+  readonly domain: AttributeDomain = 'point';
 
   constructor(inputs: ViewMatrixInputs = {}) {
     this.inputs = inputs;

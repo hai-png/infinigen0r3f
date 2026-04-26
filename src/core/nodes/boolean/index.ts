@@ -8,9 +8,11 @@ export {
   BooleanUnionNode,
   BooleanIntersectNode,
   BooleanDifferenceNode,
-  
+} from './BooleanNodes';
+
+export type {
   // Type Definitions
-  type BooleanUnionDefinition,
-  type BooleanIntersectDefinition,
-  type BooleanDifferenceDefinition,
+  BooleanUnionDefinition,
+  BooleanIntersectDefinition,
+  BooleanDifferenceDefinition,
 } from './BooleanNodes';

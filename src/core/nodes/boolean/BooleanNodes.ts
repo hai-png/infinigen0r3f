@@ -6,8 +6,8 @@
  */
 
 import { BufferGeometry, Vector3, Matrix4 } from 'three';
-import { Node, NodeSocket } from '../../core/types.js';
-import { NodeTypes } from '../../core/node-types.js';
+import { Node, NodeSocket } from '../types.js';
+import { NodeTypes } from '../core/node-types.js';
 
 // ============================================================================
 // Boolean Operation Nodes
