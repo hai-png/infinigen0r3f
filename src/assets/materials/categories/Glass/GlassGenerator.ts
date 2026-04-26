@@ -7,6 +7,7 @@ import { FixedSeed } from '../../../../core/util/math/utils';
 import { Noise3D } from '../../../../core/util/math/noise';
 
 export interface GlassParams {
+  [key: string]: unknown;
   type: 'clear' | 'frosted' | 'tinted' | 'patterned' | 'textured';
   color: Color;
   transmission: number;

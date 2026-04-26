@@ -62,6 +62,16 @@ export interface LODConfig {
   textureResolution: number;
 }
 
+/**
+ * LOD description for asset metadata
+ */
+export interface LODDescription {
+  level: number;
+  distance: number;
+  meshUrl?: string;
+  faceCount?: number;
+}
+
 // ============================================================================
 // Procedural Generator Interfaces
 // ============================================================================

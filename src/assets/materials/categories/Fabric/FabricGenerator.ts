@@ -9,6 +9,7 @@ import { FixedSeed } from '../../../../core/util/math/utils';
 import { Noise3D } from '../../../../core/util/math/noise';
 
 export interface FabricParams {
+  [key: string]: unknown;
   type: 'cotton' | 'linen' | 'wool' | 'velvet' | 'denim' | 'silk' | 'canvas';
   color: Color;
   weaveType: 'plain' | 'twill' | 'satin' | 'knit';

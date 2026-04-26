@@ -7,6 +7,7 @@ import { FixedSeed } from '../../../../core/util/math/utils';
 import { Noise3D } from '../../../../core/util/math/noise';
 
 export interface LeatherParams {
+  [key: string]: unknown;
   type: 'full-grain' | 'top-grain' | 'suede' | 'distressed' | 'patent';
   color: Color;
   roughness: number;
