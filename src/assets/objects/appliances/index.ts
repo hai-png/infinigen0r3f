@@ -1,3 +1,6 @@
-export { ApplianceBase, ApplianceParams } from './ApplianceBase';
-export { KitchenAppliances, KitchenApplianceParams } from './KitchenAppliances';
-export { LaundryAppliances, LaundryApplianceParams } from './LaundryAppliances';
+export { ApplianceBase } from './ApplianceBase';
+export type { ApplianceParams } from './ApplianceBase';
+export { KitchenAppliances } from './KitchenAppliances';
+export type { KitchenApplianceParams } from './KitchenAppliances';
+export { LaundryAppliances } from './LaundryAppliances';
+export type { LaundryApplianceParams } from './LaundryAppliances';
