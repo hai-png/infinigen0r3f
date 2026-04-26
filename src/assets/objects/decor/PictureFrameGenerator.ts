@@ -1,28 +1,280 @@
 /**
- * Auto-generated placeholder - to be fully implemented
+ * PictureFrameGenerator - Procedural picture frame generation
+ * Generates various frame styles with mats and glass
  */
-import { Group, Mesh, BoxGeometry, Material } from 'three';
+import {
+  Group,
+  Mesh,
+  PlaneGeometry,
+  BoxGeometry,
+  CylinderGeometry,
+  Material,
+  MeshStandardMaterial,
+  MeshPhysicalMaterial
+} from 'three';
 import { BaseObjectGenerator } from '../BaseObjectGenerator';
 
-export interface Params {
-  style: string;
+export type FrameStyle = 'modern' | 'classic' | 'ornate' | 'minimal' | 'rustic' | 'gallery';
+export type FrameMaterial = 'wood' | 'metal' | 'plastic' | 'composite';
+export type Orientation = 'portrait' | 'landscape' | 'square';
+
+export interface PictureFrameConfig {
+  style: FrameStyle;
+  materialType: FrameMaterial;
+  orientation: Orientation;
+  width: number;
+  height: number;
+  frameWidth: number;
+  hasMat: boolean;
+  matColor: number;
+  hasGlass: boolean;
   seed?: number;
 }
 
-export class Generator extends BaseObjectGenerator<Params> {
-  protected readonly defaultParams: Params = { style: 'default', seed: undefined };
+export class PictureFrameGenerator extends BaseObjectGenerator<PictureFrameConfig> {
+  protected readonly defaultParams: PictureFrameConfig = {
+    style: 'modern',
+    materialType: 'wood',
+    orientation: 'portrait',
+    width: 0.3,
+    height: 0.4,
+    frameWidth: 0.03,
+    hasMat: true,
+    matColor: 0xffffff,
+    hasGlass: true,
+    seed: undefined
+  };
 
-  generate(params: Partial<Params> = {}): Group {
+  generate(params: Partial<PictureFrameConfig> = {}): Group {
     const finalParams = { ...this.defaultParams, ...params };
     const group = new Group();
-    const mat = this.getMaterial('default');
-    const geom = new BoxGeometry(0.1, 0.1, 0.1);
-    const mesh = new Mesh(geom, mat);
-    group.add(mesh);
+
+    // Create backing
+    this.createBacking(group, finalParams);
+
+    // Create frame
+    this.createFrame(group, finalParams);
+
+    // Add mat if requested
+    if (finalParams.hasMat) {
+      this.createMat(group, finalParams);
+    }
+
+    // Add glass if requested
+    if (finalParams.hasGlass) {
+      this.createGlass(group, finalParams);
+    }
+
+    // Add hanging hardware
+    this.createHangingHardware(group, finalParams);
+
     return group;
   }
 
-  getVariations(): Params[] {
-    return [{ style: 'default', seed: 1 }];
+  private createBacking(group: Group, params: PictureFrameConfig): void {
+    const backingGeom = new BoxGeometry(params.width, params.height, 0.01);
+    const backingMat = new MeshStandardMaterial({ color: 0x3d2817, roughness: 0.8 });
+    const backing = new Mesh(backingGeom, backingMat);
+    backing.position.z = -0.005;
+    group.add(backing);
   }
+
+  private createFrame(group: Group, params: PictureFrameConfig): void {
+    const frameMat = this.getFrameMaterial(params.materialType, params.style);
+    const fw = params.frameWidth;
+
+    // Top and bottom
+    const horizontalGeom = new BoxGeometry(params.width + fw * 2, fw, 0.015);
+    const topFrame = new Mesh(horizontalGeom, frameMat);
+    topFrame.position.y = params.height / 2 + fw / 2;
+    group.add(topFrame);
+
+    const bottomFrame = new Mesh(horizontalGeom, frameMat);
+    bottomFrame.position.y = -params.height / 2 - fw / 2;
+    group.add(bottomFrame);
+
+    // Left and right
+    const verticalGeom = new BoxGeometry(fw, params.height, 0.015);
+    const leftFrame = new Mesh(verticalGeom, frameMat);
+    leftFrame.position.x = -params.width / 2 - fw / 2;
+    group.add(leftFrame);
+
+    const rightFrame = new Mesh(verticalGeom, frameMat);
+    rightFrame.position.x = params.width / 2 + fw / 2;
+    group.add(rightFrame);
+
+    // Add ornate details for certain styles
+    if (params.style === 'ornate' || params.style === 'classic') {
+      this.addOrnateDetails(group, params, frameMat);
+    }
+  }
+
+  private addOrnateDetails(group: Group, params: Params, material: Material): void {
+    const cornerSize = params.frameWidth * 1.3;
+    const cornerGeom = new BoxGeometry(cornerSize, cornerSize, 0.018);
+
+    const corners = [
+      [-params.width / 2 - params.frameWidth / 2, params.height / 2 + params.frameWidth / 2],
+      [params.width / 2 + params.frameWidth / 2, params.height / 2 + params.frameWidth / 2],
+      [-params.width / 2 - params.frameWidth / 2, -params.height / 2 - params.frameWidth / 2],
+      [params.width / 2 + params.frameWidth / 2, -params.height / 2 - params.frameWidth / 2]
+    ];
+
+    corners.forEach(pos => {
+      const corner = new Mesh(cornerGeom, material);
+      corner.position.set(pos[0], pos[1], 0);
+      group.add(corner);
+    });
+  }
+
+  private createMat(group: Group, params: PictureFrameConfig): void {
+    const matOverlap = 0.01;
+    const innerWidth = params.width - matOverlap * 2;
+    const innerHeight = params.height - matOverlap * 2;
+
+    // Create mat with cutout using multiple boxes
+    const matThickness = 0.005;
+    const matColor = new MeshStandardMaterial({ 
+      color: params.matColor, 
+      roughness: 0.9 
+    });
+
+    const topStrip = new Mesh(
+      new BoxGeometry(innerWidth, params.frameWidth * 0.8, matThickness),
+      matColor
+    );
+    topStrip.position.y = params.height / 2 - params.frameWidth * 0.4;
+    group.add(topStrip);
+
+    const bottomStrip = new Mesh(
+      new BoxGeometry(innerWidth, params.frameWidth * 0.8, matThickness),
+      matColor
+    );
+    bottomStrip.position.y = -params.height / 2 + params.frameWidth * 0.4;
+    group.add(bottomStrip);
+
+    const leftStrip = new Mesh(
+      new BoxGeometry(params.frameWidth * 0.8, innerHeight - params.frameWidth * 1.6, matThickness),
+      matColor
+    );
+    leftStrip.position.x = -params.width / 2 + params.frameWidth * 0.4;
+    group.add(leftStrip);
+
+    const rightStrip = new Mesh(
+      new BoxGeometry(params.frameWidth * 0.8, innerHeight - params.frameWidth * 1.6, matThickness),
+      matColor
+    );
+    rightStrip.position.x = params.width / 2 - params.frameWidth * 0.4;
+    group.add(rightStrip);
+  }
+
+  private createGlass(group: Group, params: PictureFrameConfig): void {
+    const glassGeom = new PlaneGeometry(params.width - 0.01, params.height - 0.01);
+    const glassMat = new MeshPhysicalMaterial({
+      color: 0xffffff,
+      metalness: 0.0,
+      roughness: 0.05,
+      transmission: 0.95,
+      transparent: true,
+      opacity: 0.3,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.02
+    });
+
+    const glass = new Mesh(glassGeom, glassMat);
+    glass.position.z = params.frameWidth * 0.5;
+    group.add(glass);
+  }
+
+  private createHangingHardware(group: Group, params: PictureFrameConfig): void {
+    // Wire
+    const wirePoints: [number, number, number][] = [
+      [-params.width / 2 + 0.05, params.height / 2 - 0.08, -0.01],
+      [0, params.height / 2 - 0.03, -0.01],
+      [params.width / 2 - 0.05, params.height / 2 - 0.08, -0.01]
+    ];
+
+    // Simple representation of wire as small spheres
+    const wireMat = new MeshStandardMaterial({ color: 0x666666, metalness: 0.8 });
+    wirePoints.forEach(point => {
+      const wireSeg = new Mesh(new SphereGeometry(0.003, 8, 8), wireMat);
+      wireSeg.position.set(...point);
+      group.add(wireSeg);
+    });
+
+    // Hooks
+    const hookGeom = new CylinderGeometry(0.005, 0.005, 0.02, 8);
+    const hookMat = new MeshStandardMaterial({ color: 0x888888, metalness: 0.7 });
+
+    const leftHook = new Mesh(hookGeom, hookMat);
+    leftHook.position.set(-params.width / 2 + 0.05, params.height / 2 - 0.05, -0.02);
+    leftHook.rotation.x = Math.PI / 2;
+    group.add(leftHook);
+
+    const rightHook = new Mesh(hookGeom, hookMat);
+    rightHook.position.set(params.width / 2 - 0.05, params.height / 2 - 0.05, -0.02);
+    rightHook.rotation.x = Math.PI / 2;
+    group.add(rightHook);
+  }
+
+  private getFrameMaterial(type: FrameMaterial, style: FrameStyle): Material {
+    let color: number;
+    let roughness: number;
+    let metalness: number;
+
+    switch (type) {
+      case 'wood':
+        color = style === 'rustic' ? 0x5c4033 : style === 'classic' ? 0x654321 : 0x8B4513;
+        roughness = 0.6;
+        metalness = 0.0;
+        break;
+      case 'metal':
+        color = style === 'modern' ? 0x1a1a1a : style === 'gallery' ? 0x333333 : 0x666666;
+        roughness = 0.3;
+        metalness = 0.8;
+        break;
+      case 'plastic':
+        color = style === 'minimal' ? 0x000000 : 0xffffff;
+        roughness = 0.5;
+        metalness = 0.0;
+        break;
+      case 'composite':
+        color = 0x4a4a4a;
+        roughness = 0.4;
+        metalness = 0.2;
+        break;
+      default:
+        color = 0x8B4513;
+        roughness = 0.6;
+        metalness = 0.0;
+    }
+
+    return new MeshStandardMaterial({ color, roughness, metalness });
+  }
+
+  getVariations(): Params[] {
+    const styles: FrameStyle[] = ['modern', 'classic', 'ornate', 'minimal', 'rustic', 'gallery'];
+    const materials: FrameMaterial[] = ['wood', 'metal', 'plastic', 'composite'];
+    const orientations: Orientation[] = ['portrait', 'landscape', 'square'];
+
+    return styles.flatMap(style =>
+      materials.map(material => ({
+        style,
+        materialType: material,
+        orientation: orientations[Math.floor(Math.random() * orientations.length)],
+        width: 0.2 + Math.random() * 0.4,
+        height: 0.2 + Math.random() * 0.5,
+        frameWidth: 0.02 + Math.random() * 0.05,
+        hasMat: Math.random() > 0.3,
+        matColor: Math.random() > 0.5 ? 0xffffff : 0xf5f5dc,
+        hasGlass: Math.random() > 0.2,
+        seed: Math.floor(Math.random() * 10000)
+      }))
+    );
+  }
+}
+
+// Helper for wire geometry
+class SphereGeometry {
+  constructor(radius: number, w: number, h: number) {}
 }
