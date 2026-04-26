@@ -37,6 +37,16 @@ export interface AssetMetadata {
   textureResolution?: number;
   memoryUsage?: number;
   tags?: string[];
+  name?: string;
+  url?: string;
+  type?: string;
+  category?: string;
+  triangleCount?: number;
+  vertexCount?: number;
+  materialCount?: number;
+  textureCount?: number;
+  lodLevels?: any[];
+  [key: string]: unknown;
 }
 
 /**
