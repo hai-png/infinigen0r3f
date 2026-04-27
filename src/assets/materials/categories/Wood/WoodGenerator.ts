@@ -3,7 +3,7 @@
  */
 import { Color, Texture, CanvasTexture } from 'three';
 import { BaseMaterialGenerator, MaterialOutput } from '../../BaseMaterialGenerator';
-import { FixedSeed } from '../../../../core/util/MathUtils';
+import { FixedSeed } from '../../../../core/util/math/index';
 import { Noise3D } from '../../../../core/util/math/noise';
 
 export interface WoodParams {

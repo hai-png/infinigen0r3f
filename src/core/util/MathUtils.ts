@@ -205,6 +205,11 @@ export interface RandomGenerator {
   nextFloat(min: number, max: number): number;
 }
 
+/**
+ * FixedSeed is an alias for SeededRandom for backward compatibility
+ */
+export const FixedSeed = SeededRandom;
+
 export class SeededRandom implements RandomGenerator {
   public seed: number;
 

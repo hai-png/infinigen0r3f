@@ -2,7 +2,7 @@
  * Decal Application System - Logo placement, labels, projected decals
  */
 import { Texture, CanvasTexture, Color, Vector3 } from 'three';
-import { FixedSeed } from '../../../core/util/MathUtils';
+import { FixedSeed } from '../../../../core/util/math/index';
 
 export interface DecalParams {
   type: 'logo' | 'label' | 'warning' | 'custom';

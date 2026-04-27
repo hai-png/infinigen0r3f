@@ -2,7 +2,7 @@
  * Weathering Effects - Rust, oxidation, moss, water stains, UV damage
  */
 import { Texture, CanvasTexture, Color } from 'three';
-import { FixedSeed } from '../../../core/util/MathUtils';
+import { FixedSeed } from '../../../../core/util/math/index';
 import { Noise3D } from '../../../core/util/math/noise';
 
 export interface WeatheringParams {
