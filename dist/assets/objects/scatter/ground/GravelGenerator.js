@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { NoiseUtils } from '../../../utils/NoiseUtils';
+import { NoiseUtils } from '../utils/NoiseUtils';
 /**
  * Generates gravel particles for ground cover
  * Optimized for instanced rendering of many small stones

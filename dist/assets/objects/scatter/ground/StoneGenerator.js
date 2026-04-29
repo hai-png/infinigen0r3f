@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { NoiseUtils } from '../../../utils/NoiseUtils';
+import { NoiseUtils } from '../utils/NoiseUtils';
 /**
  * Generates individual stone meshes for scatter systems
  * Distinct from pebbles by being larger, more detailed, and often unique

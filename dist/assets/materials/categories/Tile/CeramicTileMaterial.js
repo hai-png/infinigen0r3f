@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { NoiseUtils } from '../../../utils/NoiseUtils';
+import { NoiseUtils } from '../../utils/NoiseUtils';
 export class CeramicTileMaterial {
     constructor(config) {
         this.config = {

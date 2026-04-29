@@ -8,7 +8,7 @@
  * - Optimized for instanced rendering
  */
 import * as THREE from 'three';
-import { NoiseUtils } from '../../../utils/NoiseUtils';
+import { NoiseUtils } from '../utils/NoiseUtils';
 // ============================================================================
 // PebbleGenerator Class
 // ============================================================================

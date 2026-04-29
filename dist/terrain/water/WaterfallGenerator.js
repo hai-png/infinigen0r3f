@@ -11,7 +11,7 @@
  * Ported from: infinigen/terrain/water/waterfall_generator.py
  */
 import * as THREE from 'three';
-import { NoiseUtils } from '../../../co../../core/util/NoiseUtils';
+import { NoiseUtils } from '../../utils/NoiseUtils';
 export class WaterfallGenerator {
     constructor(config) {
         this.config = {

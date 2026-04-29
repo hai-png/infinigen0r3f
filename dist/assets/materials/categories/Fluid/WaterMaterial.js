@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { NoiseUtils } from '../../../utils/NoiseUtils';
+import { NoiseUtils } from '../../utils/NoiseUtils';
 export class WaterMaterial {
     constructor(config) {
         this.time = 0;
