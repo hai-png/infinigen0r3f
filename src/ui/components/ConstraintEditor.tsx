@@ -121,7 +121,7 @@ const ExpressionEditor: React.FC<{
             <input
               type="text"
               value={expression.name}
-              onChange={(e) => !readOnly && onChange({ ...expression, name: e.target.value })}
+              onChange={(e) => !readOnly && onChange({ ...expression, name: e.target.value } as Expression)}
               disabled={readOnly}
               style={{
                 flex: 1,
@@ -143,7 +143,7 @@ const ExpressionEditor: React.FC<{
             <input
               type="number"
               value={expression.value}
-              onChange={(e) => !readOnly && onChange({ ...expression, value: parseFloat(e.target.value) })}
+              onChange={(e) => !readOnly && onChange({ ...expression, value: parseFloat(e.target.value) } as Expression)}
               disabled={readOnly}
               style={{
                 flex: 1,
@@ -164,13 +164,13 @@ const ExpressionEditor: React.FC<{
             <div style={{ color: '#888', fontSize: '10px', marginBottom: '4px' }}>Binary Expression</div>
             <ExpressionEditor
               expression={expression.left}
-              onChange={(left) => onChange({ ...expression, left })}
+              onChange={(left) => onChange({ ...expression, left } as Expression)}
               readOnly={readOnly}
               depth={depth + 1}
             />
             <select
               value={expression.op}
-              onChange={(e) => onChange({ ...expression, op: e.target.value as any })}
+              onChange={(e) => onChange({ ...expression, op: e.target.value as any } as Expression)}
               disabled={readOnly}
               style={{
                 margin: '4px 0',
@@ -195,7 +195,7 @@ const ExpressionEditor: React.FC<{
             </select>
             <ExpressionEditor
               expression={expression.right}
-              onChange={(right) => onChange({ ...expression, right })}
+              onChange={(right) => onChange({ ...expression, right } as Expression)}
               readOnly={readOnly}
               depth={depth + 1}
             />
@@ -336,8 +336,8 @@ const ConstraintItem: React.FC<{
               Relation
             </label>
             <RelationSelector
-              value={constraint.relationType}
-              onChange={(rel) => onChange({ ...constraint, relationType: rel })}
+              value={(constraint.relationType ?? 'on') as RelationType}
+              onChange={(rel) => onChange({ ...constraint, relationType: rel as string })}
               availableRelations={availableRelations}
               disabled={readOnly}
             />
@@ -410,26 +410,21 @@ export const ConstraintEditor: React.FC<ConstraintEditorProps> = ({
   constraints = [],
   readOnly = false,
   availableRelations = [
-    'Touching',
-    'SupportedBy',
-    'CoPlanar',
-    'StableAgainst',
-    'Facing',
-    'Between',
-    'AccessibleFrom',
-    'ReachableFrom',
-    'InFrontOf',
-    'Aligned',
-    'Hidden',
-    'Visible',
-    'Grouped',
-    'Distributed',
-    'Coverage',
-    'SupportCoverage',
-    'Stability',
-    'Containment',
-    'Proximity'
-  ],
+    'on',
+    'inside',
+    'next_to',
+    'facing',
+    'against',
+    'above',
+    'below',
+    'left_of',
+    'right_of',
+    'between',
+    'attached',
+    'supports',
+    'covers',
+    'surrounds'
+  ] as RelationType[],
   onChange,
   onValidate
 }) => {
@@ -444,8 +439,8 @@ export const ConstraintEditor: React.FC<ConstraintEditorProps> = ({
     const newConstraint: NamedConstraint = {
       _type: 'NamedConstraint',
       name: `Constraint_${constraints.length + 1}`,
-      relationType: 'Touching',
-      args: {},
+      relationType: 'on',
+      args: [],
       weight: 1.0,
       description: ''
     };

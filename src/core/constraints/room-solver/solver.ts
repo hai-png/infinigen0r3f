@@ -66,6 +66,9 @@ export class RoomSolver {
       floorPlan: {
         gridSize: config.floorPlan?.gridSize ?? 0.5,
         minRoomArea: config.floorPlan?.minRoomArea ?? 4.0,
+        maxRoomArea: config.floorPlan?.maxRoomArea ?? 100.0,
+        aspectRatioMin: config.floorPlan?.aspectRatioMin ?? 0.5,
+        aspectRatioMax: config.floorPlan?.aspectRatioMax ?? 2.0,
         maxRooms: config.floorPlan?.maxRooms ?? 20,
         complexity: config.floorPlan?.complexity ?? 'medium',
       },
@@ -154,7 +157,7 @@ export class RoomSolver {
     // Generate initial contours based on room connectivity
     const adjacencyList = graph.getAdjacencyList();
     
-    for (const [roomId, node] of graph.rooms) {
+    for (const node of graph.rooms) {
       // Start with simple rectangular contour
       const area = node.metadata?.targetArea ?? 12.0;
       const aspectRatio = 1.0 + Math.random() * 0.5;
@@ -170,7 +173,7 @@ export class RoomSolver {
         new Vector2(-width/2, height/2),
       ];
       
-      rooms.set(roomId, contour);
+      rooms.set(node.id, contour);
     }
 
     // Position rooms using force-directed layout
@@ -260,9 +263,13 @@ export class RoomSolver {
         const j = Math.floor(Math.random() * roomIds.length);
         if (i !== j) {
           // Swap metadata that affects positioning
-          const temp = neighbor.rooms.get(roomIds[i])!.metadata;
-          neighbor.rooms.get(roomIds[i])!.metadata = neighbor.rooms.get(roomIds[j])!.metadata;
-          neighbor.rooms.get(roomIds[j])!.metadata = temp;
+          const nodeI = neighbor.get(roomIds[i]);
+          const nodeJ = neighbor.get(roomIds[j]);
+          if (nodeI && nodeJ) {
+            const temp = nodeI.metadata;
+            nodeI.metadata = nodeJ.metadata;
+            nodeJ.metadata = temp;
+          }
         }
       }
     } else if (moveType < 0.6) {
@@ -276,7 +283,7 @@ export class RoomSolver {
           if (hasEdge) {
             neighbor.removeEdge(roomIds[i], roomIds[j]);
           } else {
-            neighbor.addEdge(roomIds[i], roomIds[j], NeighborType.ADJACENT);
+            neighbor.addEdge(roomIds[i], roomIds[j], 'adjacent');
           }
         }
       }
@@ -284,7 +291,7 @@ export class RoomSolver {
       // Modify room properties
       const roomIds = neighbor.rooms.map(r => r.id);
       const roomId = roomIds[Math.floor(Math.random() * roomIds.length)];
-      const node = neighbor.rooms.get(roomId)!;
+      const node = neighbor.get(roomId)!;
       
       if (node.metadata) {
         node.metadata.targetArea = (node.metadata.targetArea ?? 12.0) * (0.9 + Math.random() * 0.2);
@@ -348,7 +355,7 @@ export class RoomSolver {
 
     for (const constraint of constraints) {
       const areAdjacent = layout.graph.areNeighbors(constraint.roomA, constraint.roomB);
-      const shouldAdjacent = constraint.type === NeighborType.ADJACENT;
+      const shouldAdjacent = constraint.type === 'adjacent';
 
       if (areAdjacent !== shouldAdjacent) {
         energy += constraint.weight;

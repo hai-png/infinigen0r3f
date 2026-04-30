@@ -376,21 +376,21 @@ export function substituteVariable(
       ...node,
       left: substituteVariable(node.left, varName, replacement) as ExpressionNode,
       right: substituteVariable(node.right, varName, replacement) as ExpressionNode,
-    };
+    } as ExpressionNode;
   }
   
   if (node.type === 'UnaryOp') {
     return {
       ...node,
       child: substituteVariable(node.child, varName, replacement) as ExpressionNode,
-    };
+    } as ExpressionNode;
   }
   
   if (node.type === 'FunctionCall') {
     return {
       ...node,
       args: node.args.map(arg => substituteVariable(arg, varName, replacement) as ExpressionNode),
-    };
+    } as ExpressionNode;
   }
   
   if (node.type === 'Comparison') {
@@ -398,7 +398,7 @@ export function substituteVariable(
       ...node,
       left: substituteVariable(node.left, varName, replacement) as ExpressionNode,
       right: substituteVariable(node.right, varName, replacement) as ExpressionNode,
-    };
+    } as ConstraintNode;
   }
   
   if (node.type === 'And' || node.type === 'Or') {
@@ -407,14 +407,14 @@ export function substituteVariable(
       children: (node.children as ConstraintNode[]).map(child => 
         substituteVariable(child, varName, replacement) as ConstraintNode
       ),
-    };
+    } as ConstraintNode;
   }
   
   if (node.type === 'Not') {
     return {
       ...node,
       child: substituteVariable(node.child, varName, replacement) as ConstraintNode,
-    };
+    } as ConstraintNode;
   }
   
   if (node.type === 'IfElse') {
@@ -423,7 +423,7 @@ export function substituteVariable(
       condition: substituteVariable(node.condition, varName, replacement) as ExpressionNode,
       thenExpr: substituteVariable(node.thenExpr, varName, replacement) as ExpressionNode,
       elseExpr: substituteVariable(node.elseExpr, varName, replacement) as ExpressionNode,
-    };
+    } as ExpressionNode;
   }
   
   return node;
@@ -455,10 +455,10 @@ function eliminateImplications(node: ConstraintNode): ConstraintNode {
     return {
       ...node,
       children: (node.children as ConstraintNode[]).map(eliminateImplications),
-    };
+    } as ConstraintNode;
   }
   if (node.type === 'Not') {
-    return { ...node, child: eliminateImplications(node.child) };
+    return { ...node, child: eliminateImplications(node.child) } as ConstraintNode;
   }
   return node;
 }
@@ -471,14 +471,14 @@ function moveNotInward(node: ConstraintNode): ConstraintNode {
       return {
         type: 'Or',
         children: child.children.map(c => moveNotInward({ type: 'Not', child: c })),
-      };
+      } as ConstraintNode;
     }
     if (child.type === 'Or') {
       // ¬(A ∨ B) → ¬A ∧ ¬B
       return {
         type: 'And',
         children: child.children.map(c => moveNotInward({ type: 'Not', child: c })),
-      };
+      } as ConstraintNode;
     }
     if (child.type === 'Not') {
       // ¬¬A → A
@@ -490,7 +490,7 @@ function moveNotInward(node: ConstraintNode): ConstraintNode {
     return {
       ...node,
       children: (node.children as ConstraintNode[]).map(moveNotInward),
-    };
+    } as ConstraintNode;
   }
   
   return node;
@@ -501,7 +501,7 @@ function distributeOrOverAnd(node: ConstraintNode): ConstraintNode {
     return {
       ...node,
       children: (node.children as ConstraintNode[]).map(distributeOrOverAnd),
-    };
+    } as ConstraintNode;
   }
   
   if (node.type === 'Or') {
@@ -510,7 +510,7 @@ function distributeOrOverAnd(node: ConstraintNode): ConstraintNode {
     // Find AND children
     const andIndex = children.findIndex(c => c.type === 'And');
     if (andIndex === -1) {
-      return { ...node, children };
+      return { ...node, children } as ConstraintNode;
     }
     
     const andNode = children[andIndex] as any;
@@ -525,7 +525,7 @@ function distributeOrOverAnd(node: ConstraintNode): ConstraintNode {
     return {
       type: 'And',
       children: distributed.map(distributeOrOverAnd),
-    };
+    } as ConstraintNode;
   }
   
   return node;
@@ -557,8 +557,8 @@ export function constraintsEqual(a: ConstraintNode, b: ConstraintNode): boolean 
   }
   
   if (a.type === 'And' || a.type === 'Or') {
-    const aChildren = a.children;
-    const bChildren = (b as any).children;
+    const aChildren = a.children as ConstraintNode[];
+    const bChildren = (b as any).children as ConstraintNode[];
     if (aChildren.length !== bChildren.length) return false;
     return aChildren.every((c, i) => constraintsEqual(c, bChildren[i]));
   }
@@ -622,7 +622,7 @@ export function estimateComplexity(node: ConstraintNode): number {
   }
   
   if (node.type === 'And' || node.type === 'Or') {
-    return baseCost + node.children.reduce((sum, c) => sum + estimateComplexity(c), 0);
+    return baseCost + (node.children as ConstraintNode[]).reduce((sum, c) => sum + estimateComplexity(c), 0);
   }
   
   if (node.type === 'Not') {

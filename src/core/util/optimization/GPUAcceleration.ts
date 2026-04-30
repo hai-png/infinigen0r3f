@@ -9,6 +9,21 @@ import type { Constraint, Problem } from '../../constraints/language/types';
 import type { State } from '../../constraints/evaluator/state';
 import { evaluateNode } from '../../constraints/evaluator/evaluate';
 
+// WebGPU type declarations (for environments without @webgpu/types)
+declare global {
+  interface GPUAdapter {
+    limits: GPUSupportedLimits;
+  }
+  interface GPUSupportedLimits {
+    maxStorageBufferBindingSize: number;
+    maxComputeWorkgroupStorageSize: number;
+    maxComputeInvocationsPerWorkgroup: number;
+    maxStorageBuffersPerShaderStage: number;
+    maxBufferSize: number;
+    maxComputeWorkgroupsPerDimension: number;
+  }
+}
+
 // ============================================================================
 // Types & Interfaces
 // ============================================================================
@@ -17,7 +32,7 @@ export interface GPUContext {
   device: GPUDevice;
   adapter: GPUAdapter;
   queue: GPUQueue;
-  limits: GPUSupportedLimits;
+  limits: Record<string, number>;
 }
 
 export interface GPUConstraintBuffers {
@@ -219,8 +234,8 @@ export function createGPUConstraintBuffers(
   for (let i = 0; i < problem.constraints.length; i++) {
     const c = problem.constraints[i];
     const offset = i * 8;
-    constraintData[offset] = c.id;
-    constraintData[offset + 1] = c.type;
+    constraintData[offset] = typeof c.id === 'number' ? c.id : 0;
+    constraintData[offset + 1] = typeof c.type === 'number' ? c.type : 0;
     constraintData[offset + 2] = c.exprOffset || 0;
     constraintData[offset + 3] = c.exprCount || 0;
     constraintData[offset + 4] = c.weight || 1.0;
@@ -339,10 +354,10 @@ export function createEvaluationPipeline(
   const bindGroup = device.createBindGroup({
     layout: bindGroupLayout,
     entries: [
-      { binding: 0, resource: { buffer: buffers.constraintBuffer } },
-      { binding: 1, resource: { buffer: buffers.expressionBuffer } },
-      { binding: 2, resource: { buffer: buffers.objectBuffer } },
-      { binding: 3, resource: { buffer: buffers.resultBuffer } },
+      { binding: 0, resource: { buffer: buffers.constraintBuffer } as any },
+      { binding: 1, resource: { buffer: buffers.expressionBuffer } as any },
+      { binding: 2, resource: { buffer: buffers.objectBuffer } as any },
+      { binding: 3, resource: { buffer: buffers.resultBuffer } as any },
     ],
   });
 
@@ -357,7 +372,7 @@ export function createEvaluationPipeline(
 export async function evaluateConstraintsGPU(
   problem: Problem,
   state: State,
-  config: GPUOptimizationConfig = {}
+  config: Partial<GPUOptimizationConfig> = {}
 ): Promise<GPUEvaluationResult> {
   const startTime = performance.now();
   
@@ -452,7 +467,7 @@ export function evaluateConstraintsCPU(
 export async function evaluateStatesInParallel(
   problem: Problem,
   states: State[],
-  config: GPUOptimizationConfig = {}
+  config: Partial<GPUOptimizationConfig> = {}
 ): Promise<GPUEvaluationResult[]> {
   const batchSize = config.batchSize || 1024;
   const results: GPUEvaluationResult[] = [];

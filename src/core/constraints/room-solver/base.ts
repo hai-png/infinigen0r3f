@@ -11,6 +11,7 @@ export interface RoomNode {
   level: number;
   area?: number;
   centroid?: [number, number];
+  metadata?: Record<string, any>;
 }
 
 /** Neighbor type for room graph edges */

@@ -107,7 +107,12 @@ export function useInfinigenSolver(
     const initialState: SolverState = {
       objects: new Map(initialObjects.map(obj => [obj.id, obj])),
       iteration: 0,
-      energy: Infinity
+      energy: Infinity,
+      currentScore: Infinity,
+      bestScore: Infinity,
+      assignments: new Map(),
+      lastMove: null,
+      lastMoveAccepted: false
     };
 
     setState(initialState);
@@ -140,7 +145,7 @@ export function useInfinigenSolver(
         const step = () => {
           try {
             // Perform one iteration (simplified - actual implementation would use worker)
-            const nextState = solverRef.current!.step(state, constraints);
+            const nextState = solverRef.current!.step(state, {} as any);
             
             currentIteration++;
             const newProgress = (currentIteration / maxIterations) * 100;
@@ -193,7 +198,12 @@ export function useInfinigenSolver(
     const initialState: SolverState = {
       objects: new Map(initialObjects.map(obj => [obj.id, obj])),
       iteration: 0,
-      energy: Infinity
+      energy: Infinity,
+      currentScore: Infinity,
+      bestScore: Infinity,
+      assignments: new Map(),
+      lastMove: null,
+      lastMoveAccepted: false
     };
 
     setState(initialState);
@@ -216,8 +226,8 @@ export function useInfinigenSolver(
 
     const updatedObj: ObjectState = {
       ...obj,
-      position,
-      rotation
+      position: { x: position.x, y: position.y, z: position.z },
+      rotation: { x: rotation.x, y: rotation.y, z: rotation.z }
     };
 
     const newObjects = new Map(state.objects);
@@ -255,8 +265,8 @@ export function useSolverVisualization(state: SolverState | null) {
     state.objects.forEach((objState, id) => {
       const object = scene.getObjectByName(id);
       if (object) {
-        object.position.copy(objState.position);
-        object.quaternion.copy(objState.rotation);
+        object.position.copy(new THREE.Vector3(objState.position.x, objState.position.y, objState.position.z));
+        object.quaternion.copy(new THREE.Quaternion(objState.rotation.x, objState.rotation.y, objState.rotation.z));
       }
     });
   });

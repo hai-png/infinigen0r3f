@@ -524,12 +524,13 @@ export interface GeometryNodeDefinition<T = any> extends NodeDefinition<T> {
 /**
  * Node execution context for shader/geometry node execution
  */
-export interface NodeExecutionContext {
+export interface NodeExecutionContext<T = any> {
   variables: Map<string, any>;
   functions: Map<string, (...args: any[]) => any>;
   depth: number;
   maxDepth: number;
   metadata: Record<string, any>;
+  node?: T;
 }
 
 /** Node domain type alias */
