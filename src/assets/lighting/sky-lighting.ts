@@ -18,6 +18,10 @@ export interface SkyConfig {
   ambientIntensity: number;
   skyColor: THREE.Color;
   groundColor: THREE.Color;
+  /** Seed for randomization */
+  seed?: number;
+  /** Time of day (0-24 hours) */
+  hour?: number;
 }
 
 export const DEFAULT_SKY_CONFIG: SkyConfig = {
@@ -34,10 +38,25 @@ export const DEFAULT_SKY_CONFIG: SkyConfig = {
 };
 
 export function setupSkyLighting(
-  scene: THREE.Scene,
-  config: Partial<SkyConfig> = {}
-): { sunLight: THREE.DirectionalLight; ambientLight: THREE.AmbientLight } {
+  sceneOrConfig: THREE.Scene | Partial<SkyConfig>,
+  configOrUndefined?: Partial<SkyConfig>
+): { sunLight: THREE.DirectionalLight; ambientLight: THREE.AmbientLight } | THREE.Group {
+  let scene: THREE.Scene | null = null;
+  let config: Partial<SkyConfig> = {};
+
+  if (sceneOrConfig instanceof THREE.Scene) {
+    scene = sceneOrConfig;
+    config = configOrUndefined || {};
+  } else {
+    config = sceneOrConfig;
+  }
+
   const fullConfig = { ...DEFAULT_SKY_CONFIG, ...config };
+  // Map hour to elevation/azimuth if provided
+  if (fullConfig.hour !== undefined) {
+    fullConfig.elevation = Math.max(0, 90 - Math.abs(fullConfig.hour - 12) * 7.5);
+    fullConfig.azimuth = fullConfig.hour < 12 ? 90 + fullConfig.hour * 7.5 : 180;
+  }
 
   const sunLight = new THREE.DirectionalLight(0xffffff, fullConfig.sunIntensity);
   const phi = THREE.MathUtils.degToRad(90 - fullConfig.elevation);
@@ -47,8 +66,18 @@ export function setupSkyLighting(
 
   const ambientLight = new THREE.AmbientLight(fullConfig.skyColor, fullConfig.ambientIntensity);
 
-  scene.add(sunLight);
-  scene.add(ambientLight);
+  if (scene) {
+    scene.add(sunLight);
+    scene.add(ambientLight);
+  }
+
+  // If called with just config (no scene), return a Group
+  if (!scene) {
+    const group = new THREE.Group();
+    group.add(sunLight);
+    group.add(ambientLight);
+    return group;
+  }
 
   return { sunLight, ambientLight };
 }

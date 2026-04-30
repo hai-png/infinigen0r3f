@@ -140,4 +140,5 @@ export type ConstraintOperator =
 
 export type DomainType =
   | 'object_set' | 'numeric' | 'pose' | 'bbox' | 'boolean'
-  | 'NumericDomain' | 'ObjectSetDomain' | 'PoseDomain' | 'BBoxDomain' | 'BooleanDomain';
+  | 'NumericDomain' | 'ObjectSetDomain' | 'PoseDomain' | 'BBoxDomain' | 'BooleanDomain'
+  | 'point' | 'edge' | 'face' | 'face_corner' | 'spline' | 'instance';

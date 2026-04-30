@@ -15,6 +15,10 @@ export interface DensityConfig {
   biomeWeight: number;
   noiseScale: number;
   noiseStrength: number;
+  /** Minimum altitude for placement */
+  altitudeMin?: number;
+  /** Maximum altitude for placement */
+  altitudeMax?: number;
 }
 
 export class DensityFilter {

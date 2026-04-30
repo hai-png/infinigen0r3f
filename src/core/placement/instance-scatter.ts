@@ -17,6 +17,10 @@ export interface ScatterConfig {
   upVector: THREE.Vector3;
   castShadows: boolean;
   receiveShadows: boolean;
+  /** Number of instances (alternative to density*area) */
+  count?: number;
+  /** Align instances to surface normals */
+  alignToSurface?: boolean;
 }
 
 export class InstanceScatter {
@@ -35,6 +39,21 @@ export class InstanceScatter {
       receiveShadows: true,
       ...config,
     };
+  }
+
+  /** Scatter objects on a mesh surface */
+  async scatterOnMesh(
+    prototype: THREE.Object3D,
+    surface: THREE.Mesh | THREE.BufferGeometry,
+    densityFilter?: DensityFilter | any
+  ): Promise<THREE.InstancedMesh> {
+    const geometry = prototype instanceof THREE.Mesh ? prototype.geometry : new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshStandardMaterial();
+    const count = this.config.count ?? Math.floor(this.config.density * this.config.area);
+    const mesh = new THREE.InstancedMesh(geometry, material, count);
+    mesh.castShadow = this.config.castShadows;
+    mesh.receiveShadow = this.config.receiveShadows;
+    return mesh;
   }
 
   scatter(

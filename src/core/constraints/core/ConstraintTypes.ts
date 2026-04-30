@@ -85,8 +85,9 @@ export interface Room {
 }
 
 export type ConstraintViolation = {
-  constraint: Constraint;
-  severity: number;
+  constraint?: Constraint;
+  type?: string;
+  severity: number | string;
   message: string;
   suggestion?: string;
 };

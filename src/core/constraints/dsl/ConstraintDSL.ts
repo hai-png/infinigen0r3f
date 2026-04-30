@@ -63,7 +63,8 @@ export enum ASTNodeType {
   RETURN_STATEMENT = 'RETURN_STATEMENT',
   IF_STATEMENT = 'IF_STATEMENT',
   FOR_STATEMENT = 'FOR_STATEMENT',
-  VARIABLE_DECLARATION = 'VARIABLE_DECLARATION'
+  VARIABLE_DECLARATION = 'VARIABLE_DECLARATION',
+  EXPRESSION_STATEMENT = 'EXPRESSION_STATEMENT'
 }
 
 /**
@@ -83,6 +84,18 @@ export interface ASTNode {
 export interface Program extends ASTNode {
   type: ASTNodeType.PROGRAM;
   body: (ConstraintDeclaration | FunctionDeclaration | Statement)[];
+}
+
+/**
+ * Function declaration
+ */
+export interface FunctionDeclaration extends ASTNode {
+  type: ASTNodeType.FUNCTION_DECLARATION;
+  id: Identifier;
+  params: Parameter[];
+  body: BlockStatement;
+  generator: boolean;
+  async: boolean;
 }
 
 /**
@@ -771,7 +784,7 @@ export class ConstraintParser {
 
     return {
       type: ASTNodeType.CONSTRAINT_DECLARATION,
-      name,
+      name: name as unknown as Identifier,
       parameters: params,
       body,
       priority,
@@ -786,7 +799,7 @@ export class ConstraintParser {
 
     return {
       type: ASTNodeType.FUNCTION_DECLARATION,
-      id: name,
+      id: name as unknown as Identifier,
       params,
       body,
       generator: false,
@@ -812,7 +825,7 @@ export class ConstraintParser {
   }
 
   private parseParameter(): Parameter {
-    const name = this.consume(TokenType.IDENTIFIER, 'Expected parameter name');
+    const paramToken = this.consume(TokenType.IDENTIFIER, 'Expected parameter name');
     
     let typeAnnotation: TypeAnnotation | undefined;
     if (this.match(TokenType.COLON)) {
@@ -824,7 +837,7 @@ export class ConstraintParser {
       defaultValue = this.parseExpression();
     }
 
-    return { name, typeAnnotation, defaultValue };
+    return { name: paramToken as unknown as Identifier, typeAnnotation, defaultValue };
   }
 
   private parseTypeAnnotation(): TypeAnnotation {
@@ -850,9 +863,9 @@ export class ConstraintParser {
 
   private parseDomainType(): DomainType {
     const token = this.consume(TokenType.IDENTIFIER, 'Expected domain type');
-    const validDomains: DomainType[] = ['point', 'edge', 'face', 'face_corner', 'spline', 'instance'];
+    const validDomains: string[] = ['point', 'edge', 'face', 'face_corner', 'spline', 'instance'];
     
-    if (!validDomains.includes(token.name as DomainType)) {
+    if (!validDomains.includes(token.name as string)) {
       throw new Error(`Invalid domain type '${token.name}' at line ${token.line}`);
     }
 
@@ -999,7 +1012,7 @@ export class ConstraintParser {
         init = this.parseExpression();
       }
       
-      declarations.push({ id, init });
+      declarations.push({ id: id as unknown as Identifier, init });
     } while (this.match(TokenType.COMMA));
 
     this.consumeSemicolon();
@@ -1193,7 +1206,7 @@ export class ConstraintParser {
         expr = {
           type: ASTNodeType.MEMBER_EXPRESSION,
           object: expr,
-          property,
+          property: property as unknown as Identifier,
           computed: false
         };
       } else {
@@ -1320,7 +1333,7 @@ export class ConstraintParser {
       }
 
       properties.push({
-        key,
+        key: key as unknown as (Identifier | Literal),
         value,
         kind: 'init',
         method: false,
@@ -1368,8 +1381,10 @@ export class ConstraintParser {
     return false;
   }
 
-  private check(type: TokenType): boolean {
-    return this.peek().type === type;
+  private check(type: TokenType, value?: string): boolean {
+    if (this.peek().type !== type) return false;
+    if (value !== undefined && String(this.peek().value) !== value) return false;
+    return true;
   }
 
   private checkNext(value: string): boolean {

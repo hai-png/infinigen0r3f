@@ -403,15 +403,41 @@ export class NodeWrangler {
    * Add a node to the graph - convenience method matching Python API
    * Creates a node instance and adds it to the active group
    */
-  addNode(nodeType: any, params?: Record<string, any>): NodeInstance {
-    const properties = params || {};
-    const node = this.newNode(nodeType, undefined, undefined, properties);
-    
-    // Apply params to node properties
-    if (params) {
-      for (const [key, value] of Object.entries(params)) {
-        node.properties[key] = value;
+  addNode(nodeType: any, nameOrParams?: string | Record<string, any>, locationOrProps?: [number, number] | Record<string, any>): NodeInstance {
+    let nodeName: string | undefined;
+    let properties: Record<string, any> = {};
+    let nodeLocation: [number, number] | undefined;
+
+    if (typeof nameOrParams === 'string') {
+      nodeName = nameOrParams;
+      if (locationOrProps) {
+        if (Array.isArray(locationOrProps)) {
+          nodeLocation = locationOrProps;
+        } else if ('x' in locationOrProps && 'y' in locationOrProps) {
+          nodeLocation = [locationOrProps.x, locationOrProps.y];
+          const { x, y, ...rest } = locationOrProps;
+          properties = rest;
+        } else {
+          properties = locationOrProps;
+        }
       }
+    } else if (nameOrParams) {
+      // It's a params object - check for x/y location
+      const params = nameOrParams;
+      if ('x' in params && 'y' in params) {
+        nodeLocation = [params.x, params.y];
+        const { x, y, ...rest } = params;
+        properties = rest;
+      } else {
+        properties = params;
+      }
+    }
+
+    const node = this.newNode(nodeType, nodeName, nodeLocation, properties);
+    
+    // Apply properties to node
+    for (const [key, value] of Object.entries(properties)) {
+      node.properties[key] = value;
     }
     
     return node;
@@ -589,13 +615,23 @@ export class NodeWrangler {
 export { NodeSocket } from './socket-types';
 
 /** Create a new NodeWrangler pre-configured for geometry node trees */
-export function createGeometryNodeTree(): NodeWrangler {
-  return new NodeWrangler();
+export function createGeometryNodeTree(name?: string): NodeWrangler {
+  const nw = new NodeWrangler();
+  if (name) {
+    const group = nw.getActiveGroup();
+    group.name = name;
+  }
+  return nw;
 }
 
 /** Create a new NodeWrangler pre-configured for material node trees */
-export function createMaterialNodeTree(): NodeWrangler {
-  return new NodeWrangler();
+export function createMaterialNodeTree(name?: string): NodeWrangler {
+  const nw = new NodeWrangler();
+  if (name) {
+    const group = nw.getActiveGroup();
+    group.name = name;
+  }
+  return nw;
 }
 
 export default NodeWrangler;

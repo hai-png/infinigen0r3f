@@ -109,7 +109,7 @@ export class Variable extends Node {
 /**
  * Domain types for variables
  */
-export type DomainType = 'object_set' | 'numeric' | 'pose' | 'bbox' | 'boolean' | 'NumericDomain' | 'ObjectSetDomain' | 'PoseDomain' | 'BBoxDomain' | 'BooleanDomain';
+export type DomainType = 'object_set' | 'numeric' | 'pose' | 'bbox' | 'boolean' | 'NumericDomain' | 'ObjectSetDomain' | 'PoseDomain' | 'BBoxDomain' | 'BooleanDomain' | 'point' | 'edge' | 'face' | 'face_corner' | 'spline' | 'instance';
 
 /**
  * Base class for domains
@@ -980,6 +980,10 @@ export type ExpressionNode =
   | UnaryOpNode
   | FunctionCallExprNode
   | IfElseNode
+  | RelationNode
+  | QuantifierNode
+  | SetExpressionNode
+  | FilterObjectsNode
   | Node;
 
 /**
@@ -1009,6 +1013,8 @@ export interface BinaryOpNode {
   left: ExpressionNode;
   right: ExpressionNode;
   domain?: Domain;
+  /** Operation type discriminator ('Arithmetic' | 'Boolean' | 'Comparison') */
+  opType?: string;
 }
 
 /**
@@ -1053,6 +1059,11 @@ export type Expression = ExpressionNode;
  * Alias for constant in constraint language
  */
 export type Constant = ConstantExprNode;
+
+/**
+ * Alias for ConstantExprNode (used by domain-substitute)
+ */
+export type ConstantNode = ConstantExprNode;
 
 /**
  * A constraint in the constraint language (structured form)
@@ -1137,7 +1148,7 @@ export type RelationType =
  * Relation node in the constraint language
  */
 export interface RelationNode {
-  type: 'relation';
+  type: 'Relation';
   relation: RelationType;
   subject: ExpressionNode;
   object: ExpressionNode;
@@ -1152,7 +1163,7 @@ export interface RelationNode {
  * Set expression node
  */
 export interface SetExpressionNode {
-  type: 'set';
+  type: 'SetExpression';
   operation: 'union' | 'intersection' | 'difference' | 'complement';
   operands: ExpressionNode[];
   /** Alias for operands - used by domain-substitute */
@@ -1163,7 +1174,7 @@ export interface SetExpressionNode {
  * Filter objects node
  */
 export interface FilterObjectsNode {
-  type: 'filter';
+  type: 'FilterObjects';
   predicate: ExpressionNode;
   source?: ExpressionNode;
   /** Alias for predicate - used by domain-substitute */
@@ -1187,8 +1198,10 @@ export type Item = VariableExprNode;
  * Quantifier node - represents ForAll/Exists/SumOver/MeanOver quantifiers
  */
 export interface QuantifierNode {
-  type: 'ForAll' | 'Exists' | 'SumOver' | 'MeanOver' | 'MaxOver' | 'MinOver';
+  type: 'ForAll' | 'Exists' | 'SumOver' | 'MeanOver' | 'MaxOver' | 'MinOver' | 'Quantifier';
   variable: string;
+  /** Alias for variable - used by domain-substitute */
+  boundVar: string;
   domain: Domain;
   body: ExpressionNode;
 }

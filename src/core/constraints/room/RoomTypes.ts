@@ -97,16 +97,16 @@ export interface Window {
  */
 export interface Room {
   id: string;
-  name: string;
+  name?: string;
   type: RoomType;
   properties: RoomProperties;
-  polygon: THREE.Vector2[];
-  center: THREE.Vector2;
+  polygon?: THREE.Vector2[];
+  center?: THREE.Vector2;
   area: number;
   volume: number;
   doors: Door[];
   windows: Window[];
-  neighbors: string[];
-  floorLevel: number;
+  neighbors?: string[];
+  floorLevel?: number;
   bounds: RoomBounds;
 }

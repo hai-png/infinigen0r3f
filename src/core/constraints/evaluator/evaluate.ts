@@ -7,9 +7,9 @@
  * Supports loss computation, violation counting, and memoization.
  */
 
-import { Node, Problem, ForAll, SumOver, MeanOver, Item, SceneConstant, DebugPrint } from '../language/types';
-import { BoolOperatorExpression, InRange, Constant } from '../language/expression';
-import { Domain } from '../reasoning/domain';
+import { Node, Domain, Problem as ProblemType } from '../language/types';
+import { BoolOperatorExpression, BoolConstant, ScalarConstant } from '../language/expression';
+import { Domain as DomainClass } from '../reasoning/domain';
 import { constraintDomain, domainFinalized } from '../reasoning/constraint-domain';
 import { State, ObjectState } from './state';
 import { memoKey, evictMemoForMove, resetBVHCache } from './eval-memo';
@@ -27,9 +27,12 @@ const SPECIAL_CASE_NODES = new Set([
   'DebugPrint'
 ]);
 
+// Quantifier node types for string-based checking
+const QUANTIFIER_TYPES = new Set(['ForAll', 'SumOver', 'MeanOver', 'MaxOver', 'MinOver']);
+
 // Aggregation functions for gather operations
 const gatherFuncs: Record<string, (values: number[]) => number> = {
-  'ForAll': (vs) => vs.every(v => v !== 0 && v !== false) ? 1 : 0,
+  'ForAll': (vs) => vs.every(v => !!(v as any)) ? 1 : 0,
   'SumOver': (vs) => vs.reduce((a, b) => a + b, 0),
   'MeanOver': (vs) => vs.length > 0 ? vs.reduce((a, b) => a + b, 0) / vs.length : 0
 };
@@ -38,8 +41,8 @@ const gatherFuncs: Record<string, (values: number[]) => number> = {
  * Compute the value of a constraint node
  */
 function computeNodeVal(node: Node, state: State, memo: Map<any, any>): any {
-  // Handle special case nodes
-  if (node instanceof SceneConstant) {
+  // Handle special case nodes using type string checks
+  if (node.type === 'SceneConstant') {
     return new Set(
       Array.from(state.objs.entries())
         .filter(([_, obj]) => obj.active)
@@ -47,8 +50,8 @@ function computeNodeVal(node: Node, state: State, memo: Map<any, any>): any {
     );
   }
 
-  if (node instanceof ForAll || node instanceof SumOver || node instanceof MeanOver) {
-    const { objs, var: varName, pred } = node;
+  if (QUANTIFIER_TYPES.has(node.type)) {
+    const { objs, var: varName, pred } = node as any;
     const loopOverObjs = evaluateNode(objs, state, memo);
     
     const results: number[] = [];
@@ -58,11 +61,11 @@ function computeNodeVal(node: Node, state: State, memo: Map<any, any>): any {
       results.push(evaluateNode(pred, state, memoSub));
     }
     
-    const gatherFunc = gatherFuncs[node.constructor.name];
+    const gatherFunc = gatherFuncs[node.type];
     return gatherFunc(results);
   }
 
-  if (node instanceof Item) {
+  if (node.type === 'Item') {
     throw new Error(`_computeNodeVal encountered undefined variable ${node}. Available: ${Array.from(memo.keys())}`);
   }
 
@@ -84,16 +87,16 @@ function computeNodeVal(node: Node, state: State, memo: Map<any, any>): any {
     return implFunc(node, state, childVals, kwargs);
   }
 
-  if (node instanceof Problem) {
+  if (node.type === 'Problem') {
     throw new TypeError('evaluateNode is invalid for Problem nodes, please use evaluateProblem');
   }
 
-  if (node instanceof DebugPrint) {
-    const res = evaluateNode(node.val, state, memo);
+  if (node.type === 'DebugPrint') {
+    const res = evaluateNode((node as any).val, state, memo);
     const varAssignments = Array.from(memo.entries())
       .filter(([k, _]) => typeof k === 'string' && k.startsWith('var_'))
       .map(([_, v]) => v);
-    console.log(`cl.debugprint ${node.msg}: ${res}`, varAssignments);
+    console.log(`cl.debugprint ${(node as any).msg}: ${res}`, varAssignments);
     return res;
   }
 
@@ -116,11 +119,11 @@ export function relevant(node: Node, filter: Domain | null): boolean {
 
   // Handle object set expressions
   if (node instanceof cl.ObjectSetExpression) {
-    const d = constraintDomain(node, true);
+    const d = constraintDomain(node);
     if (!domainFinalized(d as any)) {
       throw new RuntimeError(`relevant encountered unfinalized domain: ${d}`);
     }
-    const res = d.intersects(filter, true);
+    const res = d.intersects(filter as unknown as import('../language/types').Domain);
     console.debug(`relevant got ${res} for domain=${d}, filter=${filter}`);
     return res;
   }
@@ -200,24 +203,24 @@ export function violCount(
 
   // Handle conjunctions and problems
   if ((node instanceof BoolOperatorExpression && (node.func as string) === 'and') ||
-      node instanceof Problem) {
-    const constraints = node instanceof Problem ? node.constraints : (node as any).operands;
+      node.type === 'Problem') {
+    const constraints = node.type === 'Problem' ? (node as any).constraints : (node as any).operands;
     res = constraints.reduce((sum: number, c: Node) => sum + violCount(c, state, memo, filter), 0);
   }
   
   // Handle in_range
-  else if (node instanceof InRange) {
-    const valRes = evaluateNode(node.val, state, memo);
+  else if (node.type === 'in_range') {
+    const valRes = evaluateNode((node as any).val, state, memo);
     
-    if (valRes < node.low) {
-      res = node.low - valRes;
-    } else if (valRes > node.high) {
-      res = valRes - node.high;
+    if (valRes < (node as any).low) {
+      res = (node as any).low - valRes;
+    } else if (valRes > (node as any).high) {
+      res = valRes - (node as any).high;
     } else {
       res = 0;
     }
     
-    if (!relevant(node.val, filter)) {
+    if (!relevant((node as any).val, filter)) {
       res = 0;
     }
   }
@@ -233,8 +236,8 @@ export function violCount(
   }
   
   // Handle ForAll
-  else if (node instanceof ForAll) {
-    const { objs, var: varName, pred } = node;
+  else if (QUANTIFIER_TYPES.has(node.type)) {
+    const { objs, var: varName, pred } = node as any;
     let viol = 0;
     const loopObjs = evaluateNode(objs, state, memo);
     
@@ -272,8 +275,9 @@ export function violCount(
   }
   
   // Handle boolean constants
-  else if (node instanceof Constant && typeof node.value === 'boolean') {
-    res = node.value ? 0 : 1;
+  else if ((node instanceof BoolConstant) || (node instanceof ScalarConstant && typeof node.value === 'boolean')) {
+    const boolVal = node instanceof BoolConstant ? node.value : (node as ScalarConstant).value;
+    res = boolVal ? 0 : 1;
   }
   
   // Handle OR
@@ -298,7 +302,7 @@ export function violCount(
   
   else {
     throw new NotImplementedError(
-      `${node.constructor.name}(...) is not supported for hard constraints. Please use an alternative.`
+      `Node is not supported for hard constraints. Please use an alternative.`
     );
   }
 
@@ -370,7 +374,7 @@ export class EvalResult {
  * Evaluate an entire constraint problem
  */
 export function evaluateProblem(
-  problem: Problem,
+  problem: ProblemType,
   state: State,
   filter: Domain | null = null,
   memo: Map<any, any> | null = null,

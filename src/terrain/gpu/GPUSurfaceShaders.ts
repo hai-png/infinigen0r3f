@@ -27,12 +27,12 @@ const DEFAULT_SHADER_CONFIG: SurfaceShaderConfig = {
  * Vertex shader for GPU surface displacement
  */
 const SURFACE_VERTEX_SHADER = `
-  ${this.config.precision} attribute vec3 position;
-  ${this.config.precision} attribute vec2 uv;
-  ${this.config.precision} uniform sampler2D kernelParams;
-  ${this.config.precision} uniform sampler2D heightMap;
-  ${this.config.precision} uniform float displacementScale;
-  ${this.config.precision} uniform int activeKernelCount;
+  {{precision}} attribute vec3 position;
+  {{precision}} attribute vec2 uv;
+  {{precision}} uniform sampler2D kernelParams;
+  {{precision}} uniform sampler2D heightMap;
+  {{precision}} uniform float displacementScale;
+  {{precision}} uniform int activeKernelCount;
   
   varying vec3 vWorldPosition;
   varying vec2 vUv;
@@ -42,7 +42,7 @@ const SURFACE_VERTEX_SHADER = `
     vUv = uv;
     
     // Sample height from GPU-computed heightmap
-    ${this.config.precision} float height = texture2D(heightMap, uv).r;
+    {{precision}} float height = texture2D(heightMap, uv).r;
     
     // Apply displacement along normal
     vec3 displacedPosition = position + normal * height * displacementScale;
@@ -58,20 +58,20 @@ const SURFACE_VERTEX_SHADER = `
  * Fragment shader for surface visualization
  */
 const SURFACE_FRAGMENT_SHADER = `
-  ${this.config.precision} varying vec3 vWorldPosition;
-  ${this.config.precision} varying vec2 vUv;
-  ${this.config.precision} varying vec3 vNormal;
-  
-  ${this.config.precision} uniform vec3 baseColor;
-  ${this.config.precision} uniform float roughness;
-  ${this.config.precision} uniform float metalness;
-  
+  {{precision}} varying vec3 vWorldPosition;
+  {{precision}} varying vec2 vUv;
+  {{precision}} varying vec3 vNormal;
+
+  {{precision}} uniform vec3 baseColor;
+  {{precision}} uniform float roughness;
+  {{precision}} uniform float metalness;
+
   void main() {
     // Simple Lambertian lighting
-    ${this.config.precision} vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-    ${this.config.precision} float diffuse = max(dot(vNormal, lightDir), 0.0);
-    
-    ${this.config.precision} vec3 color = baseColor * (0.3 + 0.7 * diffuse);
+    {{precision}} vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+    {{precision}} float diffuse = max(dot(vNormal, lightDir), 0.0);
+
+    {{precision}} vec3 color = baseColor * (0.3 + 0.7 * diffuse);
     
     gl_FragColor = vec4(color, 1.0);
   }
@@ -242,7 +242,7 @@ export class GPUSurfaceShaders {
    */
   private patchShaderPrecision(shader: string): string {
     const precision = this.config.precision;
-    return shader.replace(/\$\{this\.config\.precision\}/g, precision);
+    return shader.replace(/\{\{precision\}\}/g, precision);
   }
 
   /**

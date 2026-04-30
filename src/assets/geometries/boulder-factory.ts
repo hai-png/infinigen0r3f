@@ -13,6 +13,10 @@ export interface BoulderConfig {
   flatness: number;
   detail: number;
   seed: number;
+  /** Radius alias for size */
+  radius?: number;
+  /** Displacement scale for surface detail */
+  displacementScale?: number;
 }
 
 export class BoulderFactory {
@@ -27,6 +31,33 @@ export class BoulderFactory {
       seed: 42,
       ...config,
     };
+    // Apply radius as size if provided
+    if (config.radius) this.config.size = config.radius;
+  }
+
+  /** Generate asset as a THREE.Group */
+  async generateAsset(): Promise<THREE.Group> {
+    const group = new THREE.Group();
+    const geometry = this.generate();
+    const material = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: this.config.roughness });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return group;
+  }
+
+  /** Generate a collection of boulders */
+  async generateCollection(count: number, options?: { seed?: number }): Promise<THREE.Group[]> {
+    const boulders: THREE.Group[] = [];
+    for (let i = 0; i < count; i++) {
+      const boulder = await this.generateAsset();
+      // Randomize scale
+      const scale = 0.5 + Math.random() * 1.5;
+      boulder.scale.set(scale, scale * this.config.flatness, scale);
+      boulders.push(boulder);
+    }
+    return boulders;
   }
 
   generate(config: Partial<BoulderConfig> = {}): THREE.BufferGeometry {

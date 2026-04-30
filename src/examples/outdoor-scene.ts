@@ -56,7 +56,7 @@ export async function createOutdoorScene(
   
   // 2. Setup sky lighting
   console.log('Setting up sky lighting...');
-  const skyConfig: SkyConfig = {
+  const skyConfig: Partial<SkyConfig> = {
     seed: finalConfig.seed,
     hour: finalConfig.timeOfDay,
     turbidity: 10,
@@ -65,7 +65,13 @@ export async function createOutdoorScene(
     mieDirectionalG: 0.7,
   };
   
-  const skyGroup = setupSkyLighting(skyConfig);
+  const skyResult = setupSkyLighting(skyConfig);
+  const skyGroup = skyResult instanceof THREE.Group ? skyResult : (() => {
+    const g = new THREE.Group();
+    g.add(skyResult.sunLight);
+    g.add(skyResult.ambientLight);
+    return g;
+  })();
   scene.add(skyGroup);
   
   // 3. Scatter boulders
@@ -76,7 +82,7 @@ export async function createOutdoorScene(
     displacementScale: 0.4,
   });
   
-  const boulderScatterConfig: ScatterConfig = {
+  const boulderScatterConfig: Partial<ScatterConfig> = {
     seed: finalConfig.seed + 1,
     count: finalConfig.boulderCount,
     minScale: 0.5,
@@ -93,7 +99,7 @@ export async function createOutdoorScene(
   // Create density filter to avoid placing boulders in water
   const densityFilter = new DensityFilter({
     altitudeMin: 0.5, // Above water level
-  } as DensityConfig);
+  } as Partial<DensityConfig>);
   
   const boulderInstances = await boulderScatter.scatterOnMesh(
     boulderPrototype,
@@ -124,7 +130,7 @@ export async function createOutdoorScene(
     bladeCount: 6,
   });
   
-  const plantScatterConfig: ScatterConfig = {
+  const plantScatterConfig: Partial<ScatterConfig> = {
     seed: finalConfig.seed + 2,
     count: finalConfig.plantCount,
     minScale: 0.7,
@@ -141,7 +147,7 @@ export async function createOutdoorScene(
     new DensityFilter({
       altitudeMin: 1.0, // Only on higher ground
       altitudeMax: 12.0,
-    } as DensityConfig)
+    } as Partial<DensityConfig>)
   );
   
   scene.add(plantInstances);

@@ -14,6 +14,8 @@ export interface PlantConfig {
   detail: number;
   season: 'spring' | 'summer' | 'autumn' | 'winter';
   seed: number;
+  /** Number of blades/leaves for grass-like plants */
+  bladeCount?: number;
 }
 
 export class SimplePlantFactory {
@@ -29,6 +31,24 @@ export class SimplePlantFactory {
       seed: 42,
       ...config,
     };
+  }
+
+  /** Generate asset as a THREE.Group (alias for generate) */
+  async generateAsset(): Promise<THREE.Group> {
+    return this.generate();
+  }
+
+  /** Generate a collection of plants */
+  async generateCollection(count: number, options?: { seed?: number }): Promise<THREE.Group[]> {
+    const plants: THREE.Group[] = [];
+    for (let i = 0; i < count; i++) {
+      const plant = await this.generateAsset();
+      // Randomize scale
+      const scale = 0.7 + Math.random() * 0.6;
+      plant.scale.set(scale, scale, scale);
+      plants.push(plant);
+    }
+    return plants;
   }
 
   generate(config: Partial<PlantConfig> = {}): THREE.Group {

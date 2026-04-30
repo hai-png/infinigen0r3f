@@ -14,6 +14,14 @@ export interface TerrainConfig {
   noiseScale: number;
   noiseOctaves: number;
   seed: number;
+  /** Width alias for size */
+  width?: number;
+  /** Depth alias for size */
+  depth?: number;
+  /** Enable water plane */
+  enableWater?: boolean;
+  /** Water level (0-1 normalized) */
+  waterLevel?: number;
 }
 
 export class TerrainFactory {
@@ -29,6 +37,25 @@ export class TerrainFactory {
       seed: 42,
       ...config,
     };
+    // Apply width/depth as size if provided
+    if (config.width) this.config.size = config.width;
+    if (config.depth && !config.width) this.config.size = config.depth;
+  }
+
+  /** Generate asset as a THREE.Group (convenience method for outdoor-scene) */
+  async generateAsset(): Promise<THREE.Group> {
+    const group = new THREE.Group();
+    const geometry = this.generate();
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x3a7c3a,
+      roughness: 0.9,
+      metalness: 0.0,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.receiveShadow = true;
+    mesh.castShadow = true;
+    group.add(mesh);
+    return group;
   }
 
   generate(config: Partial<TerrainConfig> = {}): THREE.BufferGeometry {

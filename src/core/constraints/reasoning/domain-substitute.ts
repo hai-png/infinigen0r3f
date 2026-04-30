@@ -24,8 +24,11 @@ import {
   ArithmeticOperator,
   BooleanOperator,
   ComparisonOperator,
+  Domain,
+  NumericDomain,
+  ObjectSetDomain,
+  PoseDomain,
 } from '../language/types';
-import { Domain, NumericDomain, ObjectSetDomain, PoseDomain } from '../language/types';
 import { constraintDomain } from './constraint-domain';
 import { isConstant, evaluateConstant } from './constraint-constancy';
 
@@ -33,7 +36,7 @@ import { isConstant, evaluateConstant } from './constraint-constancy';
  * Substitution result containing the substituted node and success flag
  */
 export interface SubstitutionResult {
-  node: Node;
+  node: ExpressionNode;
   success: boolean;
   /** Variables that were successfully substituted */
   substitutedVars: Set<string>;
@@ -56,7 +59,7 @@ export interface VariableBinding {
  * @returns SubstitutionResult with the substituted node
  */
 export function substituteVariables(
-  node: Node,
+  node: ExpressionNode,
   bindings: Map<string, any | Domain>
 ): SubstitutionResult {
   const substitutedVars = new Set<string>();
@@ -94,8 +97,8 @@ export function substituteVariables(
       const right = substitute(binOp.right);
       
       // Try to simplify if both sides are constant
-      if (isConstant(left) && isConstant(right)) {
-        const result = evaluateConstant(binOp);
+      if (isConstant(left as Node) && isConstant(right as Node)) {
+        const result = evaluateConstant(binOp as unknown as Node);
         if (result !== undefined) {
           return createConstantNode(result);
         }
@@ -113,8 +116,8 @@ export function substituteVariables(
       const operand = substitute(unOp.operand);
       
       // Simplify if operand is constant
-      if (isConstant(operand)) {
-        const result = evaluateConstant(unOp);
+      if (isConstant(operand as Node)) {
+        const result = evaluateConstant(unOp as unknown as Node);
         if (result !== undefined) {
           return createConstantNode(result);
         }
@@ -131,7 +134,7 @@ export function substituteVariables(
       const args = rel.args.map(arg => substitute(arg));
       
       // Check if relation can be evaluated (all args constant)
-      if (args.every(arg => isConstant(arg))) {
+      if (args.every(arg => isConstant(arg as Node))) {
         // Could evaluate relation here if needed
         // For now, keep as relation node
       }
@@ -142,11 +145,11 @@ export function substituteVariables(
       } as RelationNode;
     }
     
-    if (n.type === 'Quantifier') {
+    if (n.type === 'Quantifier' || n.type === 'ForAll' || n.type === 'Exists' || n.type === 'SumOver' || n.type === 'MeanOver' || n.type === 'MaxOver' || n.type === 'MinOver') {
       const quant = n as QuantifierNode;
       // Don't substitute bound variable in quantifier scope
       const filteredBindings = new Map(bindings);
-      filteredBindings.delete(quant.boundVar);
+      filteredBindings.delete(quant.boundVar || quant.variable);
       
       const body = substitute(quant.body);
       
@@ -158,7 +161,7 @@ export function substituteVariables(
     
     if (n.type === 'FilterObjects') {
       const filter = n as FilterObjectsNode;
-      const source = substitute(filter.source);
+      const source = filter.source ? substitute(filter.source) : undefined;
       const condition = substitute(filter.condition);
       
       return {
@@ -185,7 +188,7 @@ export function substituteVariables(
   const result = substitute(node);
   
   return {
-    node: result,
+    node: result as ExpressionNode,
     success: substitutedVars.size > 0,
     substitutedVars
   };
@@ -200,14 +203,17 @@ export function substituteVariables(
  * @returns New node with substitutions
  */
 export function substituteVariable(
-  node: Node,
+  node: ExpressionNode,
   varName: string,
-  replacement: Node | any
-): Node {
+  replacement: ExpressionNode | any
+): ExpressionNode {
   const bindings = new Map([[varName, replacement]]);
   const result = substituteVariables(node, bindings);
   return result.node;
 }
+
+// Re-export alias for compatibility
+export { substituteVariable as substituteNode };
 
 /**
  * Apply domain substitution to a constraint
@@ -220,9 +226,9 @@ export function substituteVariable(
  * @returns Simplified constraint node
  */
 export function applyDomainSubstitution(
-  node: Node,
+  node: ExpressionNode,
   domains: Map<string, Domain>
-): Node {
+): ExpressionNode {
   const substituteWithDomains = (n: ExpressionNode): ExpressionNode => {
     if (n.type === 'Variable') {
       const varNode = n as Variable;
@@ -253,7 +259,7 @@ export function applyDomainSubstitution(
       const args = rel.args.map(arg => substituteWithDomains(arg));
       
       // Check for domain-based relation simplification
-      const simplified = simplifyRelationWithDomains(rel, args, domains);
+      const simplified = simplifyRelationWithDomains(rel, args, domains) as ExpressionNode | null;
       if (simplified) {
         return simplified;
       }
@@ -273,10 +279,10 @@ export function applyDomainSubstitution(
       } as UnaryOpNode;
     }
     
-    if (n.type === 'Quantifier') {
+    if (n.type === 'Quantifier' || n.type === 'ForAll' || n.type === 'Exists' || n.type === 'SumOver' || n.type === 'MeanOver' || n.type === 'MaxOver' || n.type === 'MinOver') {
       const quant = n as QuantifierNode;
       const filteredDomains = new Map(domains);
-      filteredDomains.delete(quant.boundVar);
+      filteredDomains.delete(quant.boundVar || quant.variable);
       
       return {
         ...quant,
@@ -288,7 +294,7 @@ export function applyDomainSubstitution(
       const filter = n as FilterObjectsNode;
       return {
         ...filter,
-        source: substituteWithDomains(filter.source),
+        source: filter.source ? substituteWithDomains(filter.source) : undefined,
         condition: substituteWithDomains(filter.condition)
       } as FilterObjectsNode;
     }
@@ -304,7 +310,7 @@ export function applyDomainSubstitution(
     return n;
   };
   
-  return substituteWithDomains(node);
+  return substituteWithDomains(node) as ExpressionNode;
 }
 
 /**
@@ -315,7 +321,7 @@ function simplifyWithDomainInfo(
   left: ExpressionNode,
   right: ExpressionNode,
   domains: Map<string, Domain>
-): Node | null {
+): ExpressionNode | null {
   // Example: If we know x > 5 and domain of x is [0, 3], contradiction!
   // This is a placeholder for more sophisticated domain reasoning
   
@@ -347,7 +353,7 @@ function simplifyRelationWithDomains(
   node: RelationNode,
   args: ExpressionNode[],
   domains: Map<string, Domain>
-): Node | null {
+): ExpressionNode | null {
   // Check if all arguments have known domains
   const argDomains = args.map(arg => {
     if (arg.type === 'Variable') {
@@ -370,7 +376,7 @@ function simplifyRelationWithDomains(
 /**
  * Extract all variable names from a node
  */
-function extractVariablesFromNode(node: Node): Set<string> {
+function extractVariablesFromNode(node: ExpressionNode): Set<string> {
   const vars = new Set<string>();
   
   const collect = (n: ExpressionNode) => {
@@ -411,9 +417,9 @@ function createConstantNode(value: any): ConstantNode {
  * @returns Final substituted node
  */
 export function composeSubstitutions(
-  node: Node,
-  substitutions: Array<{ varName: string; replacement: Node | any }>
-): Node {
+  node: ExpressionNode,
+  substitutions: Array<{ varName: string; replacement: ExpressionNode | any }>
+): ExpressionNode {
   let result = node;
   
   for (const sub of substitutions) {
@@ -430,7 +436,7 @@ export function composeSubstitutions(
  * @param replacement - Replacement expression
  * @returns True if substitution would be circular
  */
-export function isCircularSubstitution(varName: string, replacement: Node): boolean {
+export function isCircularSubstitution(varName: string, replacement: ExpressionNode): boolean {
   const varsInReplacement = extractVariablesFromNode(replacement);
   return varsInReplacement.has(varName);
 }
@@ -439,17 +445,17 @@ export function isCircularSubstitution(varName: string, replacement: Node): bool
  * Safe substitution that checks for circularity
  * 
  * @param node - The node to substitute in
- * @param varName - Variable to substitute
+ * @param varName - Name of variable to substitute
  * @param replacement - Replacement expression
  * @throws Error if substitution would be circular
  */
 export function safeSubstituteVariable(
-  node: Node,
+  node: ExpressionNode,
   varName: string,
-  replacement: Node | any
-): Node {
+  replacement: ExpressionNode | any
+): ExpressionNode {
   const replacementNode = typeof replacement === 'object' && replacement.type 
-    ? replacement as Node 
+    ? replacement as ExpressionNode 
     : createConstantNode(replacement);
   
   if (isCircularSubstitution(varName, replacementNode)) {
@@ -467,9 +473,9 @@ export function safeSubstituteVariable(
  * @returns Normalized constraint
  */
 export function normalizeConstraint(
-  node: Node,
+  node: ExpressionNode,
   domains: Map<string, Domain> = new Map()
-): Node {
+): ExpressionNode {
   // Step 1: Apply domain substitution
   let result = applyDomainSubstitution(node, domains);
   
@@ -486,7 +492,7 @@ export function normalizeConstraint(
   
   if (constBindings.size > 0) {
     const subResult = substituteVariables(result, constBindings);
-    result = subResult.node;
+    result = subResult.node as ExpressionNode;
   }
   
   // Step 3: Simplify constants
@@ -500,9 +506,9 @@ export function normalizeConstraint(
  * Alias for applyDomainSubstitution with simplified signature
  */
 export function domainTagSubstitute(
-  node: Node,
-  tagSubstitutions: Map<string, Node>
-): Node {
+  node: ExpressionNode,
+  tagSubstitutions: Map<string, ExpressionNode>
+): ExpressionNode {
   const domains = new Map<string, Domain>();
   tagSubstitutions.forEach((replacement, varName) => {
     domains.set(varName, new ObjectSetDomain());
