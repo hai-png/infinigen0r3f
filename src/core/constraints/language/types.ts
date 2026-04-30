@@ -174,8 +174,8 @@ export abstract class Domain {
   /**
    * Get the children/sub-domains of this domain
    */
-  children(): Domain[] {
-    return [];
+  children(): Map<string, Node> {
+    return new Map();
   }
 
   /**
