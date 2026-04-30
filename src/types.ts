@@ -101,3 +101,43 @@ export interface SolverState {
   lastMove: any | null;
   lastMoveAccepted: boolean;
 }
+
+/**
+ * Scene object representation
+ */
+export interface SceneObject {
+  id: string;
+  type: string;
+  tags: string[];
+  properties: Record<string, any>;
+  position?: [number, number, number];
+  rotation?: [number, number, number, number];
+  scale?: [number, number, number];
+  children?: SceneObject[];
+  meshData?: MeshData;
+}
+
+/**
+ * Constraint types re-exported for convenience
+ */
+export type ConstraintType =
+  | 'equality'
+  | 'inequality'
+  | 'distance'
+  | 'alignment'
+  | 'containment'
+  | 'collision_avoidance'
+  | 'visibility'
+  | 'accessibility'
+  | 'proportion'
+  | 'custom';
+
+export type ConstraintOperator =
+  | 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte'
+  | 'in' | 'not_in'
+  | 'contains' | 'overlaps'
+  | 'aligned' | 'parallel' | 'perpendicular';
+
+export type DomainType =
+  | 'object_set' | 'numeric' | 'pose' | 'bbox' | 'boolean'
+  | 'NumericDomain' | 'ObjectSetDomain' | 'PoseDomain' | 'BBoxDomain' | 'BooleanDomain';

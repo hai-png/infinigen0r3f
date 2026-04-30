@@ -7,11 +7,40 @@ export {
   noise3D, 
   noise2D, 
   voronoi2D, 
-  ridgedMultifractal,
-  fbm 
+  ridgedMultifractal
 } from '../MathUtils';
 
-export type { NoiseFunction } from '../MathUtils';
+/**
+ * Fractal Brownian Motion - layered noise function
+ */
+export function fbm(
+  x: number,
+  y: number,
+  z: number,
+  octaves: number = 6,
+  lacunarity: number = 2.0,
+  persistence: number = 0.5,
+  scale: number = 1.0
+): number {
+  let value = 0;
+  let amplitude = 1;
+  let frequency = scale;
+  let maxValue = 0;
+
+  for (let i = 0; i < octaves; i++) {
+    value += amplitude * noise3D(x * frequency, y * frequency, z * frequency);
+    maxValue += amplitude;
+    amplitude *= persistence;
+    frequency *= lacunarity;
+  }
+
+  return value / maxValue;
+}
+
+/**
+ * Noise function type signature
+ */
+export type NoiseFunction = (x: number, y: number, z: number, scale?: number) => number;
 
 /**
  * Legacy Noise3D class wrapper for backward compatibility

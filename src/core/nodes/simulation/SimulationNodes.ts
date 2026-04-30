@@ -38,9 +38,11 @@ export interface RigidBodyWorldOutputs {
 export class RigidBodyWorldNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'rigid_body_world';
+  readonly name = 'Rigid Body World';
   readonly inputs: RigidBodyWorldInputs;
   readonly outputs: RigidBodyWorldOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: RigidBodyWorldInputs = {}) {
     this.inputs = inputs;
@@ -83,9 +85,11 @@ export interface RigidBodyConstraintsOutputs {
 export class RigidBodyConstraintsNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'rigid_body_constraints';
+  readonly name = 'Rigid Body Constraints';
   readonly inputs: RigidBodyConstraintsInputs;
   readonly outputs: RigidBodyConstraintsOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: RigidBodyConstraintsInputs = {}) {
     this.inputs = inputs;
@@ -135,9 +139,11 @@ export interface SoftBodySetupOutputs {
 export class SoftBodySetupNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'soft_body_setup';
+  readonly name = 'Soft Body Setup';
   readonly inputs: SoftBodySetupInputs;
   readonly outputs: SoftBodySetupOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: SoftBodySetupInputs = {}) {
     this.inputs = inputs;
@@ -186,9 +192,11 @@ export interface ParticleSystemOutputs {
 export class ParticleSystemNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'particle_system';
+  readonly name = 'Particle System';
   readonly inputs: ParticleSystemInputs;
   readonly outputs: ParticleSystemOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: ParticleSystemInputs = {}) {
     this.inputs = inputs;
@@ -251,9 +259,11 @@ export interface ParticleCollisionOutputs {
 export class ParticleCollisionNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'particle_collision';
+  readonly name = 'Particle Collision';
   readonly inputs: ParticleCollisionInputs;
   readonly outputs: ParticleCollisionOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: ParticleCollisionInputs = {}) {
     this.inputs = inputs;
@@ -297,9 +307,11 @@ export interface FluidDomainOutputs {
 export class FluidDomainNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'fluid_domain';
+  readonly name = 'Fluid Domain';
   readonly inputs: FluidDomainInputs;
   readonly outputs: FluidDomainOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: FluidDomainInputs = {}) {
     this.inputs = inputs;
@@ -340,9 +352,11 @@ export interface FluidFlowOutputs {
 export class FluidFlowNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'fluid_flow';
+  readonly name = 'Fluid Flow';
   readonly inputs: FluidFlowInputs;
   readonly outputs: FluidFlowOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: FluidFlowInputs = {}) {
     this.inputs = inputs;
@@ -389,9 +403,11 @@ export interface ClothSetupOutputs {
 export class ClothSetupNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'cloth_setup';
+  readonly name = 'Cloth Setup';
   readonly inputs: ClothSetupInputs;
   readonly outputs: ClothSetupOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: ClothSetupInputs = {}) {
     this.inputs = inputs;
@@ -431,9 +447,11 @@ export interface ClothPinGroupOutputs {
 export class ClothPinGroupNode implements SimulationNodeBase {
   readonly category = 'simulation';
   readonly nodeType = 'cloth_pin_group';
+  readonly name = 'Cloth Pin Group';
   readonly inputs: ClothPinGroupInputs;
   readonly outputs: ClothPinGroupOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: ClothPinGroupInputs = {}) {
     this.inputs = inputs;

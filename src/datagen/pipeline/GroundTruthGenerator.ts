@@ -98,6 +98,7 @@ export interface SegmentationLabel {
 
 export class GroundTruthGenerator {
   private renderer: WebGLRenderer;
+  private scene: Scene;
   private options: GroundTruthOptions;
   private segmentationLabels: Map<string, SegmentationLabel>;
   
@@ -123,8 +124,14 @@ export class GroundTruthGenerator {
   // Raycaster for occlusion detection
   private raycaster: Raycaster;
 
-  constructor(renderer: WebGLRenderer, options: Partial<GroundTruthOptions> = {}) {
-    this.renderer = renderer;
+  constructor(rendererOrScene: WebGLRenderer | Scene, options: Partial<GroundTruthOptions> = {}) {
+    if (rendererOrScene instanceof WebGLRenderer) {
+      this.renderer = rendererOrScene;
+      this.scene = new Scene();
+    } else {
+      this.renderer = null as any;
+      this.scene = rendererOrScene;
+    }
     this.options = {
       resolution: options.resolution ?? { width: 1920, height: 1080 },
       depth: options.depth ?? true,
@@ -250,6 +257,34 @@ export class GroundTruthGenerator {
   }
 
   /**
+   * Generate depth map (public API for DataPipeline)
+   */
+  async generateDepth(options: { width: number; height: number; camera: Camera }): Promise<Float32Array> {
+    return this.renderDepth(this.scene || new Scene(), options.camera);
+  }
+
+  /**
+   * Generate normal map (public API for DataPipeline)
+   */
+  async generateNormals(options: { width: number; height: number; camera: Camera }): Promise<Float32Array> {
+    return this.renderNormals(this.scene || new Scene(), options.camera);
+  }
+
+  /**
+   * Generate segmentation map (public API for DataPipeline)
+   */
+  async generateSegmentation(options: { width: number; height: number; camera: Camera }): Promise<Uint8Array> {
+    return this.renderSegmentation(this.scene || new Scene(), options.camera);
+  }
+
+  /**
+   * Generate albedo map (public API for DataPipeline)
+   */
+  async generateAlbedo(options: { width: number; height: number; camera: Camera }): Promise<Uint8Array> {
+    return this.renderAlbedo(this.scene || new Scene(), options.camera);
+  }
+
+  /**
    * Generate all enabled ground truth data for a scene
    */
   async generate(
@@ -358,8 +393,8 @@ export class GroundTruthGenerator {
     const { width, height } = this.options.resolution;
     
     // Save original renderer state
-    const originalScene = this.renderer.scene;
-    const originalCamera = this.renderer.camera;
+    const originalScene = (this.renderer as any).scene;
+    const originalCamera = (this.renderer as any).camera;
     
     // Setup depth rendering
     this.depthScene.clear();
@@ -367,19 +402,23 @@ export class GroundTruthGenerator {
     // Clone objects with depth material
     scene.traverse((object) => {
       if ((object as any).isMesh) {
-        const mesh = object.clone();
-        mesh.material = this.depthMaterial.clone();
+        const mesh = object.clone() as any;
+        (mesh as any).material = this.depthMaterial.clone();
         this.depthScene.add(mesh);
       }
     });
     
     // Render
-    this.renderer.setRenderTarget(null);
-    this.renderer.render(this.depthScene, camera);
+    if (this.renderer) {
+      if (this.renderer) this.renderer.setRenderTarget(null);
+      if (this.renderer) this.renderer.render(this.depthScene, camera);
+    }
     
     // Read pixels
     const pixels = new Uint8Array(width * height * 4);
-    this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
+    if (this.renderer) {
+      if (this.renderer) this.renderer.readRenderTargetPixels(null as any, 0, 0, width, height, pixels);
+    }
     
     // Convert to depth float array
     const depth = new Float32Array(width * height);
@@ -405,17 +444,17 @@ export class GroundTruthGenerator {
     scene.traverse((object) => {
       if ((object as any).isMesh) {
         const mesh = object.clone();
-        mesh.material = this.normalMaterial.clone();
+        (mesh as any).material = this.normalMaterial.clone();
         this.normalScene.add(mesh);
       }
     });
     
     // Render
-    this.renderer.render(this.normalScene, camera);
+    if (this.renderer) this.renderer.render(this.normalScene, camera);
     
     // Read pixels
     const pixels = new Uint8Array(width * height * 4);
-    this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
+    if (this.renderer) this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
     
     // Convert to normal float array (RGB -> XYZ, normalized to [-1, 1])
     const normals = new Float32Array(width * height * 3);
@@ -443,7 +482,7 @@ export class GroundTruthGenerator {
         
         // Create unlit material preserving base color
         const baseColor = object.material.color ?? new Color(1, 1, 1);
-        object.material = new ShaderMaterial({
+        (object as any).material = new ShaderMaterial({
           uniforms: {
             color: { value: baseColor },
           },
@@ -466,16 +505,16 @@ export class GroundTruthGenerator {
     });
     
     // Render
-    this.renderer.render(scene, camera);
+    if (this.renderer) this.renderer.render(scene, camera);
     
     // Read pixels
     const pixels = new Uint8Array(width * height * 3);
-    this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
+    if (this.renderer) this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
     
     // Restore original materials
     scene.traverse((object: any) => {
       if (originalMaterials.has(object.uuid)) {
-        object.material = originalMaterials.get(object.uuid);
+        (object as any).material = originalMaterials.get(object.uuid);
       }
     });
     
@@ -503,7 +542,7 @@ export class GroundTruthGenerator {
         const color = label?.color ?? new Color(Math.random(), Math.random(), Math.random());
         
         const mesh = object.clone();
-        mesh.material = this.segmentationMaterial.clone();
+        (mesh as any).material = this.segmentationMaterial.clone();
         mesh.material.uniforms.objectId.value = objectId;
         mesh.material.uniforms.segmentColor.value = color;
         
@@ -512,11 +551,11 @@ export class GroundTruthGenerator {
     });
     
     // Render
-    this.renderer.render(this.segmentationScene, camera);
+    if (this.renderer) this.renderer.render(this.segmentationScene, camera);
     
     // Read pixels (RGBA, where A contains object ID)
     const pixels = new Uint8Array(width * height * 4);
-    this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
+    if (this.renderer) this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
     
     // Extract label IDs from alpha channel
     const segmentation = new Uint8Array(width * height);
@@ -536,8 +575,8 @@ export class GroundTruthGenerator {
     const { width, height } = this.options.resolution;
     
     // Save original renderer state
-    const autoClear = this.renderer.autoClear;
-    this.renderer.autoClear = true;
+    const autoClear = this.renderer && this.renderer.autoClear;
+    if (this.renderer) this.renderer.autoClear = true;
     
     // Clear instance ID scene
     this.instanceIdScene.clear();
@@ -571,12 +610,12 @@ export class GroundTruthGenerator {
     });
     
     // Render to target
-    this.renderer.setRenderTarget(null);
-    this.renderer.render(this.instanceIdScene, camera);
+    if (this.renderer) this.renderer.setRenderTarget(null);
+    if (this.renderer) this.renderer.render(this.instanceIdScene, camera);
     
     // Read pixels
     const pixels = new Uint8Array(width * height * 4);
-    this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
+    if (this.renderer) this.renderer.readRenderTargetPixels(null, 0, 0, width, height, pixels);
     
     // Decode 16-bit IDs from RGBA
     const instanceIds = new Uint16Array(width * height);
@@ -589,7 +628,7 @@ export class GroundTruthGenerator {
     
     // Cleanup
     this.instanceIdScene.clear();
-    this.renderer.autoClear = autoClear;
+    if (this.renderer) this.renderer.autoClear = autoClear;
     
     return instanceIds;
   }
@@ -759,8 +798,8 @@ export class GroundTruthGenerator {
     const { width, height } = this.options.resolution;
     
     // Save renderer state
-    const autoClear = this.renderer.autoClear;
-    this.renderer.autoClear = true;
+    const autoClear = this.renderer && this.renderer.autoClear;
+    if (this.renderer) this.renderer.autoClear = true;
     
     // Helper function to render position buffer
     const renderPositionBuffer = (scene: Scene, camera: Camera, target: WebGLRenderTarget) => {
@@ -801,9 +840,9 @@ export class GroundTruthGenerator {
       });
       
       // Render to target
-      this.renderer.setRenderTarget(target);
-      this.renderer.render(this.flowScene, camera);
-      this.renderer.setRenderTarget(null);
+      if (this.renderer) this.renderer.setRenderTarget(target);
+      if (this.renderer) this.renderer.render(this.flowScene, camera);
+      if (this.renderer) this.renderer.setRenderTarget(null);
       this.flowScene.clear();
     };
     
@@ -818,12 +857,12 @@ export class GroundTruthGenerator {
     const currentPositions = new Float32Array(width * height * 4);
     const previousPositions = new Float32Array(width * height * 4);
     
-    this.renderer.readRenderTargetPixels(
+    if (this.renderer) this.renderer.readRenderTargetPixels(
       this.positionRenderTarget, 
       0, 0, width, height, 
       currentPositions
     );
-    this.renderer.readRenderTargetPixels(
+    if (this.renderer) this.renderer.readRenderTargetPixels(
       this.previousPositionRenderTarget, 
       0, 0, width, height, 
       previousPositions
@@ -850,7 +889,7 @@ export class GroundTruthGenerator {
     
     // Cleanup
     this.flowScene.clear();
-    this.renderer.autoClear = autoClear;
+    if (this.renderer) this.renderer.autoClear = autoClear;
     
     return flow;
   }

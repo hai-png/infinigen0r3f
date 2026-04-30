@@ -223,6 +223,28 @@ export class RoomGraph {
   }
 
   /**
+   * Clone this graph
+   */
+  clone(): RoomGraph {
+    const rooms = Array.from(this.nodes.values()).map(n => n.room);
+    return new RoomGraph(rooms, this.wallThickness);
+  }
+
+  /**
+   * Get the adjacency list representation
+   */
+  getAdjacencyList(): Map<string, Set<string>> {
+    return new Map(this.adjacencyMatrix);
+  }
+
+  /**
+   * Check if two rooms are neighbors
+   */
+  areNeighbors(room1Id: string, room2Id: string): boolean {
+    return this.adjacencyMatrix.get(room1Id)?.has(room2Id) ?? false;
+  }
+
+  /**
    * Find connected components (functional zones)
    */
   findConnectedComponents(): ConnectedComponent[] {

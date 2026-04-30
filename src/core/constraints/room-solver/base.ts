@@ -13,6 +13,9 @@ export interface RoomNode {
   centroid?: [number, number];
 }
 
+/** Neighbor type for room graph edges */
+export type NeighborType = 'adjacent' | 'diagonal' | 'cardinal' | 'all';
+
 export interface RoomEdge {
   from: string;
   to: string;
@@ -23,14 +26,18 @@ export class RoomGraph {
   rooms: RoomNode[];
   edges: RoomEdge[];
   private adjacencyMap: Map<string, Set<string>>;
+  /** Map from room ID to room node for quick lookup */
+  private roomMap: Map<string, RoomNode>;
 
   constructor(rooms: RoomNode[] = [], edges: RoomEdge[] = []) {
     this.rooms = rooms;
     this.edges = edges;
     this.adjacencyMap = new Map();
+    this.roomMap = new Map();
     
     for (const room of rooms) {
       this.adjacencyMap.set(room.id, new Set());
+      this.roomMap.set(room.id, room);
     }
     
     for (const edge of edges) {
@@ -39,6 +46,23 @@ export class RoomGraph {
         this.adjacencyMap.get(edge.to)?.add(edge.from);
       }
     }
+  }
+
+  /** Get a room by ID */
+  get(id: string): RoomNode | undefined {
+    return this.roomMap.get(id);
+  }
+
+  /** Get all room IDs */
+  keys(): IterableIterator<string> {
+    return this.roomMap.keys();
+  }
+
+  /** Remove an edge between rooms */
+  removeEdge(from: string, to: string): void {
+    this.edges = this.edges.filter(e => !(e.from === from && e.to === to) && !(e.from === to && e.to === from));
+    this.adjacencyMap.get(from)?.delete(to);
+    this.adjacencyMap.get(to)?.delete(from);
   }
 
   getNeighbours(roomId: string): string[] {
@@ -162,5 +186,47 @@ export class RoomGraph {
 
   static fromJSON(json: any): RoomGraph {
     return new RoomGraph(json.rooms || [], json.edges || []);
+  }
+
+  /**
+   * Clone this graph
+   */
+  clone(): RoomGraph {
+    return new RoomGraph(
+      this.rooms.map(r => ({ ...r })),
+      this.edges.map(e => ({ ...e }))
+    );
+  }
+
+  /**
+   * Get adjacency list as a Map
+   */
+  getAdjacencyList(): Map<string, Set<string>> {
+    return new Map(this.adjacencyMap);
+  }
+
+  /**
+   * Check if two rooms are neighbors
+   */
+  areNeighbors(room1Id: string, room2Id: string): boolean {
+    return this.adjacencyMap.get(room1Id)?.has(room2Id) ?? false;
+  }
+
+  /**
+   * Check if the graph is fully connected
+   */
+  isConnected(): boolean {
+    if (this.rooms.length === 0) return true;
+    const visited = new Set<string>();
+    const queue = [this.rooms[0].id];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      for (const neighbor of this.getNeighbours(current)) {
+        if (!visited.has(neighbor)) queue.push(neighbor);
+      }
+    }
+    return visited.size === this.rooms.length;
   }
 }

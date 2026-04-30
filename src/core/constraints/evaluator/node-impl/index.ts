@@ -13,12 +13,12 @@ import { geometryNodeImpls } from './trimesh-geometry';
 import { symmetryNodeImpls } from './symmetry';
 
 // Registry of node implementation functions
-export const nodeImpls = new Map<typeof Node, Function>();
+export const nodeImpls = new Map<new (...args: any[]) => Node, Function>();
 
 /**
  * Register a node implementation
  */
-export function registerNodeImpl(nodeType: typeof Node, impl: Function): void {
+export function registerNodeImpl(nodeType: new (...args: any[]) => Node, impl: Function): void {
   nodeImpls.set(nodeType, impl);
 }
 

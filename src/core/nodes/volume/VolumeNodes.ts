@@ -34,9 +34,11 @@ export interface VolumeToMeshOutputs {
 export class VolumeToMeshNode implements VolumeNodeBase {
   readonly category = 'volume';
   readonly nodeType = 'volume_to_mesh';
+  readonly name = 'Volume to Mesh';
   readonly inputs: VolumeToMeshInputs;
   readonly outputs: VolumeToMeshOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: VolumeToMeshInputs = {}) {
     this.inputs = inputs;
@@ -79,9 +81,11 @@ export interface SampleVolumeOutputs {
 export class SampleVolumeNode implements VolumeNodeBase {
   readonly category = 'volume';
   readonly nodeType = 'sample_volume';
+  readonly name = 'Sample Volume';
   readonly inputs: SampleVolumeInputs;
   readonly outputs: SampleVolumeOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: SampleVolumeInputs = {}) {
     this.inputs = inputs;
@@ -123,9 +127,11 @@ export interface VolumeAttributeStatsOutputs {
 export class VolumeAttributeStatsNode implements VolumeNodeBase {
   readonly category = 'volume';
   readonly nodeType = 'volume_attribute_stats';
+  readonly name = 'Volume Attribute Stats';
   readonly inputs: VolumeAttributeStatsInputs;
   readonly outputs: VolumeAttributeStatsOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: VolumeAttributeStatsInputs = {}) {
     this.inputs = inputs;
@@ -161,9 +167,11 @@ export interface DensityToAlphaOutputs {
 export class DensityToAlphaNode implements VolumeNodeBase {
   readonly category = 'volume';
   readonly nodeType = 'density_to_alpha';
+  readonly name = 'Density to Alpha';
   readonly inputs: DensityToAlphaInputs;
   readonly outputs: DensityToAlphaOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: DensityToAlphaInputs = {}) {
     this.inputs = inputs;

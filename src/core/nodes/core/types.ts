@@ -532,7 +532,17 @@ export interface NodeExecutionContext {
   metadata: Record<string, any>;
 }
 
+/** Node domain type alias */
+export type NodeDomain = Domain;
+
+/** Node execution context with bindings */
+export interface NodeContext {
+  bindings: Map<string, any>;
+  parent?: NodeContext;
+  scope: Map<string, any>;
+}
+
 /**
  * Re-export from constraint types for node integration
  */
-export type { ConstraintNode, ExpressionNode } from '../../constraints/language/types';
+export type { ConstraintNode, ExpressionNode, Domain as ConstraintDomain } from '../../constraints/language/types';

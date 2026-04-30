@@ -554,6 +554,15 @@ export class JobManager extends EventEmitter {
     // For now, we'll just emit an event
     this.emit('persistence_load', { timestamp: new Date() });
   }
+
+  /**
+   * Dispose of resources and stop processing
+   */
+  dispose(): void {
+    this.stop();
+    this.clearCompleted();
+    this.removeAllListeners();
+  }
 }
 
 /** Re-export JobStatus type for convenience */

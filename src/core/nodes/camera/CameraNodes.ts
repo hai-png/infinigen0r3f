@@ -34,9 +34,11 @@ export interface CameraDataOutputs {
 export class CameraDataNode implements CameraNodeBase {
   readonly category = 'camera';
   readonly nodeType = 'camera_data';
+  readonly name = 'Camera Data';
   readonly inputs: CameraDataInputs;
   readonly outputs: CameraDataOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: CameraDataInputs = {}) {
     this.inputs = inputs;
@@ -92,9 +94,11 @@ export interface DepthOfFieldOutputs {
 export class DepthOfFieldNode implements CameraNodeBase {
   readonly category = 'camera';
   readonly nodeType = 'depth_of_field';
+  readonly name = 'Depth of Field';
   readonly inputs: DepthOfFieldInputs;
   readonly outputs: DepthOfFieldOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: DepthOfFieldInputs = {}) {
     this.inputs = inputs;
@@ -146,9 +150,11 @@ export interface FocalLengthOutputs {
 export class FocalLengthNode implements CameraNodeBase {
   readonly category = 'camera';
   readonly nodeType = 'focal_length';
+  readonly name = 'Focal Length';
   readonly inputs: FocalLengthInputs;
   readonly outputs: FocalLengthOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: FocalLengthInputs = {}) {
     this.inputs = inputs;
@@ -198,9 +204,11 @@ export interface ViewMatrixOutputs {
 export class ViewMatrixNode implements CameraNodeBase {
   readonly category = 'camera';
   readonly nodeType = 'view_matrix';
+  readonly name = 'View Matrix';
   readonly inputs: ViewMatrixInputs;
   readonly outputs: ViewMatrixOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: ViewMatrixInputs = {}) {
     this.inputs = inputs;

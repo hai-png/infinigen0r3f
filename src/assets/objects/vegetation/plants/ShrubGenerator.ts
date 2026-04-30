@@ -119,6 +119,9 @@ export const ShrubSpeciesPresets: Record<string, ShrubSpeciesConfig> = {
 /**
  * Procedural shrub generator for undergrowth
  */
+/** Alias for ShrubSpeciesConfig */
+export type ShrubConfig = ShrubSpeciesConfig;
+
 export class ShrubGenerator {
   private noiseUtils: NoiseUtils;
   private materialCache: Map<string, THREE.Material>;

@@ -1357,9 +1357,10 @@ export class ConstraintParser {
     throw new Error(`Expected ';' at line ${this.peek().line}, column ${this.peek().column}`);
   }
 
-  private match(...types: TokenType[]): boolean {
+  private match(typeOrTypes: TokenType | TokenType[], ...values: string[]): boolean {
+    const types = Array.isArray(typeOrTypes) ? typeOrTypes : [typeOrTypes];
     for (const type of types) {
-      if (this.check(type)) {
+      if (this.check(type) && (values.length === 0 || values.includes(String(this.peek().value)))) {
         this.advance();
         return true;
       }

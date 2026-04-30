@@ -22,7 +22,7 @@
 export { NodeTypes } from './core/node-types';
 export type { SocketType, NodeSocket } from './core/socket-types';
 export type { NodeDefinition } from './core/types';
-export type { NodeBase, NodeContext } from './core/types';
+export type { NodeBase, NodeContext, NodeDomain } from './core/types';
 
 // Geometry Nodes (20 nodes) - primary source for: ColorNode, RandomValueNode,
 // InstanceOnPointsNode, and all attribute type names

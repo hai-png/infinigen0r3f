@@ -320,6 +320,12 @@ export function unionBounds(a: Bound, b: Bound): Bound {
 }
 
 /**
+ * Bound analysis - analyze constraints to extract bounds
+ * Alias for constraintBounds used by core-consolidated module
+ */
+export const boundAnalysis = constraintBounds;
+
+/**
  * Check if a value satisfies a bound
  */
 export function satisfiesBound(value: number, bound: Bound): boolean {

@@ -26,8 +26,12 @@ import { Semantics } from '../tags/index';
 export abstract class Move {
   readonly scoreBefore: number;
   readonly scoreAfter?: number;
+  /** Names of objects affected by this move */
+  abstract readonly names: string[];
   
-  constructor(readonly scoreBefore: number) {}
+  constructor(scoreBefore: number) {
+    this.scoreBefore = scoreBefore;
+  }
   
   /**
    * Apply the move to the given state
@@ -64,12 +68,14 @@ export interface PoseMoveConfig {
  * Translate Move - moves an object by a translation vector
  */
 export class TranslateMove extends Move {
+  readonly names: string[];
   constructor(
     readonly objectName: string,
     readonly translation: Vector3,
     scoreBefore: number
   ) {
     super(scoreBefore);
+    this.names = [objectName];
   }
   
   apply(state: State): State {
@@ -128,12 +134,14 @@ export class TranslateMove extends Move {
  * Rotate Move - rotates an object around its center
  */
 export class RotateMove extends Move {
+  readonly names: string[];
   constructor(
     readonly objectName: string,
     readonly rotation: Vector3, // Euler angles in radians
     scoreBefore: number
   ) {
     super(scoreBefore);
+    this.names = [objectName];
   }
   
   apply(state: State): State {
@@ -195,12 +203,14 @@ export class RotateMove extends Move {
  * Swap Move - swaps positions of two objects
  */
 export class SwapMove extends Move {
+  readonly names: string[];
   constructor(
     readonly objectName1: string,
     readonly objectName2: string,
     scoreBefore: number
   ) {
     super(scoreBefore);
+    this.names = [objectName1, objectName2];
   }
   
   apply(state: State): State {
@@ -246,11 +256,13 @@ export class SwapMove extends Move {
  * Deletion Move - removes an object from the scene
  */
 export class DeletionMove extends Move {
+  readonly names: string[];
   constructor(
     readonly objectName: string,
     scoreBefore: number
   ) {
     super(scoreBefore);
+    this.names = [objectName];
   }
   
   apply(state: State): State {
@@ -279,12 +291,14 @@ export class DeletionMove extends Move {
  * Reassignment Move - changes an object's semantic tags
  */
 export class ReassignmentMove extends Move {
+  readonly names: string[];
   constructor(
     readonly objectName: string,
     readonly newTags: Set<Semantics>,
     scoreBefore: number
   ) {
     super(scoreBefore);
+    this.names = [objectName];
   }
   
   apply(state: State): State {
@@ -319,10 +333,21 @@ export class ReassignmentMove extends Move {
 }
 
 /**
+ * Re-exports for backward compatibility with eval-memo
+ * These type aliases match the constraint language type system
+ */
+export type Addition = AdditionMove;
+export type ReinitPoseMove = { variable: string; newDomain: any };
+export type RelationPlaneChange = { relation: string; fromPlane: string; toPlane: string };
+export type Resample = { variable: string; domain: any };
+export type Deletion = DeletionMove;
+
+/**
  * Addition Move - adds a new object to the scene
  * Note: In browser context, this requires asset instantiation via hybrid bridge
  */
 export class AdditionMove extends Move {
+  readonly names: string[];
   constructor(
     readonly objectName: string,
     readonly tags: Set<Semantics>,
@@ -330,6 +355,7 @@ export class AdditionMove extends Move {
     scoreBefore: number
   ) {
     super(scoreBefore);
+    this.names = [objectName];
   }
   
   apply(state: State): State {

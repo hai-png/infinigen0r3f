@@ -1,3 +1,15 @@
+import * as THREE from 'three';
+
+/**
+ * Get attribute from geometry - standalone utility function
+ * Used by curve nodes and other geometry operations
+ */
+export function getAttribute(geometry: THREE.BufferGeometry, attributeName: string): THREE.BufferAttribute | THREE.InterleavedBufferAttribute | Float32Array | null {
+  const attr = geometry.getAttribute(attributeName);
+  if (!attr) return null;
+  return attr as any;
+}
+
 /**
  * Attribute Helpers for Node System
  * 

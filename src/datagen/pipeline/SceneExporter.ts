@@ -390,6 +390,7 @@ export class SceneExporter {
       triangleCount,
       textureCount: 0, // OBJ doesn't embed textures
       materialCount,
+      duration: 0,
       metadata: {
         mtlFile: `${baseFilename}.mtl`,
         mtlPath,
@@ -512,6 +513,7 @@ export class SceneExporter {
       triangleCount,
       textureCount: 0,
       materialCount: 0,
+      duration: 0,
     };
   }
 
@@ -613,6 +615,7 @@ export class SceneExporter {
       triangleCount: 0,
       textureCount: 0,
       materialCount: 0,
+      duration: 0,
     };
   }
 

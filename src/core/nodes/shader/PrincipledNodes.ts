@@ -780,6 +780,21 @@ export function executeTextureCoordinate(geometry: THREE.BufferGeometry): {
 // Utility Functions
 // ============================================================================
 
+// Add executeTransparentBSDF, executeRefractionBSDF, executeAmbientOcclusion
+export function executeTransparentBSDF(node: TransparentBSDFNode): { materialConfig: any } {
+  const { color } = node.inputs;
+  return { materialConfig: { color: typeof color === 'string' ? color : '#' + color.getHexString(), transparent: true, opacity: 1.0 } };
+}
+
+export function executeRefractionBSDF(node: RefractionBSDFNode): { materialConfig: any } {
+  const { color, roughness, ior } = node.inputs;
+  return { materialConfig: { color: typeof color === 'string' ? color : '#' + color.getHexString(), roughness, ior, transmission: true, transparent: true } };
+}
+
+export function executeAmbientOcclusion(node: AmbientOcclusionNode): { occlusion: number } {
+  return { occlusion: 1.0 };
+}
+
 /**
  * Parse color from various input types
  */

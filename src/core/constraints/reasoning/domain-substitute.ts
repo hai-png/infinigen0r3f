@@ -493,3 +493,18 @@ export function normalizeConstraint(
   
   return result;
 }
+
+/**
+ * Domain tag substitution - substitute tags in domain constraints
+ * Alias for applyDomainSubstitution with simplified signature
+ */
+export function domainTagSubstitute(
+  node: Node,
+  tagSubstitutions: Map<string, Node>
+): Node {
+  const domains = new Map<string, Domain>();
+  tagSubstitutions.forEach((replacement, varName) => {
+    domains.set(varName, new ObjectSetDomain());
+  });
+  return applyDomainSubstitution(node, domains);
+}

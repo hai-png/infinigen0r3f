@@ -13,6 +13,9 @@ export interface CupParams extends BaseGeneratorConfig {
   transparent?: boolean;
 }
 
+/** Alias for CupParams */
+export type CupConfig = CupParams;
+
 export class CupGenerator extends BaseObjectGenerator<CupParams> {
   protected defaultParams: CupParams = {
     type: 'mug',

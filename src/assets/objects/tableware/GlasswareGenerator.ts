@@ -15,6 +15,9 @@ export interface GlasswareParams extends BaseGeneratorConfig {
   seed?: number;
 }
 
+/** Alias for GlasswareParams */
+export type GlasswareConfig = GlasswareParams;
+
 export class GlasswareGenerator extends BaseObjectGenerator<GlasswareParams> {
   protected readonly defaultParams: GlasswareParams = {
     type: 'wine',

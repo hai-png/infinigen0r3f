@@ -153,10 +153,10 @@ export class CoffeeTable extends BaseObjectGenerator<CoffeeTableParams> {
         base.add(nested);
       }
     } else {
-      const雕塑 = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15, 0.05, 64, 8), material);
-      雕塑.position.y = (params.height - 0.04) / 2;
-      雕塑.castShadow = true;
-      base.add(雕塑);
+      const sculpture = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15, 0.05, 64, 8), material);
+      sculpture.position.y = (params.height - 0.04) / 2;
+      sculpture.castShadow = true;
+      base.add(sculpture);
     }
     
     return base;

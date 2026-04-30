@@ -14,6 +14,9 @@ export interface PlateParams extends BaseGeneratorConfig {
   rimColor?: string;
 }
 
+/** Alias for PlateParams */
+export type PlateConfig = PlateParams;
+
 export class PlateGenerator extends BaseObjectGenerator<PlateParams> {
   protected defaultParams: PlateParams = {
     type: 'dinner',
@@ -187,6 +190,7 @@ export class PlateGenerator extends BaseObjectGenerator<PlateParams> {
 
   private createOvalPlate(group: THREE.Group, params: PlateParams, seed: SeededRandom): void {
     const material = this.getMaterial(params);
+    const rimMaterial = params.rimColor ? this.getRimMaterial(params) : material;
     const majorAxis = params.diameter;
     const minorAxis = params.diameter * 0.7;
     

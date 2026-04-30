@@ -23,6 +23,9 @@ export interface CutleryParams extends BaseGeneratorConfig {
   seed?: number;
 }
 
+/** Alias for CutleryParams */
+export type CutleryConfig = CutleryParams;
+
 export class CutleryGenerator extends BaseObjectGenerator<CutleryParams> {
   protected readonly defaultParams: CutleryParams = {
     type: 'fork',

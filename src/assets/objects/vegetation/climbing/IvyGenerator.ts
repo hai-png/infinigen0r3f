@@ -41,7 +41,9 @@ export class IvyGenerator extends BaseObjectGenerator<IvyConfig> {
     const curve = new THREE.CatmullRomCurve3(points);
     const vineGeom = new THREE.TubeGeometry(curve, config.segmentCount, 0.005, 6, false);
     const vineMat = new THREE.MeshStandardMaterial({ color: 0x2d5a1f });
-    const vine = new THREE.Mesh(vineGeom, vineMat);
+    const vineMesh = new THREE.Mesh(vineGeom, vineMat);
+    const vine = new THREE.Group();
+    vine.add(vineMesh);
 
     for (let i = 0; i < config.segmentCount * config.leafDensity; i++) {
       const t = i / (config.segmentCount * config.leafDensity);

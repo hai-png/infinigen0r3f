@@ -36,8 +36,14 @@ export interface AssetDescription {
   /** Type of the asset */
   type?: string;
   
-  /** Scale of the asset */
-  scale?: number;
+  /** Primitive type (for procedural assets) */
+  primitiveType?: 'box' | 'sphere' | 'cylinder' | 'plane';
+  
+  /** Model ID (for GLTF assets) */
+  modelId?: string;
+  
+  /** Scale of the asset (number or Vector3) */
+  scale?: number | { x: number; y: number; z: number };
   
   /** Function of the object */
   function?: string;
@@ -131,6 +137,9 @@ export interface ConstraintNode {
   relations: Relation[];
 }
 
+/** Alias for ConstraintNode as Node for graph algorithms */
+export type Node = ConstraintNode;
+
 /**
  * Edge in the constraint graph representing a relation
  */
@@ -144,6 +153,9 @@ export interface ConstraintEdge {
   /** Relation type */
   relation: Relation;
 }
+
+/** Alias for ConstraintEdge as Edge for graph algorithms */
+export type Edge = ConstraintEdge;
 
 /**
  * Domain constraint for a variable

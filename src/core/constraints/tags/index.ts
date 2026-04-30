@@ -431,9 +431,28 @@ export class TagSet {
 }
 
 /**
+ * Check if tags satisfy a set of required tags
+ */
+export function satisfies(objTags: Set<Tag> | Tag[], requiredTags: Set<Tag> | Tag[]): boolean {
+  const objSet = objTags instanceof Set ? objTags : new Set(objTags);
+  const reqSet = requiredTags instanceof Set ? requiredTags : new Set(requiredTags);
+  for (const tag of reqSet) {
+    let found = false;
+    for (const objTag of objSet) {
+      if (tag === objTag || (tag instanceof Tag && objTag instanceof Tag && tag.matches(objTag))) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+  }
+  return true;
+}
+
+/**
  * Common semantic tags
  */
-export const Semantics = {
+export const SemanticsObj = {
   WALL: new SemanticsTag('wall'),
   FLOOR: new SemanticsTag('floor'),
   CEILING: new SemanticsTag('ceiling'),
@@ -467,8 +486,14 @@ export const Semantics = {
   VASE: new SemanticsTag('vase'),
   CUSHION: new SemanticsTag('cushion'),
   BLANKET: new SemanticsTag('blanket'),
-  PILLOW: new SemanticsTag('pillow')
+  PILLOW: new SemanticsTag('pillow'),
+  Room: new SemanticsTag('room'),
+  Cutter: new SemanticsTag('cutter')
 };
+
+export type Semantics = typeof SemanticsObj;
+/** @deprecated Use SemanticsObj directly or import Semantics type */
+export const Semantics = SemanticsObj;
 
 /**
  * Common material tags

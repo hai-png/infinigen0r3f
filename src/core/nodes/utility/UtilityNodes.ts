@@ -32,6 +32,7 @@ export interface MathNodeData {
 
 export const MathNode: NodeDefinition<MathNodeData> = {
   name: 'Math',
+  type: 'Math',
   category: 'Utility/Math',
   description: 'Perform mathematical operations',
   
@@ -112,6 +113,7 @@ export interface VectorMathNodeData {
 
 export const VectorMathNode: NodeDefinition<VectorMathNodeData> = {
   name: 'Vector Math',
+  type: 'VectorMath',
   category: 'Utility/Math',
   description: 'Perform vector mathematical operations',
   
@@ -258,6 +260,7 @@ export interface ColorMathNodeData {
 
 export const ColorMathNode: NodeDefinition<ColorMathNodeData> = {
   name: 'Color Math',
+  type: 'ColorMath',
   category: 'Utility/Math',
   description: 'Perform color mathematical operations',
   
@@ -368,6 +371,7 @@ export interface CompareNodeData {
 
 export const CompareNode: NodeDefinition<CompareNodeData> = {
   name: 'Compare',
+  type: 'Compare',
   category: 'Utility/Logic',
   description: 'Compare two values',
   
@@ -437,6 +441,7 @@ export interface SwitchNodeData<T = any> {
 
 export const SwitchNode: NodeDefinition<SwitchNodeData> = {
   name: 'Switch',
+  type: 'Switch',
   category: 'Utility/Logic',
   description: 'Select output based on boolean condition',
   
@@ -470,6 +475,7 @@ export const SwitchNode: NodeDefinition<SwitchNodeData> = {
  */
 export const CombineXYZNode: NodeDefinition<any> = {
   name: 'Combine XYZ',
+  type: 'CombineXYZ',
   category: 'Utility/Conversion',
   description: 'Combine X, Y, Z components into a vector',
   
@@ -499,6 +505,7 @@ export const CombineXYZNode: NodeDefinition<any> = {
  */
 export const SeparateXYZNode: NodeDefinition<any> = {
   name: 'Separate XYZ',
+  type: 'SeparateXYZ',
   category: 'Utility/Conversion',
   description: 'Extract X, Y, Z components from a vector',
   
@@ -530,6 +537,7 @@ export const SeparateXYZNode: NodeDefinition<any> = {
  */
 export const CombineRGBANode: NodeDefinition<any> = {
   name: 'Combine RGBA',
+  type: 'CombineRGBA',
   category: 'Utility/Conversion',
   description: 'Combine RGB and Alpha into a color',
   
@@ -565,6 +573,7 @@ export const CombineRGBANode: NodeDefinition<any> = {
  */
 export const SeparateRGBANode: NodeDefinition<any> = {
   name: 'Separate RGBA',
+  type: 'SeparateRGBA',
   category: 'Utility/Conversion',
   description: 'Extract RGB and Alpha from a color',
   
@@ -599,6 +608,7 @@ export const SeparateRGBANode: NodeDefinition<any> = {
  */
 export const FloatToIntNode: NodeDefinition<any> = {
   name: 'Float to Integer',
+  type: 'FloatToInt',
   category: 'Utility/Conversion',
   description: 'Convert float to integer',
   
@@ -623,6 +633,7 @@ export const FloatToIntNode: NodeDefinition<any> = {
  */
 export const IntToFloatNode: NodeDefinition<any> = {
   name: 'Integer to Float',
+  type: 'IntToFloat',
   category: 'Utility/Conversion',
   description: 'Convert integer to float',
   
@@ -660,6 +671,7 @@ export interface RandomValueNodeData {
 
 export const RandomValueNode: NodeDefinition<RandomValueNodeData> = {
   name: 'Random Value',
+  type: 'RandomValue',
   category: 'Utility/Random',
   description: 'Generate random values',
   

@@ -194,6 +194,10 @@ export interface AnnotationOptions {
   // Image settings
   imageWidth: number;
   imageHeight: number;
+  /** Alias for imageWidth */  
+  width?: number;
+  /** Alias for imageHeight */
+  height?: number;
   
   // Category mapping
   categoryMap?: Map<string, number>;
@@ -520,6 +524,7 @@ export class AnnotationGenerator {
     const segData = await this.groundTruthGen.generateSegmentation({
       width: this.options.imageWidth,
       height: this.options.imageHeight,
+      camera: this.camera,
     });
 
     objects.forEach((object, index) => {
@@ -847,6 +852,14 @@ export class AnnotationGenerator {
       averageObjectSize: bboxes2D.length > 0 ? totalSize / bboxes2D.length : 0,
       occlusionRate: bboxes2D.length > 0 ? occludedCount / bboxes2D.length : 0,
     };
+  }
+
+  /**
+   * Generate segmentation annotations (public API alias)
+   */
+  async generateSegmentation(): Promise<SegmentationMask[]> {
+    const objects = this.collectSceneObjects();
+    return this.generateSegmentations(objects);
   }
 }
 

@@ -32,6 +32,7 @@ export interface ValueNodeData {
 
 export const ValueNode: NodeDefinition<ValueNodeData> = {
   name: 'Value',
+  type: 'Value',
   category: 'Input/Output',
   description: 'Basic value input for various data types',
   
@@ -62,6 +63,7 @@ export interface IntegerNodeData {
 
 export const IntegerNode: NodeDefinition<IntegerNodeData> = {
   name: 'Integer',
+  type: 'Integer',
   category: 'Input/Output',
   description: 'Integer value input',
   
@@ -92,6 +94,7 @@ export interface FloatNodeData {
 
 export const FloatNode: NodeDefinition<FloatNodeData> = {
   name: 'Float',
+  type: 'Float',
   category: 'Input/Output',
   description: 'Floating point value input',
   
@@ -120,6 +123,7 @@ export interface VectorNodeData {
 
 export const VectorNode: NodeDefinition<VectorNodeData> = {
   name: 'Vector',
+  type: 'Vector',
   category: 'Input/Output',
   description: '3D vector input',
   
@@ -148,6 +152,7 @@ export interface RotationNodeData {
 
 export const RotationNode: NodeDefinition<RotationNodeData> = {
   name: 'Rotation',
+  type: 'Rotation',
   category: 'Input/Output',
   description: 'Euler rotation input',
   
@@ -176,6 +181,7 @@ export interface ScaleNodeData {
 
 export const ScaleNode: NodeDefinition<ScaleNodeData> = {
   name: 'Scale',
+  type: 'Scale',
   category: 'Input/Output',
   description: 'Scale factor input',
   
@@ -210,6 +216,7 @@ export interface BooleanNodeData {
 
 export const BooleanNode: NodeDefinition<BooleanNodeData> = {
   name: 'Boolean',
+  type: 'Boolean',
   category: 'Input/Output',
   description: 'Boolean value input',
   
@@ -238,6 +245,7 @@ export interface ColorNodeData {
 
 export const ColorNode: NodeDefinition<ColorNodeData> = {
   name: 'Color',
+  type: 'Color',
   category: 'Input/Output',
   description: 'RGB color input',
   
@@ -266,6 +274,7 @@ export interface StringNodeData {
 
 export const StringNode: NodeDefinition<StringNodeData> = {
   name: 'String',
+  type: 'String',
   category: 'Input/Output',
   description: 'Text string input',
   
@@ -300,6 +309,7 @@ export interface ObjectInfoNodeData {
 
 export const ObjectInfoNode: NodeDefinition<ObjectInfoNodeData> = {
   name: 'Object Info',
+  type: 'ObjectInfo',
   category: 'Input/Output',
   description: 'Get information about a scene object',
   
@@ -382,6 +392,7 @@ export interface CollectionInfoNodeData {
 
 export const CollectionInfoNode: NodeDefinition<CollectionInfoNodeData> = {
   name: 'Collection Info',
+  type: 'CollectionInfo',
   category: 'Input/Output',
   description: 'Get objects from a collection',
   
@@ -440,6 +451,7 @@ export interface SelfObjectNodeData {
 
 export const SelfObjectNode: NodeDefinition<SelfObjectNodeData> = {
   name: 'Self Object',
+  type: 'SelfObject',
   category: 'Input/Output',
   description: 'Reference to the object being modified',
   
@@ -501,6 +513,7 @@ export interface JoinGeometryNodeData {
 
 export const JoinGeometryNode: NodeDefinition<JoinGeometryNodeData> = {
   name: 'Join Geometry',
+  type: 'JoinGeometry',
   category: 'Input/Output',
   description: 'Combine multiple geometries into one',
   
@@ -548,6 +561,7 @@ export interface GroupOutputNodeData {
 
 export const GroupOutputNode: NodeDefinition<GroupOutputNodeData> = {
   name: 'Group Output',
+  type: 'GroupOutput',
   category: 'Input/Output',
   description: 'Define node group outputs',
   

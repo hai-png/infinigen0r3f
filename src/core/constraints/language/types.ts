@@ -5,6 +5,9 @@ export abstract class Node {
   /** Node type discriminator for pattern matching */
   abstract readonly type: string;
 
+  /** Index signature to allow flexible property access on Node subtypes */
+  [key: string]: any;
+
   /**
    * Get all children of this node as a Map of field names to child nodes
    */
@@ -914,13 +917,15 @@ export type BooleanOperator = 'and' | 'or' | 'not' | 'xor' | 'implies';
 
 /**
  * Constraint node in the AST - union of all constraint node types
+ * Includes both interface-based AST nodes and class-based runtime nodes (Node)
  */
 export type ConstraintNode =
   | AndNode
   | OrNode
   | NotNode
   | ConstantConstraintNode
-  | ComparisonNode;
+  | ComparisonNode
+  | Node;
 
 /**
  * And constraint node
@@ -966,6 +971,7 @@ export interface ComparisonNode {
 
 /**
  * Expression node type - union of all expression node types
+ * Includes both interface-based AST nodes and class-based runtime nodes (Node)
  */
 export type ExpressionNode =
   | ConstantExprNode
@@ -973,7 +979,8 @@ export type ExpressionNode =
   | BinaryOpNode
   | UnaryOpNode
   | FunctionCallExprNode
-  | IfElseNode;
+  | IfElseNode
+  | Node;
 
 /**
  * Constant value expression
@@ -1011,7 +1018,10 @@ export interface UnaryOpNode {
   type: 'UnaryOp';
   op: string;
   child: ExpressionNode;
+  /** Alias for child - used by domain-substitute */
+  operand: ExpressionNode;
   domain?: Domain;
+  opType?: string;
 }
 
 /**
@@ -1057,6 +1067,12 @@ export interface Constraint {
   priority?: number;
   description?: string;
   tags?: string[];
+  /** Expression offset for GPU evaluation */
+  exprOffset?: number;
+  /** Expression count for GPU evaluation */
+  exprCount?: number;
+  /** The expression tree for this constraint */
+  expression?: ExpressionNode;
 }
 
 /**
@@ -1065,6 +1081,10 @@ export interface Constraint {
 export interface NamedConstraint extends Constraint {
   name: string;
   source?: string;
+  /** Relation type for named constraints */
+  relationType?: string;
+  /** Arguments for named relation constraints */
+  args?: ExpressionNode[];
 }
 
 /**
@@ -1078,6 +1098,12 @@ export interface Problem {
   objective?: ExpressionNode;
   domains?: Record<string, Domain>;
   metadata?: Record<string, any>;
+  /** Child problems (for hierarchical constraints) */
+  children?: Problem[];
+  /** Tags associated with this problem */
+  tags?: string[];
+  /** Flat list of all expressions (for GPU evaluation) */
+  expressions?: any[];
 }
 
 /**
@@ -1116,6 +1142,10 @@ export interface RelationNode {
   subject: ExpressionNode;
   object: ExpressionNode;
   negated?: boolean;
+  /** Arguments for the relation (alias for subject/object in array form) */
+  args: ExpressionNode[];
+  /** Relation type discriminator (used by domain-substitute) */
+  relationType?: string;
 }
 
 /**
@@ -1125,6 +1155,8 @@ export interface SetExpressionNode {
   type: 'set';
   operation: 'union' | 'intersection' | 'difference' | 'complement';
   operands: ExpressionNode[];
+  /** Alias for operands - used by domain-substitute */
+  elements: ExpressionNode[];
 }
 
 /**
@@ -1134,6 +1166,8 @@ export interface FilterObjectsNode {
   type: 'filter';
   predicate: ExpressionNode;
   source?: ExpressionNode;
+  /** Alias for predicate - used by domain-substitute */
+  condition: ExpressionNode;
 }
 
 /**
@@ -1150,14 +1184,36 @@ export type Tagged = ExpressionNode;
 export type Item = VariableExprNode;
 
 /**
+ * Quantifier node - represents ForAll/Exists/SumOver/MeanOver quantifiers
+ */
+export interface QuantifierNode {
+  type: 'ForAll' | 'Exists' | 'SumOver' | 'MeanOver' | 'MaxOver' | 'MinOver';
+  variable: string;
+  domain: Domain;
+  body: ExpressionNode;
+}
+
+/**
  * Violation report for constraint evaluation
  */
 export interface ViolationReport {
   constraintId: string;
   description: string;
-  severity: 'error' | 'warning';
+  severity: 'error' | 'warning' | 'critical' | 'high' | 'medium' | 'low';
   value: any;
   expected: any;
+  /** Unique identifier for this violation */
+  id?: string;
+  /** Direction vector for violation visualization */
+  direction?: [number, number, number];
+  /** Name of the constraint that was violated */
+  constraintName?: string;
+  /** Type of violation */
+  type?: string;
+  /** IDs of objects involved in the violation */
+  objectIds?: string[];
+  /** Human-readable violation message */
+  message?: string;
 }
 
 /**

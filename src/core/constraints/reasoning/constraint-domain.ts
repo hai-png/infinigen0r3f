@@ -373,3 +373,12 @@ export function analyzeConstraintComplexity(node: Node): ConstraintComplexity {
     domainType: domain?.type
   };
 }
+
+/**
+ * Check if a domain is fully determined (finalized)
+ * A domain is finalized if it has no free variables
+ */
+export function domainFinalized(node: Node): boolean {
+  const freeVars = getFreeVariables(node);
+  return freeVars.size === 0;
+}

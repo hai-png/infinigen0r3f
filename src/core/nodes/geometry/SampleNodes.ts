@@ -1131,6 +1131,84 @@ export function executeRealizeInstances(node: RealizeInstancesNode, geometry: TH
   return geometry.clone();
 }
 
+/**
+ * Execute Tangent Node - get tangent attribute from geometry
+ */
+export function executeTangent(node: TangentNode, geometry: THREE.BufferGeometry): {
+  tangent: Vector3[];
+} {
+  const tangentAttr = geometry.attributes.tangent;
+  
+  const tangents: Vector3[] = [];
+  
+  if (!tangentAttr) {
+    // Compute default tangent from normal
+    const normalAttr = geometry.attributes.normal;
+    if (normalAttr) {
+      for (let i = 0; i < normalAttr.count; i++) {
+        tangents.push(new Vector3(1, 0, 0)); // Default tangent
+      }
+    }
+    return { tangent: tangents };
+  }
+  
+  for (let i = 0; i < tangentAttr.count; i++) {
+    tangents.push(new Vector3(
+      tangentAttr.getX(i),
+      tangentAttr.getY(i),
+      tangentAttr.getZ(i)
+    ));
+  }
+  
+  return { tangent: tangents };
+}
+
+/**
+ * Execute UV Map Node - get UV coordinates from geometry
+ */
+export function executeUVMap(node: UVMapNode, geometry: THREE.BufferGeometry): {
+  uv: Vector3[];
+} {
+  const uvAttr = geometry.attributes.uv;
+  
+  const uvs: Vector3[] = [];
+  
+  if (!uvAttr) {
+    return { uv: [] };
+  }
+  
+  for (let i = 0; i < uvAttr.count; i++) {
+    uvs.push(new Vector3(uvAttr.getX(i), uvAttr.getY(i), 0));
+  }
+  
+  return { uv: uvs };
+}
+
+/**
+ * Execute Color Node - get color attribute from geometry
+ */
+export function executeColor(node: ColorNode, geometry: THREE.BufferGeometry): {
+  color: any[];
+} {
+  const colorAttr = geometry.attributes.color;
+  
+  const colors: any[] = [];
+  
+  if (!colorAttr) {
+    return { color: [] };
+  }
+  
+  for (let i = 0; i < colorAttr.count; i++) {
+    colors.push({
+      r: colorAttr.getX(i),
+      g: colorAttr.getY(i),
+      b: colorAttr.getZ(i)
+    });
+  }
+  
+  return { color: colors };
+}
+
 // ============================================================================
 // Utility Functions
 // ============================================================================

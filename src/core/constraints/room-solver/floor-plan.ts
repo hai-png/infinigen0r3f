@@ -11,7 +11,16 @@ export interface FloorPlanParams {
   maxRoomArea: number;
   aspectRatioMin: number;
   aspectRatioMax: number;
+  /** Grid size for discretization */
+  gridSize?: number;
+  /** Maximum number of rooms */
+  maxRooms?: number;
+  /** Complexity level */
+  complexity?: 'simple' | 'medium' | 'complex';
 }
+
+/** Floor plan configuration - alias for FloorPlanParams */
+export type FloorPlanConfig = FloorPlanParams;
 
 export interface RoomContour {
   vertices: Vector2[];

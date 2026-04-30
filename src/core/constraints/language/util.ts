@@ -22,7 +22,7 @@ import type { State } from '../evaluator/state';
  */
 export function simplifyConstraint(node: ConstraintNode): ConstraintNode {
   if (node.type === 'And' || node.type === 'Or') {
-    const simplifiedChildren = node.children.map(simplifyConstraint);
+    const simplifiedChildren = (node.children as ConstraintNode[]).map(simplifyConstraint);
     
     // Remove True nodes from And, False nodes from Or
     const filtered = simplifiedChildren.filter(child => {
@@ -242,7 +242,7 @@ export function extractVariables(node: ConstraintNode): Set<string> {
     }
     
     if ('children' in n && n.children) {
-      n.children.forEach(traverse);
+      (n.children as ConstraintNode[]).forEach(traverse);
     }
     if ('child' in n && n.child) {
       traverse(n.child);
@@ -308,7 +308,8 @@ export function getExpressionBounds(
   if (expr.type === 'Variable') {
     const domain = domains.get(expr.name);
     if (domain?.type === 'NumericDomain') {
-      return [domain.min, domain.max];
+      const numDomain = domain as NumericDomain;
+      return [numDomain.min, numDomain.max];
     }
     return [-Infinity, Infinity];
   }
@@ -403,7 +404,7 @@ export function substituteVariable(
   if (node.type === 'And' || node.type === 'Or') {
     return {
       ...node,
-      children: node.children.map(child => 
+      children: (node.children as ConstraintNode[]).map(child => 
         substituteVariable(child, varName, replacement) as ConstraintNode
       ),
     };
@@ -453,7 +454,7 @@ function eliminateImplications(node: ConstraintNode): ConstraintNode {
   if (node.type === 'And' || node.type === 'Or') {
     return {
       ...node,
-      children: node.children.map(eliminateImplications),
+      children: (node.children as ConstraintNode[]).map(eliminateImplications),
     };
   }
   if (node.type === 'Not') {
@@ -488,7 +489,7 @@ function moveNotInward(node: ConstraintNode): ConstraintNode {
   if (node.type === 'And' || node.type === 'Or') {
     return {
       ...node,
-      children: node.children.map(moveNotInward),
+      children: (node.children as ConstraintNode[]).map(moveNotInward),
     };
   }
   
@@ -499,12 +500,12 @@ function distributeOrOverAnd(node: ConstraintNode): ConstraintNode {
   if (node.type === 'And') {
     return {
       ...node,
-      children: node.children.map(distributeOrOverAnd),
+      children: (node.children as ConstraintNode[]).map(distributeOrOverAnd),
     };
   }
   
   if (node.type === 'Or') {
-    const children = node.children.map(distributeOrOverAnd);
+    const children = (node.children as ConstraintNode[]).map(distributeOrOverAnd);
     
     // Find AND children
     const andIndex = children.findIndex(c => c.type === 'And');
@@ -682,11 +683,11 @@ export function constraintToString(node: ConstraintNode): string {
   }
   
   if (node.type === 'And') {
-    return `(${node.children.map(constraintToString).join(' ∧ ')})`;
+    return `(${(node.children as ConstraintNode[]).map(constraintToString).join(' ∧ ')})`;
   }
   
   if (node.type === 'Or') {
-    return `(${node.children.map(constraintToString).join(' ∨ ')})`;
+    return `(${(node.children as ConstraintNode[]).map(constraintToString).join(' ∨ ')})`;
   }
   
   if (node.type === 'Not') {

@@ -677,3 +677,6 @@ export class BoolIfElse extends BoolExpression {
 
 // Re-export InRange from types for convenience
 export { InRange } from './types';
+
+// Re-export Constant type alias for convenience
+export type { Constant } from './types';

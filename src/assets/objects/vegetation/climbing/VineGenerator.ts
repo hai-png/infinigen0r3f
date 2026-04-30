@@ -2,6 +2,70 @@ import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
 /**
+ * Vine Species Configuration
+ * Defines per-species parameters for vine generation
+ */
+export interface VineSpeciesConfig {
+  species: 'ivy' | 'wisteria' | 'grapevine' | 'creeper';
+  growthPattern: 'climbing' | 'hanging' | 'spreading';
+  length: number;
+  stemThickness: number;
+  leafDensity: number;
+  leafSize: number;
+  hasFlowers: boolean;
+  flowerColor?: THREE.Color;
+  growthDirection: THREE.Vector3;
+}
+
+/**
+ * Predefined vine species presets
+ */
+export const VineSpeciesPresets: Record<string, VineSpeciesConfig> = {
+  ivy: {
+    species: 'ivy',
+    growthPattern: 'climbing',
+    length: 2.0,
+    stemThickness: 0.01,
+    leafDensity: 0.7,
+    leafSize: 0.05,
+    hasFlowers: false,
+    growthDirection: new THREE.Vector3(0, 1, 0),
+  },
+  wisteria: {
+    species: 'wisteria',
+    growthPattern: 'hanging',
+    length: 3.0,
+    stemThickness: 0.015,
+    leafDensity: 0.6,
+    leafSize: 0.04,
+    hasFlowers: true,
+    flowerColor: new THREE.Color(0x9b59b6),
+    growthDirection: new THREE.Vector3(0, -1, 0),
+  },
+  grapevine: {
+    species: 'grapevine',
+    growthPattern: 'climbing',
+    length: 2.5,
+    stemThickness: 0.02,
+    leafDensity: 0.8,
+    leafSize: 0.06,
+    hasFlowers: true,
+    flowerColor: new THREE.Color(0x27ae60),
+    growthDirection: new THREE.Vector3(0, 1, 0),
+  },
+  creeper: {
+    species: 'creeper',
+    growthPattern: 'spreading',
+    length: 1.5,
+    stemThickness: 0.008,
+    leafDensity: 0.9,
+    leafSize: 0.03,
+    hasFlowers: false,
+    growthDirection: new THREE.Vector3(1, 0, 0),
+  },
+};
+
+/**
  * Vine Configuration Interface
  * Defines all parameters for vine generation
  */

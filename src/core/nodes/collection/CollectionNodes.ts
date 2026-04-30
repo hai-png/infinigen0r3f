@@ -35,9 +35,11 @@ export interface CollectionInfoOutputs {
 export class CollectionInfoNode implements CollectionNodeBase {
   readonly category = 'collection';
   readonly nodeType = 'collection_info';
+  readonly name = 'Collection Info';
   readonly inputs: CollectionInfoInputs;
   readonly outputs: CollectionInfoOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: CollectionInfoInputs = {}) {
     this.inputs = inputs;
@@ -99,9 +101,11 @@ export interface ObjectInfoOutputs {
 export class ObjectInfoNode implements CollectionNodeBase {
   readonly category = 'collection';
   readonly nodeType = 'object_info';
+  readonly name = 'Object Info';
   readonly inputs: ObjectInfoInputs;
   readonly outputs: ObjectInfoOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: ObjectInfoInputs = {}) {
     this.inputs = inputs;
@@ -151,9 +155,11 @@ export interface InstanceOnPointsOutputs {
 export class InstanceOnPointsNode implements CollectionNodeBase {
   readonly category = 'collection';
   readonly nodeType = 'instance_on_points';
+  readonly name = 'Instance on Points';
   readonly inputs: InstanceOnPointsInputs;
   readonly outputs: InstanceOnPointsOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: InstanceOnPointsInputs = {}) {
     this.inputs = inputs;
@@ -215,9 +221,11 @@ export interface DuplicateElementsOutputs {
 export class DuplicateElementsNode implements CollectionNodeBase {
   readonly category = 'collection';
   readonly nodeType = 'duplicate_elements';
+  readonly name = 'Duplicate Elements';
   readonly inputs: DuplicateElementsInputs;
   readonly outputs: DuplicateElementsOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: DuplicateElementsInputs = {}) {
     this.inputs = inputs;
@@ -266,9 +274,11 @@ export interface ChildrenOfSceneOutputs {
 export class ChildrenOfSceneNode implements CollectionNodeBase {
   readonly category = 'collection';
   readonly nodeType = 'children_of_scene';
+  readonly name = 'Children of Scene';
   readonly inputs: ChildrenOfSceneInputs;
   readonly outputs: ChildrenOfSceneOutputs;
   readonly domain: AttributeDomain = 'point';
+  readonly settings: Record<string, any> = {};
 
   constructor(inputs: ChildrenOfSceneInputs = {}) {
     this.inputs = inputs;

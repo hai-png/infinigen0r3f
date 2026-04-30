@@ -83,7 +83,7 @@ export class AssetFactory {
     desc: AssetDescription
   ): THREE.Mesh {
     let geometry: THREE.BufferGeometry;
-    const scale = desc.scale || this.options.defaultScale;
+    const scale = this.toVector3(desc.scale || this.options.defaultScale);
 
     switch (type) {
       case 'box':
@@ -242,6 +242,19 @@ export class AssetFactory {
    */
   clearCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Convert a scale value (number or Vector3-like) to THREE.Vector3
+   */
+  private toVector3(scale: number | { x: number; y: number; z: number } | THREE.Vector3): THREE.Vector3 {
+    if (typeof scale === 'number') {
+      return new THREE.Vector3(scale, scale, scale);
+    }
+    if (scale instanceof THREE.Vector3) {
+      return scale;
+    }
+    return new THREE.Vector3(scale.x, scale.y, scale.z);
   }
 }
 

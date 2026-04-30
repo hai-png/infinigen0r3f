@@ -235,7 +235,7 @@ export class Solidifier {
   /**
    * Create geometry for a wall segment with openings
    */
-  private createWallSegment(segment: WallSegment): THREE.BoxGeometry {
+  private createWallSegment(segment: WallSegment): THREE.BufferGeometry {
     const length = Math.sqrt(
       Math.pow(segment.end.x - segment.start.x, 2) +
       Math.pow(segment.end.z - segment.start.z, 2)
@@ -248,7 +248,7 @@ export class Solidifier {
 
     // Create wall with openings using CSG-like approach
     // For simplicity, we'll create separate boxes between openings
-    const geometries: THREE.BoxGeometry[] = [];
+    const geometries: THREE.BufferGeometry[] = [];
     let currentPosition = 0;
 
     for (const opening of segment.openings) {
