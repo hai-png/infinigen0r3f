@@ -5,8 +5,7 @@
  * for large-scale scene generation.
  */
 
-import { Object3D, Texture } from 'three';
-import type { BufferGeometry } from 'three';
+import { Object3D, Texture, BufferGeometry } from 'three';
 
 // ============================================================================
 // Types & Interfaces

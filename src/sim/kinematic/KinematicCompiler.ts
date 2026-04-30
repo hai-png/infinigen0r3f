@@ -133,7 +133,7 @@ export class KinematicCompiler {
     }
 
     const root = this.buildKinematicGraph(outputNode, geoGraph);
-    root.setIdn('root');
+    root.setIdn(0);
 
     const metadata: Record<string, any> = {};
     for (const [key, labels] of Object.entries(this.semanticLabels)) {

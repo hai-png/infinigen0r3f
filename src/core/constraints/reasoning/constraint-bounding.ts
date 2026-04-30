@@ -187,15 +187,28 @@ export function evaluateKnownVars(
   if (node instanceof ScalarOperatorExpression) {
     const [lhs, rhs] = node.operands;
     if (intInverseOp[node.func]) {
-      if (isConstant(lhs)) {
-        const rhsEval = evaluateKnownVars(rhs, knownVars);
-        if (rhsEval !== null) {
-          return node.func((lhs as any)(), rhsEval);
-        }
-      } else {
-        const lhsEval = evaluateKnownVars(lhs, knownVars);
-        if (lhsEval !== null) {
-          return node.func(lhsEval, (rhs as any)());
+      const funcMap: Record<string, (a: number, b: number) => number> = {
+        'add': (a, b) => a + b,
+        'sub': (a, b) => a - b,
+        'mul': (a, b) => a * b,
+        'div': (a, b) => a / b,
+        'mod': (a, b) => a % b,
+        'pow': (a, b) => Math.pow(a, b),
+        'min': (a, b) => Math.min(a, b),
+        'max': (a, b) => Math.max(a, b),
+      };
+      const fn = funcMap[node.func];
+      if (fn) {
+        if (isConstant(lhs)) {
+          const rhsEval = evaluateKnownVars(rhs, knownVars);
+          if (rhsEval !== null) {
+            return fn((lhs as any)(), rhsEval);
+          }
+        } else {
+          const lhsEval = evaluateKnownVars(lhs, knownVars);
+          if (lhsEval !== null) {
+            return fn(lhsEval, (rhs as any)());
+          }
         }
       }
     }

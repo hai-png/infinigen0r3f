@@ -560,8 +560,8 @@ export class CollisionAvoidance {
     
     this.addShape({
       type: 'box',
-      position: center as number | Vector3,
-      size: size as number | Vector3
+      position: center as any,
+      size: size as any
     });
   }
 }

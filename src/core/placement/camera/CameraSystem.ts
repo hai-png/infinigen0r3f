@@ -8,6 +8,7 @@
 import { Vector3, Euler } from 'three';
 import { Variable, ConstraintNode } from '../../constraints/language/types';
 import { item } from '../../constraints/language/constants';
+import { Tag } from '../../constraints/tags/index';
 import {
   Visible,
   Proximity,
@@ -305,10 +306,10 @@ export function Frames(
   // Add distance constraint based on shot size
   if (shotSize) {
     const [minDist, maxDist] = SHOT_SIZE_DISTANCES[shotSize];
-    constraints.push(new Proximity(cameraVar, subjectVar, maxDist, minDist));
+    constraints.push(new Proximity(cameraVar as any, subjectVar as any, maxDist, minDist));
   }
   
-  return new AndRelations(constraints);
+  return new AndRelations(constraints) as unknown as ConstraintNode;
 }
 
 /**
@@ -337,7 +338,7 @@ export function MaintainsShotSize(
   const subjectVar = typeof subject === 'string' ? item(subject) : subject;
   
   const [minDist, maxDist] = SHOT_SIZE_DISTANCES[shotSize];
-  return new Proximity(cameraVar, subjectVar, maxDist, minDist);
+  return new Proximity(cameraVar as any, subjectVar as any, maxDist, minDist);
 }
 
 /**
@@ -372,7 +373,7 @@ export function AvoidsObstruction(
   // Get potential occluders (objects between camera and subject)
   const occluders = new FilterObjects(
     SCENE,
-    new TagCondition('semantics', new Set(['occluder']) as any)
+    TagCondition.fromKeyValue('semantics', 'occluder')
   );
   
   // For all occluders, they should not block the view
@@ -599,7 +600,7 @@ function easeInOut(t: number): number {
 }
 
 // Placeholder for AndRelations (would be imported)
-class AndRelations implements ConstraintNode {
-  type: 'and' = 'and';
+class AndRelations {
+  type: 'and' = 'and' as const;
   constructor(public children: ConstraintNode[]) {}
 }

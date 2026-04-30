@@ -347,13 +347,13 @@ export class MoveOperatorFactory {
   private operators: Map<MoveType, any>;
 
   constructor(domain: ConstraintDomain) {
-    this.operators = new Map([
+    this.operators = new Map<MoveType, any>([
       [MoveType.SWAP, new SwapMoveOperator(domain)],
       [MoveType.POSE, new PoseMoveOperator(domain)],
       [MoveType.ADD, new AddMoveOperator(domain)],
       [MoveType.DELETE, new DeleteMoveOperator(domain)],
       [MoveType.REASSIGN, new ReassignMoveOperator(domain)],
-    ]);
+    ] as [MoveType, any][]);
   }
 
   getOperator(type: MoveType): any {

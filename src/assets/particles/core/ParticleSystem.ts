@@ -170,6 +170,11 @@ export interface ParticleCollider {
 export class Particle {
   data: ParticleData;
   private _pool: ParticlePool | null = null;
+  
+  /** Get the pool this particle belongs to */
+  get pool(): ParticlePool | null { return this._pool; }
+  /** Set the pool this particle belongs to */
+  set pool(value: ParticlePool | null) { this._pool = value; }
 
   constructor(id: number) {
     this.data = {
@@ -314,7 +319,7 @@ export class ParticlePool {
     // Pre-allocate particles
     for (let i = 0; i < maxSize; i++) {
       const particle = new Particle(i);
-      particle._pool = this;
+      particle.pool = this;
       this.particles.push(particle);
       this.freeList.push(i);
     }

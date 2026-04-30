@@ -162,6 +162,16 @@ export abstract class Domain {
   }
 
   /**
+   * Traverse the domain tree in depth-first order
+   */
+  *traverse(): Generator<Domain> {
+    yield this;
+    for (const child of this.children().values()) {
+      yield* (child as any).traverse() as Generator<Domain>;
+    }
+  }
+
+  /**
    * Get a sample value from this domain
    */
   abstract sample(seed?: number): any;

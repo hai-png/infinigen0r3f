@@ -578,17 +578,17 @@ export function noise3D(x: number, y: number, z: number, scale: number = 1.0): n
   const BB = p[B + 1] + Z;
 
   // Gradient contributions
-  const result = lerp(
+  const result = lerpNoise(
     w,
-    lerp(
+    lerpNoise(
       v,
-      lerp(u, grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z)),
-      lerp(u, grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z))
+      lerpNoise(u, grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z)),
+      lerpNoise(u, grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z))
     ),
-    lerp(
+    lerpNoise(
       v,
-      lerp(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)),
-      lerp(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))
+      lerpNoise(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)),
+      lerpNoise(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))
     )
   );
 
@@ -619,10 +619,10 @@ export function noise2D(x: number, y: number, scale: number = 1.0): number {
   const B = p[X + 1] + Y;
 
   // Gradient contributions
-  const result = lerp(
+  const result = lerpNoise(
     v,
-    lerp(u, grad(p[A], x, y, 0), grad(p[B], x - 1, y, 0)),
-    lerp(u, grad(p[A + 1], x, y - 1, 0), grad(p[B + 1], x - 1, y - 1, 0))
+    lerpNoise(u, grad(p[A], x, y, 0), grad(p[B], x - 1, y, 0)),
+    lerpNoise(u, grad(p[A + 1], x, y - 1, 0), grad(p[B + 1], x - 1, y - 1, 0))
   );
 
   return result;
@@ -759,7 +759,7 @@ function fade(t: number): number {
 /**
  * Linear interpolation
  */
-function lerp(t: number, a: number, b: number): number {
+function lerpNoise(t: number, a: number, b: number): number {
   return a + t * (b - a);
 }
 

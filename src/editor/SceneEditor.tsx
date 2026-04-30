@@ -6,7 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, TransformControls } from '@react-three/drei';
-import { GridHelper, AxesHelper } from 'three';
+import { GridHelper as GridHelperClass, AxesHelper as AxesHelperClass } from 'three';
 import * as THREE from 'three';
 
 export interface SceneObject {
@@ -188,8 +188,8 @@ const SceneContent: React.FC<{
       <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
       
       {/* Helpers */}
-      {showGrid && <GridHelper args={[gridSize, gridDivisions]} />}
-      {showAxes && <AxesHelper args={[2]} />}
+      {showGrid && <primitive object={new GridHelperClass(gridSize, gridDivisions)} />}
+      {showAxes && <primitive object={new AxesHelperClass(2)} />}
       
       {/* Objects */}
       {objects.map(object => (

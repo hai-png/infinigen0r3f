@@ -1030,8 +1030,8 @@ export function executeRandomValue(node: RandomValueNode): {
       break;
       
     case 'vector':
-      const minV = min instanceof Vector3 ? min : new Vector3(0, 0, 0);
-      const maxV = max instanceof Vector3 ? max : new Vector3(1, 1, 1);
+      const minV: Vector3 = (min as any) instanceof Vector3 ? (min as unknown as Vector3) : new Vector3(0, 0, 0);
+      const maxV: Vector3 = (max as any) instanceof Vector3 ? (max as unknown as Vector3) : new Vector3(1, 1, 1);
       value = new Vector3(
         minV.x + rand * (maxV.x - minV.x),
         minV.y + rand * (maxV.y - minV.y),

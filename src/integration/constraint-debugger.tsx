@@ -78,7 +78,7 @@ export const ConstraintDebugger: React.FC<ConstraintDebuggerProps> = ({
             {/* Object representation */}
             <Box
               args={[0.5, 0.5, 0.5]}
-              position={objState.position}
+              position={[objState.position.x, objState.position.y, objState.position.z]}
               rotation={new THREE.Euler(objState.rotation.x, objState.rotation.y, objState.rotation.z)}
             >
               <meshStandardMaterial
@@ -163,7 +163,7 @@ const DomainVisualizer: React.FC<DomainVisualizerProps> = ({ domain, objectId })
   return (
     <Box
       args={[size.x, size.y, size.z]}
-      position={center}
+      position={[center.x, center.y, center.z]}
     >
       <meshBasicMaterial
         color="yellow"

@@ -157,7 +157,7 @@ export class GroundTruthGenerator {
     this.depthCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
     this.depthScene = new Scene();
     this.depthMaterial = new MeshDepthMaterial({
-      depthPacking: 3, // RGBADepthPacking
+      depthPacking: 3 as any, // RGBADepthPacking
     });
     
     // Initialize normal rendering

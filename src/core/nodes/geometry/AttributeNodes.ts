@@ -844,7 +844,7 @@ export function executeNearestFacePoint(node: NearestFacePointNode, geometry: TH
   
   // For now, return nearest vertex as approximation
   // TODO: Implement proper point-triangle distance
-  const nearest = executeIndexOfNearest({ type: 'index_of_nearest', inputs: { geometry, position } }, geometry);
+  const nearest = executeIndexOfNearest({ type: 'index_of_nearest', inputs: { geometry, position } } as IndexOfNearestNode, geometry);
   
   const px = posAttr.getX(nearest.index);
   const py = posAttr.getY(nearest.index);

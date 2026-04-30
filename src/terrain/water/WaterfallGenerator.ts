@@ -450,7 +450,7 @@ export class WaterfallGenerator {
     );
     
     const waterfalls: Waterfall[] = [];
-    let terrain = new Float32Array(heightmap);
+    let terrain: Float32Array<ArrayBufferLike> = new Float32Array(heightmap);
     
     // Generate waterfall at each suitable location
     for (const location of locations) {

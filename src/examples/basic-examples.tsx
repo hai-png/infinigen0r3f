@@ -158,9 +158,9 @@ export function BasicExample() {
           <mesh
             key={id}
             name={id}
-            position={objState.position}
-            rotation={objState.rotation instanceof THREE.Vector3 ? objState.rotation : new THREE.Euler(objState.rotation.x, objState.rotation.y, objState.rotation.z)}
-            scale={objState.scale}
+            position={[objState.position.x, objState.position.y, objState.position.z]}
+            rotation={objState.rotation instanceof THREE.Euler ? objState.rotation : new THREE.Euler(objState.rotation.x, objState.rotation.y, objState.rotation.z)}
+            scale={[objState.scale.x, objState.scale.y, objState.scale.z]}
           >
             <boxGeometry args={[1, 1, 1]} />
             <meshStandardMaterial
@@ -256,8 +256,8 @@ export function RoomLayoutExample() {
       {state && Array.from(state.objects.entries()).map(([id, objState]) => (
         <mesh
           key={id}
-          position={objState.position}
-          rotation={objState.rotation instanceof THREE.Vector3 ? objState.rotation : new THREE.Euler(objState.rotation.x, objState.rotation.y, objState.rotation.z)}
+          position={[objState.position.x, objState.position.y, objState.position.z]}
+          rotation={objState.rotation instanceof THREE.Euler ? objState.rotation : new THREE.Euler(objState.rotation.x, objState.rotation.y, objState.rotation.z)}
           castShadow
           receiveShadow
         >

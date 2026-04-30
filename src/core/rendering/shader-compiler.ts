@@ -228,7 +228,7 @@ export class ShaderCompiler {
       });
       
       // Force compilation
-      material.onBeforeCompile = (program: WebGLProgram) => {
+      material.onBeforeCompile = ((program: WebGLProgram) => {
         // Store in cache
         this.addToCache(effectiveCacheKey, {
           program,
@@ -239,7 +239,7 @@ export class ShaderCompiler {
           lastUsedAt: Date.now(),
           useCount: 1,
         });
-      };
+      }) as any;
       
       // Trigger compilation by using the material
       this.renderer.compile(material as any, undefined as any);

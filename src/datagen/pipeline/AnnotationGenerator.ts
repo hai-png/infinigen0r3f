@@ -779,7 +779,7 @@ export class AnnotationGenerator {
         name: bbox.category,
         pose: 'Unspecified',
         truncated: bbox.occlusion?.truncated || false,
-        difficult: 0,
+        difficult: false as boolean,
         bndbox: {
           xmin: Math.round(bbox.bbox[0]),
           ymin: Math.round(bbox.bbox[1]),

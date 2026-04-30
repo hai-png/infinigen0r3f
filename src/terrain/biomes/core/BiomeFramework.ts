@@ -247,7 +247,7 @@ export class BiomeScatterer {
           position,
           rotation,
           scale: new THREE.Vector3(scale, scale, scale),
-          assetId: selectedAsset.id,
+          assetId: selectedAsset.id as string,
           metadata: selectedAsset,
           biomeAffinity: this.calculatePositionAffinity(position, normal, biomeBlend),
         });

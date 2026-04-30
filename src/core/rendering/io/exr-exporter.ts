@@ -259,7 +259,7 @@ export class EXRExporter {
       results.push(result);
     }
     
-    return results;
+    return results as string[] | ArrayBuffer[];
   }
 
   /**

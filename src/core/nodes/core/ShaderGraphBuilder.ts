@@ -578,7 +578,7 @@ export class ShaderGraphBuilder {
         node.outputs.set('color', this.createSocket('Color', SocketType.COLOR));
         break;
 
-      case NodeType.TextureCoordinate:
+      case NodeType.TextureCoord:
         node.outputs.set('generated', this.createSocket('Generated', SocketType.VECTOR));
         node.outputs.set('normal', this.createSocket('Normal', SocketType.VECTOR));
         node.outputs.set('uv', this.createSocket('UV', SocketType.VECTOR));

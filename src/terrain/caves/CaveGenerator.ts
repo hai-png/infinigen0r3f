@@ -259,7 +259,7 @@ export class CaveGenerator {
     for (const [type, decals] of byType) {
       for (const dec of decals) {
         const matrix = new THREE.Matrix4();
-        matrix.compose(dec.position, dec.rotation, dec.scale);
+        matrix.compose(dec.position, new THREE.Quaternion().setFromEuler(dec.rotation), dec.scale);
         mesh.setMatrixAt(idx++, matrix);
       }
     }
