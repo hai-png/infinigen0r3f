@@ -176,7 +176,7 @@ export * from './integration';
 // Re-exported from consolidated locations
 export {
   AnimationEngine, getGlobalEngine, resetGlobalEngine,
-  Timeline, AnimationTrack, Easings, getEasing, lerp as animationLerp,
+  Timeline, AnimationTrack, Easings, getEasing, animationLerp,
   OscillatoryMotion, PatternGenerator, evaluateWave, createPresetMotion, createPresetPattern,
   PathFollower, generateCameraPath,
   WindAnimationSystem, WindZone,

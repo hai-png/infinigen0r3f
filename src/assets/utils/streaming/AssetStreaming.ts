@@ -6,7 +6,7 @@
  */
 
 import { Object3D, Texture } from 'three';
-import type { Geometry } from 'three';
+import type { BufferGeometry } from 'three';
 
 // ============================================================================
 // Types & Interfaces
@@ -402,7 +402,7 @@ export class AssetStreamer {
     if (!data) return;
 
     // Dispose Three.js resources
-    if (data instanceof Geometry) {
+    if (data instanceof BufferGeometry) {
       data.dispose();
     }
     if (data instanceof Texture) {

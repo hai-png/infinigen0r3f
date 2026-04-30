@@ -218,7 +218,7 @@ export class CutleryGenerator extends BaseObjectGenerator<CutleryParams> {
     return new Mesh(geom, mat);
   }
 
-  getVariations(): CutleryParams[] {
+  getVariations(count?: number, baseConfig?: Partial<CutleryParams>): THREE.Object3D[] {
     const typeStyles: Record<string, string[]> = {
       fork: ['dinner', 'salad', 'dessert', 'serving'],
       knife: ['steak', 'butter', 'chef'],
@@ -228,8 +228,8 @@ export class CutleryGenerator extends BaseObjectGenerator<CutleryParams> {
     const types: Array<'fork' | 'knife' | 'spoon'> = ['fork', 'knife', 'spoon'];
     
     const variations: CutleryParams[] = [];
-    
-    for (let i = 0; i < 8; i++) {
+
+    for (let i = 0; i < (count ?? 8); i++) {
       const type = types[i % 3];
       variations.push({
         type,
@@ -239,8 +239,8 @@ export class CutleryGenerator extends BaseObjectGenerator<CutleryParams> {
         seed: i * 1000
       });
     }
-    
-    return variations;
+
+    return variations.map(p => this.generate(p)) as THREE.Object3D[];
   }
 
   protected getMaterial(type: string): THREE.MeshStandardMaterial {

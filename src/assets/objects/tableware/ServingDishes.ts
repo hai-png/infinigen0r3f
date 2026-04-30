@@ -326,13 +326,14 @@ export class ServingDishesGenerator extends BaseObjectGenerator<ServingDishConfi
     return handles;
   }
 
-  getVariations(): ServingDishConfig[] {
-    return [
-      { ...this.defaultParams, type: 'platter', material: 'porcelain', size: 'large' },
-      { ...this.defaultParams, type: 'bowl', material: 'ceramic', color: '#F5F5DC', size: 'medium' },
-      { ...this.defaultParams, type: 'tureen', material: 'silver', hasLid: true, lidStyle: 'ornate', handles: 'loop' },
-      { ...this.defaultParams, type: 'casserole', material: 'ceramic', color: '#8B0000', hasLid: true, handles: 'side' },
-      { ...this.defaultParams, type: 'pitcher', material: 'glass', size: 'large' }
+  getVariations(count?: number, baseConfig?: Partial<ServingDishConfig>): THREE.Object3D[] {
+    const configs = [
+      { ...this.defaultParams, type: 'platter' as const, material: 'porcelain' as const, size: 'large' as const },
+      { ...this.defaultParams, type: 'bowl' as const, material: 'ceramic' as const, color: '#F5F5DC', size: 'medium' as const },
+      { ...this.defaultParams, type: 'tureen' as const, material: 'silver' as const, hasLid: true, lidStyle: 'ornate' as const, handles: 'loop' as const },
+      { ...this.defaultParams, type: 'casserole' as const, material: 'ceramic' as const, color: '#8B0000', hasLid: true, handles: 'side' as const },
+      { ...this.defaultParams, type: 'pitcher' as const, material: 'glass' as const, size: 'large' as const }
     ];
+    return configs.map(c => this.generate(c)) as THREE.Object3D[];
   }
 }

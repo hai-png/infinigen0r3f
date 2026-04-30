@@ -7,4 +7,4 @@
  */
 
 export { SimFactory } from './SimFactory';
-export { physicsExporters } from './physics-exporters';
+export { PhysicsExporterFactory as physicsExporters } from './physics-exporters';

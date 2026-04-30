@@ -6,7 +6,7 @@
  */
 
 import { NodeTypes } from '../core/node-types';
-import type { Geometry } from 'three';
+import type { BufferGeometry } from 'three';
 import type { ColorLike } from '../color/ColorNodes';
 
 // ============================================================================

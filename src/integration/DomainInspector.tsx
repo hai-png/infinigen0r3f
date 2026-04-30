@@ -24,7 +24,7 @@ interface DomainInspectorProps {
 
 const DomainValueDisplay: React.FC<{ domain: Domain }> = ({ domain }) => {
   switch (domain.type) {
-    case 'object-set':
+    case 'object_set':
       const objDomain = domain as ObjectSetDomain;
       return (
         <div style={{ fontSize: '11px' }}>
@@ -170,7 +170,7 @@ export const DomainInspector: React.FC<DomainInspectorProps> = ({
   const domainStats = useMemo(() => {
     const stats = {
       total: variables.length,
-      'object-set': variables.filter(v => v.domain.type === 'object-set').length,
+      'object_set': variables.filter(v => v.domain.type === 'object_set').length,
       numeric: variables.filter(v => v.domain.type === 'numeric').length,
       pose: variables.filter(v => v.domain.type === 'pose').length,
       bbox: variables.filter(v => v.domain.type === 'bbox').length,

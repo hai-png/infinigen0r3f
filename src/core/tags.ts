@@ -20,7 +20,7 @@ export abstract class Tag {
   /**
    * Returns negated version of this tag
    */
-  negate(): NegatedTag {
+  negate(): Tag {
     return new NegatedTag(this);
   }
 }

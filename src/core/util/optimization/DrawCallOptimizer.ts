@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'three';
-import type { Object3D, Material, Geometry, BufferGeometry, Mesh } from 'three';
+import type { Object3D, Material, BufferGeometry, Mesh } from 'three';
 
 export interface DrawCallStats {
   /** Total number of draw calls */

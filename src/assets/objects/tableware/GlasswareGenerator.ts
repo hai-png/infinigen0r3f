@@ -145,17 +145,18 @@ export class GlasswareGenerator extends BaseObjectGenerator<GlasswareParams> {
     return new Mesh(geom, mat);
   }
 
-  getVariations(): GlasswareParams[] {
+  getVariations(count?: number, baseConfig?: Partial<GlasswareParams>): THREE.Object3D[] {
     const types: GlasswareParams['type'][] = ['wine', 'beer', 'water', 'champagne', 'whiskey', 'cocktail', 'bottle_wine', 'bottle_beer'];
     const styles: GlasswareParams['style'][] = ['elegant', 'casual', 'modern', 'vintage'];
     const sizes: GlasswareParams['size'][] = ['small', 'medium', 'large'];
-    
-    return types.map((type, i) => ({
+
+    const params = types.map((type, i) => ({
       type,
       style: styles[i % 4],
       size: sizes[i % 3],
       seed: i * 1000
     }));
+    return params.map(p => this.generate(p)) as THREE.Object3D[];
   }
 
   protected getMaterial(type: string): THREE.MeshPhysicalMaterial {
