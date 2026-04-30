@@ -2,6 +2,7 @@
  * MirrorGenerator - Procedural mirror generation with various frame styles
  * Generates wall mirrors, standing mirrors, decorative mirrors
  */
+import * as THREE from 'three';
 import {
   Group,
   Mesh,

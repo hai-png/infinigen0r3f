@@ -177,7 +177,8 @@ export class MemoryProfiler {
                 textureMemory += texSize;
                 
                 if (this.config.detailedTracking) {
-                  const sizeKey = `${texture.image?.width || 0}x${texture.image?.height || 0}`;
+                  const img = texture.image as any;
+                  const sizeKey = `${img?.width || 0}x${img?.height || 0}`;
                   breakdown.byTextureSize.set(
                     sizeKey,
                     (breakdown.byTextureSize.get(sizeKey) || 0) + texSize
@@ -324,8 +325,8 @@ export class MemoryProfiler {
     const image = texture.image;
     if (!image) return 0;
     
-    const width = image.width || 0;
-    const height = image.height || 0;
+    const width = (image as any).width || 0;
+    const height = (image as any).height || 0;
     
     if (width === 0 || height === 0) return 0;
     

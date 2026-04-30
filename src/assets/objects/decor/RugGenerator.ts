@@ -1,6 +1,7 @@
 /**
  * RugGenerator - Procedural rug/carpet generation
  */
+import * as THREE from 'three';
 import { Group, Mesh, PlaneGeometry, BoxGeometry, Material, MeshStandardMaterial, BufferGeometry, Float32BufferAttribute } from 'three';
 import { BaseObjectGenerator } from '../utils/BaseObjectGenerator';
 

@@ -5,6 +5,7 @@
  * Based on original: infinigen/core/nodes/nodegroups/sample_nodes.py
  */
 
+import * as THREE from 'three';
 import { Vector3, Box3, Sphere } from 'three';
 import type { NodeDefinition, NodeSocket, GeometryType } from '../core/types';
 import { SocketType } from '../core/socket-types';

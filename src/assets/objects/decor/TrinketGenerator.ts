@@ -1,6 +1,7 @@
 /**
  * TrinketGenerator - Procedural small decorative objects
  */
+import * as THREE from 'three';
 import { Group, Mesh, SphereGeometry, TorusGeometry, IcosahedronGeometry, Material, MeshStandardMaterial } from 'three';
 import { BaseObjectGenerator } from '../utils/BaseObjectGenerator';
 

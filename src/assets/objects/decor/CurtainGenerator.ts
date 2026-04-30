@@ -2,6 +2,7 @@
  * CurtainGenerator - Procedural curtain generation with various styles
  * Generates drapes, sheers, valances, and different curtain types
  */
+import * as THREE from 'three';
 import {
   Group,
   Mesh,

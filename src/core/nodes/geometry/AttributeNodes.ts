@@ -5,6 +5,7 @@
  * Based on original: infinigen/core/nodes/nodegroups/attribute_nodes.py
  */
 
+import * as THREE from 'three';
 import { Vector3, Color, BufferAttribute } from 'three';
 import type { NodeDefinition, NodeSocket, GeometryType } from '../core/types';
 import { SocketType, GeometryDataType } from '../core/socket-types';

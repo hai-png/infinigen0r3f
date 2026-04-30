@@ -3,6 +3,7 @@
  * Provides automatic UV unwrapping and mapping utilities
  */
 
+import * as THREE from 'three';
 import { BufferGeometry, BufferAttribute, Float32BufferAttribute, Vector2, Vector3, Box3 } from 'three';
 
 export class UVMapper {

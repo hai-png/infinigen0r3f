@@ -162,7 +162,7 @@ export class LightingSystem {
   clearLights(): void {
     this.lights.forEach(light => {
       this.scene.remove(light);
-      if (light instanceof THREE.LightShadow || light instanceof THREE.DirectionalLight) {
+      if (light instanceof THREE.DirectionalLight) {
         light.dispose();
       }
     });

@@ -123,7 +123,7 @@ export class SubsurfaceScatteringMaterial extends THREE.MeshPhysicalMaterial {
   }
 
   public toJSON(meta?: any): any {
-    const data = super.toJSON(meta);
+    const data = super.toJSON(meta) as any;
     data.subsurfaceConfig = this.config;
     return data;
   }

@@ -1,6 +1,7 @@
 /**
  * Coating Generator - Varnish, lacquer, paint, powder coating
  */
+import * as THREE from 'three';
 import { Color } from 'three';
 import { BaseMaterialGenerator, MaterialOutput } from '../BaseMaterialGenerator';
 import { SeededRandom } from '../../../core/util/MathUtils';
