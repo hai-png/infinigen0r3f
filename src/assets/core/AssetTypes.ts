@@ -398,8 +398,8 @@ export enum CollisionShape {
  * Result of asset generation or loading
  */
 export type AssetResult<T> = 
-  | { success: true; data: T }
-  | { success: false; error: Error };
+  | { success: true; data: T; error?: undefined }
+  | { success: false; error: Error; data?: undefined };
 
 /**
  * Callback for async loading operations

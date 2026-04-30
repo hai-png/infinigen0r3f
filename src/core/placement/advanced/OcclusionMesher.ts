@@ -7,7 +7,7 @@
  * - LOD generation for physics
  */
 
-import { Vector3, Box3, Mesh, BufferGeometry } from 'three';
+import { Vector3, Box3, BoxGeometry, Float32BufferAttribute, Mesh, BufferGeometry } from 'three';
 import { BBox } from '../../util/math/bbox';
 
 // ============================================================================

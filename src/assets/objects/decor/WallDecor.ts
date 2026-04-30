@@ -88,7 +88,7 @@ export class WallDecor extends BaseObjectGenerator<WallDecorParams> {
         geometry = new CircleGeometry(Math.min(width, height) / 2, 32);
         break;
       case 'oval':
-        geometry = new CircleGeometry(width / 2, 32, 0, Math.PI * 2, width / height, 1);
+        geometry = new CircleGeometry(width / 2, 32);
         break;
       case 'abstract':
         geometry = this.createAbstractShape(width, height);
@@ -196,7 +196,7 @@ export class WallDecor extends BaseObjectGenerator<WallDecorParams> {
         geometry = new CircleGeometry(Math.min(width, height) / 2 - 0.01, 32);
         break;
       case 'oval':
-        geometry = new CircleGeometry(width / 2 - 0.01, 32, 0, Math.PI * 2, (width - 0.02) / (height - 0.02), 1);
+        geometry = new CircleGeometry(width / 2 - 0.01, 32);
         break;
       default:
         geometry = new PlaneGeometry(width - 0.02, height - 0.02);

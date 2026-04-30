@@ -51,7 +51,7 @@ export class MammalGenerator extends CreatureBase {
     const body = this.generateBody(parameters);
     mammal.add(body);
 
-    const head = this.generateHead(parameters);
+    const head = this.generateHead();
     head.position.set(0, parameters.size * 0.3, parameters.size * 0.4);
     mammal.add(head);
 

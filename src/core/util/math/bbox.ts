@@ -306,6 +306,28 @@ export class BBox {
            Math.abs(this.max.y - other.max.y) < epsilon &&
            Math.abs(this.max.z - other.max.z) < epsilon;
   }
+
+  /**
+   * Set bbox from an Object3D's bounding box
+   */
+  setFromObject(object: any): this {
+    if (object && typeof object.geometry !== 'undefined') {
+      object.geometry.computeBoundingBox();
+      const bb = object.geometry.boundingBox;
+      if (bb) {
+        this.min = { x: bb.min.x, y: bb.min.y, z: bb.min.z };
+        this.max = { x: bb.max.x, y: bb.max.y, z: bb.max.z };
+      }
+    }
+    return this;
+  }
+
+  /**
+   * Get the size of the bbox (alias for size())
+   */
+  getSize(): Vector3 {
+    return this.size();
+  }
 }
 
 /**

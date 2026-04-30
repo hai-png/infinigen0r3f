@@ -62,7 +62,7 @@ export class CaveGenerator {
       lightColor: new THREE.Color(0xffaa88),
       ...params,
     };
-    this.sdfOps = new SDFOperations();
+    this.sdfOps = new SDFOperations({ resolution: 1, bounds: new THREE.Box3(new THREE.Vector3(-50, -50, -50), new THREE.Vector3(50, 50, 50)) });
   }
 
   /**

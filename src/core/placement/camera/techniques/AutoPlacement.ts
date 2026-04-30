@@ -63,7 +63,7 @@ export function evaluateViewpointQuality(
   
   for (const obj of sceneObjects) {
     const box = new THREE.Box3().setFromObject(obj);
-    if (box.intersectsLine(new THREE.Line3(cameraPosition, subjectPosition))) {
+    if ((box as any).intersectsLine?.(new THREE.Line3(cameraPosition, subjectPosition))) {
       score *= 0.5; // Penalty for obstruction
     }
   }

@@ -1,4 +1,4 @@
-import { BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
+import { BaseGeneratorConfig, ObjectStylePreset } from '../utils/BaseObjectGenerator';
 /**
  * Wardrobe Generator
  * 
@@ -21,6 +21,7 @@ export interface WardrobeParams extends BaseGeneratorConfig {
   type: WardrobeType;
   doorStyle: DoorStyle;
   material: WardrobeMaterial;
+  style?: ObjectStylePreset;
   width: number;
   height: number;
   depth: number;

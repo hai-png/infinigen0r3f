@@ -25,7 +25,6 @@ export {
   MixShaderDefinition,
   executeMixShader,
   AddShaderDefinition,
-  executeAddShader,
   
   // Surface effects
   AmbientOcclusionDefinition,

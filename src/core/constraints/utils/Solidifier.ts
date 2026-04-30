@@ -207,7 +207,7 @@ export class Solidifier {
       if (door.wall === direction) {
         openings.push({
           type: 'door',
-          position: door.position,
+          position: door.position instanceof THREE.Vector2 ? door.position.x : door.position as any,
           width: this.config.doorWidth,
           height: this.config.doorHeight,
           id: door.id
@@ -220,7 +220,7 @@ export class Solidifier {
       if (window.wall === direction) {
         openings.push({
           type: 'window',
-          position: window.position,
+          position: window.position instanceof THREE.Vector2 ? window.position.x : window.position as any,
           width: window.width || this.config.windowDefaultWidth,
           height: window.height || this.config.windowDefaultHeight,
           id: window.id
@@ -322,7 +322,7 @@ export class Solidifier {
       return geometries[0];
     }
 
-    return THREE.BufferGeometryUtils.mergeGeometries(geometries, true);
+    return (THREE as any).BufferGeometryUtils.mergeGeometries(geometries, true);
   }
 
   /**
@@ -340,7 +340,17 @@ export class Solidifier {
       hallway: 0xf0f0f0,
       garage: 0xc0c0c0,
       utility: 0xd0d0d0,
-      storage: 0xc8c8c8
+      storage: 0xc8c8c8,
+      closet: 0xd8d8d8,
+      laundry: 0xd0d8d0,
+      balcony: 0xe0d8c8,
+      nursery: 0xe8d0d8,
+      playroom: 0xd8e8d0,
+      gym: 0xc8c8c8,
+      library: 0xd8c8b8,
+      studio: 0xd0d0d8,
+      pantry: 0xd8d0c8,
+      foyer: 0xe0e0e0,
     };
 
     return new THREE.MeshStandardMaterial({
@@ -364,7 +374,17 @@ export class Solidifier {
       hallway: 0x8b6f47, // Wood
       garage: 0x666666, // Concrete
       utility: 0x666666, // Concrete
-      storage: 0x777777 // Concrete
+      storage: 0x777777, // Concrete
+      closet: 0x8b6f47, // Wood
+      laundry: 0x888888, // Tile
+      balcony: 0x888888, // Tile
+      nursery: 0x8b6f47, // Wood
+      playroom: 0x8b6f47, // Wood
+      gym: 0x666666, // Concrete
+      library: 0x6b5b47, // Dark wood
+      studio: 0x8b6f47, // Wood
+      pantry: 0x888888, // Tile
+      foyer: 0x8b6f47, // Wood
     };
 
     return new THREE.MeshStandardMaterial({

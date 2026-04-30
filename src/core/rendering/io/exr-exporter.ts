@@ -16,7 +16,6 @@ import {
   FloatType,
   UnsignedByteType,
   RGBAFormat,
-  RGBFormat,
   RedFormat,
 } from 'three';
 

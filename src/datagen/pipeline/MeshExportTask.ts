@@ -93,7 +93,7 @@ export function isStaticObject(obj: Object3D): boolean {
   }
   
   // Check for animation data
-  if (obj.animationData || (obj as any).animationData) {
+  if ((obj as any).animations?.length || (obj as any).animationData) {
     return false;
   }
   

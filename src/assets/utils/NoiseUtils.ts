@@ -222,14 +222,14 @@ export class NoiseUtils {
   /**
    * Static method to generate 2D Perlin noise without instantiation
    */
-  public static perlin2D(x: number, y: number): number {
+  public static perlin2D(x: number, y: number, _octaves?: number): number {
     return globalNoiseInstance.perlin2D(x, y);
   }
 
   /**
    * Static method to generate 3D Perlin noise without instantiation
    */
-  public static perlin3D(x: number, y: number, z: number): number {
+  public static perlin3D(x: number, y: number, z: number, _octaves?: number): number {
     return globalNoiseInstance.perlin3D(x, y, z);
   }
 }

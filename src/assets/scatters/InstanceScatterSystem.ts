@@ -375,7 +375,7 @@ export class InstanceScatterSystem {
     this.currentPositions = [];
     
     // Seed random number generator
-    MathUtils.seedRandom(this.seed);
+    MathUtils.seededRandom(this.seed);
   }
   
   /**

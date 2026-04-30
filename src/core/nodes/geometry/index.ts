@@ -86,7 +86,6 @@ export {
   SampleNearestSurfaceDefinition,
   executeSampleNearestSurface,
   SampleNearestVolumeDefinition,
-  executeSampleNearestVolume,
   RandomValueDefinition,
   executeRandomValue,
   PositionDefinition,

@@ -213,7 +213,7 @@ export class SmallPlantGenerator {
 
     // Optional arms
     if (config.randomness > 0.3) {
-      this.addCactusArms(group, stemHeight, stemRadius, cactusMaterial);
+      this.addCactusArms(group, stemHeight, stemRadius, cactusMaterial, config);
     }
   }
 
@@ -221,7 +221,8 @@ export class SmallPlantGenerator {
     group: THREE.Group,
     stemHeight: number,
     stemRadius: number,
-    material: THREE.Material
+    material: THREE.Material,
+    config: SmallPlantConfig
   ): void {
     const armCount = Math.floor(Math.random() * 2) + 1;
     

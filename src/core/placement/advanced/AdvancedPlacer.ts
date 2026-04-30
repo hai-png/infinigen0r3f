@@ -553,7 +553,7 @@ export class CollisionAvoidance {
     const bbox = new BBox();
     bbox.setFromObject(mesh);
     
-    const center = bbox.getCenter(new Vector3());
+    const center = bbox.center(new Vector3());
     const size = bbox.getSize(new Vector3());
     
     this.addShape({
@@ -637,10 +637,12 @@ export class AdvancedPlacer {
   private projector: SurfaceProjector;
   private collider: CollisionAvoidance;
   private filter: SemanticFilter;
+  public targetCount: number;
 
   constructor(options: AdvancedPlacementOptions) {
     this.config = options.config;
     this.bounds = options.bounds;
+    this.targetCount = options.targetCount;
     this.projector = new SurfaceProjector(options.meshes || []);
     this.collider = new CollisionAvoidance(this.config.collisionMargin);
     this.filter = new SemanticFilter();

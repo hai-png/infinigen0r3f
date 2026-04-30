@@ -23,6 +23,12 @@ export interface ScatterConfig {
   alignToSurface?: boolean;
 }
 
+export interface DensityFilter {
+  minDensity?: number;
+  maxDensity?: number;
+  threshold?: number;
+}
+
 export class InstanceScatter {
   private config: ScatterConfig;
 

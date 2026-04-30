@@ -247,7 +247,7 @@ export const LightAttenuationDefinition = {
 // Light Execution Functions
 // ============================================================================
 
-import { PointLight as ThreePointLight, SpotLight as ThreeSpotLight, DirectionalLight, RectangleAreaLight } from 'three';
+import { PointLight as ThreePointLight, SpotLight as ThreeSpotLight, DirectionalLight, RectAreaLight } from 'three';
 
 export function createPointLight(
   color: Color,

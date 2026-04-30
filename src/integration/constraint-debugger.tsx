@@ -149,8 +149,16 @@ const DomainVisualizer: React.FC<DomainVisualizerProps> = ({ domain, objectId })
   
   if (!bbox) return null;
   
-  const center = bbox.center();
-  const size = bbox.dims();
+  const center = {
+    x: (bbox.mins[0] + bbox.maxs[0]) / 2,
+    y: (bbox.mins[1] + bbox.maxs[1]) / 2,
+    z: (bbox.mins[2] + bbox.maxs[2]) / 2,
+  };
+  const size = {
+    x: bbox.maxs[0] - bbox.mins[0],
+    y: bbox.maxs[1] - bbox.mins[1],
+    z: bbox.maxs[2] - bbox.mins[2],
+  };
   
   return (
     <Box

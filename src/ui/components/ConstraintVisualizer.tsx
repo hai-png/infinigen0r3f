@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useThree, useFrame } from '@react-three/fiber';
 import { Constraint, Problem } from '../../core/constraints/language/types';
 import { evaluateProblem } from '../../core/constraints/evaluator/evaluate';
+import { State } from '../../core/constraints/evaluator/state';
 import { ConstraintVisualizationConfig } from '../types';
 
 export interface ConstraintVisualizerProps {
@@ -61,7 +62,7 @@ const ConstraintVisualizer: React.FC<ConstraintVisualizerProps> = ({
     const objects: THREE.Object3D[] = [];
 
     // Evaluate current state
-    const result = evaluateProblem(problem);
+    const result = evaluateProblem(problem, new State());
 
     // Visualize each constraint
     problem.constraints.forEach((constraint, index) => {

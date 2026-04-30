@@ -402,16 +402,7 @@ declare module 'postprocessing' {
   }
 }
 
-// Missing @react-three/drei components
-declare module '@react-three/drei' {
-  export const GridHelper: React.FC<any>;
-  export const AxesHelper: React.FC<any>;
-  export const OrbitControls: React.FC<any>;
-  export const Text: React.FC<any>;
-  export const Environment: React.FC<any>;
-}
-
-// Missing @react-three/rapier exports
-declare module '@react-three/rapier' {
-  export const ColliderDesc: any;
-}
+// Note: @react-three/drei and @react-three/rapier type declarations are provided
+// by the packages themselves. Removed ambient module declarations that were
+// overriding the package types and causing TS2305 errors for missing exports
+// (Box, Sphere, Line, TransformControls, ContactShadows, RapierRigidBody, etc.).

@@ -514,7 +514,7 @@ export class VaseGenerator extends BaseObjectGenerator<VaseConfig> {
         material: ['ceramic', 'clay', 'glass', 'crystal', 'porcelain'][Math.floor(Math.random() * 5)] as any,
         color: '#' + Math.floor(Math.random()*16777215).toString(16),
         hasHandles: Math.random() > 0.5,
-        handleCount: Math.floor(Math.random() * 3) + 1,
+        handleCount: (Math.floor(Math.random() * 3) + 1) as 0 | 1 | 2 | 3 | 4,
         surfaceFinish: ['glossy', 'matte', 'textured'][Math.floor(Math.random() * 3)] as any,
         rimStyle: ['straight', 'flared', 'rolled'][Math.floor(Math.random() * 3)] as any,
         pattern: ['none', 'stripes', 'floral'][Math.floor(Math.random() * 3)] as any,

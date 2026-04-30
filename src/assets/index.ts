@@ -8,7 +8,8 @@ export * from './materials/index';
 export * from './shaders/index';
 
 // Scatter systems
-export * from './scatters/index';
+export { GrassScatterSystem, InstanceScatterSystem, RockScatterSystem } from './scatters/index';
+export type { GrassScatterConfig, ScatterConfig as AssetScatterConfig, ScatterMode, BiomeRule, ScatterResult, RockScatterConfig, RockScatterStats } from './scatters/index';
 
 // Lighting systems
 export * from './lighting/index';

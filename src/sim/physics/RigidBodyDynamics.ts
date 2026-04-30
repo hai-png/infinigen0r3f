@@ -6,7 +6,8 @@
  */
 
 import { Vector3, Quaternion, Matrix4, Box3, Sphere } from 'three';
-import type { RapierRigidBody, ColliderDesc, RigidBodyDesc } from '@react-three/rapier';
+import type { RapierRigidBody } from '@react-three/rapier';
+import type { ColliderDesc, RigidBodyDesc } from '@dimforge/rapier3d-compat';
 
 // ============================================================================
 // Types & Interfaces

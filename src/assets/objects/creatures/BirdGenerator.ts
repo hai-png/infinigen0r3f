@@ -48,7 +48,7 @@ export class BirdGenerator extends CreatureBase {
     const body = this.generateBody(parameters);
     bird.add(body);
 
-    const head = this.generateHead(parameters);
+    const head = this.generateHead();
     head.position.set(0, parameters.size * 0.2, parameters.size * 0.3);
     bird.add(head);
 

@@ -7,6 +7,7 @@
  */
 
 import * as THREE from 'three';
+import { MathUtils as ThreeMathUtils } from 'three';
 
 // ============================================================================
 // Vector & Matrix Utilities
@@ -219,6 +220,14 @@ export class SeededRandom implements RandomGenerator {
 
   /**
    * Returns a random float in [0, 1).
+   * Alias for next() - convenient API matching Math.random()
+   */
+  random(): number {
+    return this.next();
+  }
+
+  /**
+   * Returns a random float in [0, 1).
    */
   next(): number {
     let t = (this.seed += 0x6d2b79f5);
@@ -316,6 +325,28 @@ export class SeededRandom implements RandomGenerator {
     const u2 = this.next();
     const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
     return z0 * stdDev + mean;
+  }
+
+  /**
+   * Get the permutation table used by noise functions.
+   * Returns a copy of the internal 512-entry permutation table.
+   */
+  getPermutationTable(): number[] {
+    // Generate a seeded permutation table
+    const perm: number[] = [];
+    for (let i = 0; i < 256; i++) {
+      perm[i] = i;
+    }
+    // Shuffle using this PRNG
+    for (let i = 255; i > 0; i--) {
+      const j = this.nextInt(0, i);
+      [perm[i], perm[j]] = [perm[j], perm[i]];
+    }
+    // Duplicate for overflow handling
+    for (let i = 0; i < 256; i++) {
+      perm[256 + i] = perm[i];
+    }
+    return perm;
   }
 
   [Symbol.dispose](): void {
@@ -700,7 +731,7 @@ export function ridgedMultifractal(
   // Normalize result to 0-1 range
   // The theoretical maximum is approximately sum of amplitudes
   const maxSignal = 1.0 / (1.0 - gain);
-  return MathUtils.clamp(signal / maxSignal, 0, 1) * roughness;
+  return ThreeMathUtils.clamp(signal / maxSignal, 0, 1) * roughness;
 }
 
 // Permutation table for noise

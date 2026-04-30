@@ -208,7 +208,7 @@ export class RockScatterSystem {
       altitudeRange: this.config.altitudeRange,
       slopePreference: this.config.slopePreference,
       erosionFactor: this.config.erosionFactor,
-      rockTypes: this.config.rockTypes
+      rockTypes: this.config.rockTypes as RockType[]
     });
     
     this.scatterSystem = new InstanceScatterSystem();
@@ -279,7 +279,7 @@ export class RockScatterSystem {
       altitudeRange: this.config.altitudeRange,
       slopePreference: this.config.slopePreference,
       erosionFactor: this.config.erosionFactor,
-      rockTypes: this.config.rockTypes
+      rockTypes: this.config.rockTypes as RockType[]
     });
   }
   

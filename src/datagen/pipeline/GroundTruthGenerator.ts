@@ -87,6 +87,10 @@ export interface GroundTruthMetadata {
   farPlane: number;
   fov: number;
   objectCount: number;
+  depth?: Float32Array;
+  normals?: Float32Array;
+  segmentation?: Uint8Array;
+  albedo?: Uint8Array;
 }
 
 export interface SegmentationLabel {
@@ -906,8 +910,8 @@ export class GroundTruthGenerator {
     });
     
     const fov = (camera as PerspectiveCamera).fov ?? 75;
-    const near = camera.near;
-    const far = camera.far;
+    const near = (camera as PerspectiveCamera).near ?? 0.1;
+    const far = (camera as PerspectiveCamera).far ?? 2000;
     
     return {
       jobId,

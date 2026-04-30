@@ -229,6 +229,23 @@ export class InfinigenBridge {
     }
     this.isConnected = false;
   }
+
+  /**
+   * Export current physics configuration to MJCF format
+   * Used by the full solver loop for physics simulation integration
+   */
+  public async exportMjcf(config: any): Promise<string> {
+    const taskId = `mjcf_${Date.now()}`;
+    
+    const response = await this.executeTask({
+      taskId,
+      type: 'GENERATE_GEOMETRY' as any,
+      payload: { config, format: 'mjcf' },
+      priority: 'normal'
+    });
+
+    return response.data?.assetUrl || '';
+  }
 }
 
 /** Singleton bridge instance for convenience */

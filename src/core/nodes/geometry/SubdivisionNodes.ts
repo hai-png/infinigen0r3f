@@ -224,7 +224,7 @@ export function loopSubdivisionStep(geometry: BufferGeometry): BufferGeometry {
     
     const n = neighbors.size;
     // Loop weight formula
-    const beta = n > 3 ? (5 / 8 - Math.pow(3 / 8 + Math.cos(2 * Math.PI / n) / 4) ** 2) / n : 3 / 16;
+    const beta = n > 3 ? (5 / 8 - (3 / 8 + Math.cos(2 * Math.PI / n) / 4) ** 2) / n : 3 / 16;
     
     const neighborSum = new Vector3();
     for (const ni of neighbors) {

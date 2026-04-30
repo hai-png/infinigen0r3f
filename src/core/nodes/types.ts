@@ -4,7 +4,7 @@
  * Also re-exports core types for convenience
  */
 
-import type { Color, Vector3, Vector2, Euler, Quaternion, Matrix4 } from 'three';
+import { Color, Vector3, Vector2, Euler, Quaternion, Matrix4 } from 'three';
 
 // Re-export core types for convenience
 export type { NodeSocket, NodeDefinition, Node, NodeBase, GeometryType } from './core/types';

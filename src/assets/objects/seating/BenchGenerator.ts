@@ -127,7 +127,7 @@ export class BenchGenerator {
     for (let i = 0; i < legCount; i++) {
       const x = -params.length / 2 + i * legSpacing;
       
-      let leg: THREE.Mesh;
+      let leg: THREE.Mesh | THREE.Group;
       
       switch (params.style) {
         case 'ornate':

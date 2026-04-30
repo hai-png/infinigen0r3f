@@ -290,7 +290,7 @@ export class KinematicCompiler {
 
   private addChild(node: KinematicNode, child: KinematicNode, idx: number) {
     if (child.kinematicType === KinematicType.NONE) {
-      if (child.children.size === 0) {
+      if (child.children.length === 0) {
         node.addChild(idx, kinematicNodeFactory(KinematicType.ASSET));
       } else {
         child.getAllChildren().forEach((gc) => {

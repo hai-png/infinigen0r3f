@@ -233,7 +233,7 @@ export class CutleryGenerator extends BaseObjectGenerator<CutleryParams> {
       const type = types[i % 3];
       variations.push({
         type,
-        style: typeStyles[type][i % typeStyles[type].length],
+        style: typeStyles[type][i % typeStyles[type].length] as CutleryParams['style'],
         handlePattern: patterns[i % 4],
         scale: 0.9 + (i % 3) * 0.1,
         seed: i * 1000

@@ -412,7 +412,7 @@ export class NodeWrangler {
       nodeName = nameOrParams;
       if (locationOrProps) {
         if (Array.isArray(locationOrProps)) {
-          nodeLocation = locationOrProps;
+          nodeLocation = locationOrProps as [number, number];
         } else if ('x' in locationOrProps && 'y' in locationOrProps) {
           nodeLocation = [locationOrProps.x, locationOrProps.y];
           const { x, y, ...rest } = locationOrProps;

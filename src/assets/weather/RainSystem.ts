@@ -187,7 +187,7 @@ export class RainSystem {
 
     // Find inactive splash
     for (let i = 0; i < this.maxSplashes; i++) {
-      this.dummy.matrixNeedsUpdate = true;
+      this.dummy.matrixWorldNeedsUpdate = true;
       this.splashMesh.getMatrixAt(i, this.dummy.matrix);
       
       if (this.dummy.position.y < -50) {

@@ -7,7 +7,7 @@
 
 import { ConstraintSystem } from '../language/constraint-system';
 import { Variable, Domain } from '../language/types';
-import { evaluateNode as Evaluator } from '../evaluator/evaluate';
+import { evaluateNode } from '../evaluator/evaluate';
 import { 
   ContinuousProposalGenerator as ContinuousProposer, 
   DiscreteProposalGenerator as DiscreteProposer,
@@ -28,7 +28,6 @@ export interface SolverConfig {
 
 export class FullSolverLoop {
   private constraintSystem: ConstraintSystem;
-  private evaluator: Evaluator;
   private continuousProposer: ContinuousProposer;
   private discreteProposer: DiscreteProposer;
   private hybridProposer: HybridProposer;
@@ -47,13 +46,9 @@ export class FullSolverLoop {
     };
 
     this.constraintSystem = new ConstraintSystem();
-    this.evaluator = new Evaluator();
     this.continuousProposer = new ContinuousProposer();
     this.discreteProposer = new DiscreteProposer();
-    this.hybridProposer = new HybridProposer(
-      this.continuousProposer,
-      this.discreteProposer
-    );
+    this.hybridProposer = new HybridProposer();
     this.saSolver = new SimulatedAnnealingSolver(this.config);
   }
 
@@ -61,7 +56,7 @@ export class FullSolverLoop {
    * Add a constraint to the system
    */
   addConstraint(constraint: any): void {
-    this.constraintSystem.addConstraint(constraint);
+    this.constraintSystem.addConstraint(`constraint_${Date.now()}`, constraint);
   }
 
   /**
@@ -211,7 +206,7 @@ export class FullSolverLoop {
     }
 
     // Calculate total constraint violation (energy)
-    const newEnergy = (this.evaluator as any).evaluateAll?.(this.constraintSystem) ?? 0;
+    const newEnergy = (evaluateNode as any).evaluateAll?.(this.constraintSystem) ?? 0;
     
     // Restore old value
     if (variable && oldValue !== undefined) {

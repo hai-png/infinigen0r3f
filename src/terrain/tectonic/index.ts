@@ -3,7 +3,7 @@
  */
 
 export { TectonicPlateSimulator } from './TectonicPlateSimulator';
-export type { TectonicPlateParams, TectonicPlate, PlateBoundary } from './TectonicPlateSimulator';
+export type { PlateConfig as TectonicPlateParams, TectonicPlate, PlateBoundary } from './TectonicPlateSimulator';
 
 export { MountainBuilding } from './MountainBuilding';
 export type { MountainBuildingParams, MountainRange, ThrustFault } from './MountainBuilding';

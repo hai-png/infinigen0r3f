@@ -105,6 +105,8 @@ export function useInfinigenSolver(
     });
 
     const initialState: SolverState = {
+      state: {} as any,
+      score: Infinity,
       objects: new Map(initialObjects.map(obj => [obj.id, obj])),
       iteration: 0,
       energy: Infinity,
@@ -196,6 +198,8 @@ export function useInfinigenSolver(
     if (!initialObjects.length) return;
 
     const initialState: SolverState = {
+      state: {} as any,
+      score: Infinity,
       objects: new Map(initialObjects.map(obj => [obj.id, obj])),
       iteration: 0,
       energy: Infinity,
@@ -224,11 +228,11 @@ export function useInfinigenSolver(
     const obj = state.objects.get(objectId);
     if (!obj) return;
 
-    const updatedObj: ObjectState = {
+    const updatedObj = {
       ...obj,
       position: { x: position.x, y: position.y, z: position.z },
       rotation: { x: rotation.x, y: rotation.y, z: rotation.z }
-    };
+    } as ObjectState;
 
     const newObjects = new Map(state.objects);
     newObjects.set(objectId, updatedObj);

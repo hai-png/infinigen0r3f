@@ -14,9 +14,10 @@ export abstract class AssetFactory<TConfig = AssetConfig, TResult = THREE.Object
   protected seed: number;
   protected rng: SeededRandom;
   
-  constructor(seed?: number) {
+  constructor(seed?: number, coarse?: boolean) {
     this.seed = seed ?? Math.random() * 10000;
     this.rng = new SeededRandom(this.seed);
+    void coarse;
   }
 
   abstract getDefaultConfig(): TConfig;

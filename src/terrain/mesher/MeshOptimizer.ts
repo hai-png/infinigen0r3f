@@ -7,7 +7,7 @@
  * Based on original Infinigen's mesh optimization pipeline.
  */
 
-import { BufferGeometry, Vector3, Vector2 } from 'three';
+import { BufferGeometry, Vector3, Vector2, BufferAttribute } from 'three';
 
 export interface OptimizationConfig {
   targetFaceCount: number;
@@ -135,9 +135,9 @@ export class MeshOptimizer {
    * Weld nearby vertices together
    */
   private weldVertices(geometry: BufferGeometry): BufferGeometry {
-    const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
-    const normals = geometry.getAttribute('normal') as THREE.BufferAttribute | null;
-    const uvs = geometry.getAttribute('uv') as THREE.BufferAttribute | null;
+    const positions = geometry.getAttribute('position') as BufferAttribute;
+    const normals = geometry.getAttribute('normal') as BufferAttribute | null;
+    const uvs = geometry.getAttribute('uv') as BufferAttribute | null;
     const index = geometry.getIndex();
 
     const vertexMap = new Map<string, number>();
@@ -200,17 +200,17 @@ export class MeshOptimizer {
     }
 
     const newGeometry = new BufferGeometry();
-    newGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(newPositions), 3));
+    newGeometry.setAttribute('position', new BufferAttribute(new Float32Array(newPositions), 3));
     
     if (newNormals.length > 0) {
-      newGeometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(newNormals), 3));
+      newGeometry.setAttribute('normal', new BufferAttribute(new Float32Array(newNormals), 3));
     }
     
     if (newUvs.length > 0) {
-      newGeometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(newUvs), 2));
+      newGeometry.setAttribute('uv', new BufferAttribute(new Float32Array(newUvs), 2));
     }
     
-    newGeometry.setIndex(new THREE.BufferAttribute(new Uint32Array(newIndex), 1));
+    newGeometry.setIndex(new BufferAttribute(new Uint32Array(newIndex), 1));
     newGeometry.computeVertexNormals();
 
     return newGeometry;
@@ -339,7 +339,7 @@ export class MeshOptimizer {
     }
 
     const newGeometry = geometry.clone();
-    newGeometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(newNormals), 3));
+    newGeometry.setAttribute('normal', new BufferAttribute(new Float32Array(newNormals), 3));
     
     return newGeometry;
   }

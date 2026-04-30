@@ -5,6 +5,8 @@
  * Based on Infinigen's tools/ module.
  */
 
+import { ExportToolkit, createExportToolkit } from './ExportToolkit';
+
 // Export toolkit for scene and asset export
 export { ExportToolkit, createExportToolkit } from './ExportToolkit';
 export type {

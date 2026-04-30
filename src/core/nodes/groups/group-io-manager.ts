@@ -205,7 +205,7 @@ export class GroupIOManager {
     }
 
     // Infer output type from source
-    groupSocket.socketType = sourceSocket.type;
+    groupSocket.socketType = sourceSocket.type as SocketType;
   }
 
   /**

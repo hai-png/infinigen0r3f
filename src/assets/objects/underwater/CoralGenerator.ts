@@ -164,7 +164,8 @@ export class CoralGenerator {
         ),
         height,
         segments,
-        config.complexity
+        config.complexity,
+        config.size
       );
       
       // Add secondary branches
@@ -186,7 +187,8 @@ export class CoralGenerator {
           ).normalize(),
           height * (0.3 + Math.random() * 0.3),
           segments,
-          config.complexity * 0.7
+          config.complexity * 0.7,
+          config.size
         );
       }
     }
@@ -207,9 +209,10 @@ export class CoralGenerator {
     direction: THREE.Vector3,
     length: number,
     segments: number,
-    complexity: number
+    complexity: number,
+    size: number = length
   ): void {
-    const radius = 0.05 * config.size;
+    const radius = 0.05 * size;
     const radialSegments = 8;
     
     for (let i = 0; i <= segments; i++) {

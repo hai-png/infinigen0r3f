@@ -5,7 +5,7 @@
  * Based on original: infinigen/core/nodes/nodegroups/shader_nodes.py
  */
 
-import { Color, Vector3, Material, MeshStandardMaterial } from 'three';
+import { Color, Vector3, Box3, Material, MeshStandardMaterial } from 'three';
 import type { NodeDefinition, NodeSocket } from '../core/types';
 import { SocketType } from '../core/socket-types';
 

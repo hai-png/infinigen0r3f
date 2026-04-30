@@ -6,7 +6,7 @@
  */
 
 import { NodeTree, NodeLink, NodeInstance, SocketType } from './types';
-import { NodeType } from './node-types';
+import { NodeTypes as NodeType } from './node-types';
 import type { Color, Vector3 } from 'three';
 
 // ============================================================================

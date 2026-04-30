@@ -22,6 +22,7 @@ export interface SphericalMesherConfig {
   testDownscale: number;
   renderHeight?: number;
   adaptiveErrorThreshold?: number;
+  maxLOD?: number;
 }
 
 export class SphericalMesher {

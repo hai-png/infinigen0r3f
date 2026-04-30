@@ -14,7 +14,7 @@
 
 import * as THREE from 'three';
 import { SceneExporter, ExportFormat, ExportResult } from './SceneExporter';
-import { GroundTruthGenerator, GroundTruthData } from './GroundTruthGenerator';
+import { GroundTruthGenerator, GroundTruthMetadata } from './GroundTruthGenerator';
 import { AnnotationGenerator, AnnotationResult } from './AnnotationGenerator';
 import { JobManager, JobStatus, GenerationJob } from './JobManager';
 import { BatchProcessor, BatchConfig, BatchResult } from './BatchProcessor';
@@ -105,7 +105,7 @@ export interface GeneratedScene {
   annotations?: AnnotationResult;
   
   // Ground truth
-  groundTruth?: GroundTruthData;
+  groundTruth?: GroundTruthMetadata;
   
   // Statistics
   statistics: {
@@ -467,7 +467,7 @@ export class DataPipeline {
   /**
    * Extract ground truth data
    */
-  private async extractGroundTruth(): Promise<GroundTruthData> {
+  private async extractGroundTruth(): Promise<GroundTruthMetadata> {
     const camera = new THREE.PerspectiveCamera(
       this.config.fovRange![0],
       this.config.imageWidth / this.config.imageHeight,
@@ -475,7 +475,7 @@ export class DataPipeline {
       1000
     );
 
-    const gtData: GroundTruthData = {};
+    const gtData: GroundTruthMetadata = {};
 
     if (this.config.generateDepth) {
       gtData.depth = await this.groundTruthGen.generateDepth({

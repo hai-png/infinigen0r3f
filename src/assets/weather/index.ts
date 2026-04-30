@@ -7,7 +7,8 @@
  * @module weather
  */
 
-export { WeatherSystem } from './WeatherSystem';
+import { WeatherSystem } from './WeatherSystem';
+export { WeatherSystem };
 export type { WeatherType, WeatherParams, WeatherState } from './WeatherSystem';
 export { RainSystem } from './RainSystem';
 export type { RainParams } from './RainSystem';

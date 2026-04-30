@@ -75,6 +75,7 @@ export interface JobMetadata {
   sampleCount: number;
   generatedAt: Date;
   version: string;
+  batchId?: string;
 }
 
 // ============================================================================

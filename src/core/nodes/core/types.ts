@@ -7,6 +7,8 @@
  * This enables procedural material and geometry generation similar to the original Infinigen.
  */
 
+import type { Domain } from '../../constraints/language/types';
+
 /**
  * Base interface for all node classes
  * Provides common properties shared across all node types
@@ -531,6 +533,7 @@ export interface NodeExecutionContext<T = any> {
   maxDepth: number;
   metadata: Record<string, any>;
   node?: T;
+  inputs: Record<string, any>;
 }
 
 /** Node domain type alias */

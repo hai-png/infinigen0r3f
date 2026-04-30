@@ -174,7 +174,30 @@ export * from './editor';
 export * from './integration';
 
 // Re-exported from consolidated locations
-export * from './assets/animation';
+export {
+  AnimationEngine, getGlobalEngine, resetGlobalEngine,
+  Timeline, AnimationTrack, Easings, getEasing, lerp as animationLerp,
+  OscillatoryMotion, PatternGenerator, evaluateWave, createPresetMotion, createPresetPattern,
+  PathFollower, generateCameraPath,
+  WindAnimationSystem, WindZone,
+  InverseKinematics, CCDIKSolver, FABRIKSolver, createArmChain, createLegChain, createSnakeChain,
+  GaitGenerator, createPresetGait,
+  AnimationPolicyEngine, EasingFunctions, DefaultPolicies,
+} from './assets/animation';
+export type {
+  AnimationEventType, AnimationEvent, TimeConfig, AnimationEngineConfig, Updatable,
+  EasingType, EasingFunction, Keyframe, TrackConfig, InterpolationType,
+  WaveType, OscillatoryConfig, PatternType, PatternConfig,
+  SplineType, OrientationMode, SplineKeyframe, PathFollowingConfig, PathSample,
+  WindLayer, WindParams, AnimationConfig,
+  JointConfig, IKSolverType, IKChainConfig, JointState,
+  GaitType, LegConfig, GaitConfig, LegState,
+  AnimationClip, AnimationCategory, Trajectory,
+  AnimationPolicy, TrajectoryConstraint,
+  ConstraintType as AnimationConstraintType,
+  PolicyWeights, TrajectoryScore, AnimatedScene, AnimatedObject,
+  QualityMetrics, AnimationContext, TrajectoryOptions,
+} from './assets/animation';
 export * from './assets/particles';
 export * from './assets/utils/streaming';
 export * from './core/constraints/tags';
@@ -211,4 +234,14 @@ export * from './core/rendering/shaders';
 export * from './integration/bridge';
 
 // Types (primary for: SolverState, BBox, MeshData, etc.)
-export type * from './types';
+export type {
+  MeshData,
+  PhysicsConfig,
+  RayHit,
+  BBox,
+  Pose,
+  EvalContext,
+  Proposal,
+  ConstraintOperator,
+  // SolverState, SceneObject, DomainType, ConstraintType are already exported via ./core, ./editor, ./assets/animation
+} from './types';

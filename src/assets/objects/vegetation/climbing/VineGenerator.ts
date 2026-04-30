@@ -225,8 +225,9 @@ export class VineGenerator {
       points.push(currentPos.clone());
 
       // Generate hanging path with gravity and wind influence
+      let t = 0;
       for (let s = 0; s < segments; s++) {
-        const t = s / segments;
+        t = s / segments;
         const swayAmount = Math.sin(t * Math.PI * 2) * 0.05;
         
         currentPos = new THREE.Vector3(

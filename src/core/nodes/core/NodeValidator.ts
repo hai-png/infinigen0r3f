@@ -248,7 +248,7 @@ export class NodeValidator {
     for (const [id, node] of tree.nodes) {
       if (!visited.has(node.id)) {
         const result = dfs(node.id, [node.id]);
-        if (result !== false) {
+        if (result !== false && typeof result === 'object') {
           return result;
         }
       }

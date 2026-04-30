@@ -246,6 +246,13 @@ export class DrawerUnit extends BaseObjectGenerator<DrawerUnitParams> {
       industrial: [0x3E3E3E, 0x5C5C5C, 0x4A3728],
       scandinavian: [0xF5F5F5, 0xD2B48C, 0xFFFFFF],
       rustic: [0x8B4513, 0xCD853F, 0xA0522D],
+      minimalist: [0xE8E8E8, 0xF5F5F5, 0xD3D3D3],
+      contemporary: [0x8B7355, 0xA0522D, 0x6B4226],
+      mid_century: [0xB8860B, 0xCD853F, 0xD2691E],
+      bohemian: [0xCD853F, 0x8B4513, 0xD2691E],
+      coastal: [0xDEB887, 0xF5DEB3, 0xD2B48C],
+      farmhouse: [0x8B4513, 0xA0522D, 0x654321],
+      art_deco: [0x2F4F4F, 0xC9A961, 0x1C1C1C],
     };
     return colors[style][Math.floor(rng.next() * colors[style].length)];
   }
@@ -257,6 +264,13 @@ export class DrawerUnit extends BaseObjectGenerator<DrawerUnitParams> {
       industrial: [0x333333, 0x5C5C5C],
       scandinavian: [0x333333, 0xC0C0C0],
       rustic: [0x8B4513, 0x2F4F4F],
+      minimalist: [0x333333, 0x888888, 0xC0C0C0],
+      contemporary: [0x333333, 0xC0C0C0, 0xC9A961],
+      mid_century: [0xC9A961, 0x8B4513, 0x333333],
+      bohemian: [0xC9A961, 0x8B4513, 0x2F4F4F],
+      coastal: [0xC0C0C0, 0x888888, 0x333333],
+      farmhouse: [0x8B4513, 0x2F4F4F, 0xC9A961],
+      art_deco: [0xC9A961, 0x1C1C1C, 0x2F4F4F],
     };
     return colors[style][Math.floor(rng.next() * colors[style].length)];
   }

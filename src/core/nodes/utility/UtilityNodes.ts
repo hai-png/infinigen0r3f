@@ -349,7 +349,9 @@ export const ColorMathNode: NodeDefinition<ColorMathNodeData> = {
     
     // Clamp if requested
     if (data.clamp) {
-      result.clamp();
+      result.r = Math.max(0, Math.min(1, result.r));
+      result.g = Math.max(0, Math.min(1, result.g));
+      result.b = Math.max(0, Math.min(1, result.b));
     }
     
     return { Color: result };

@@ -313,7 +313,7 @@ export class WeatherSystem {
     for (let i = 0; i < positions.length / 3; i++) {
       // Gentle falling with wind drift
       positions[i * 3 + 1] -= 2 * deltaTime;
-      positions[i * 3] += Math.sin(time * 0.001 + i) * 0.5 * deltaTime;
+      positions[i * 3] += Math.sin(Date.now() * 0.001 + i) * 0.5 * deltaTime;
       positions[i * 3] += this.state.params.windDirection.x * this.state.params.windSpeed * 0.3 * deltaTime;
       positions[i * 3 + 2] += this.state.params.windDirection.z * this.state.params.windSpeed * 0.3 * deltaTime;
       

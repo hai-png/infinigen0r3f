@@ -6,7 +6,7 @@
  */
 
 import { Vector3, Euler } from 'three';
-import type { Variable, ConstraintNode } from '../../constraints/language/types';
+import { Variable, ConstraintNode } from '../../constraints/language/types';
 import { item } from '../../constraints/language/constants';
 import {
   Visible,
@@ -373,9 +373,8 @@ export function AvoidsObstruction(
   );
   
   // For all occluders, they should not block the view
-  return new ForAll(occluders, (occluder: any) =>
-    new Visible(subjectVar as any, cameraVar as any)
-  );
+  const occluderVar = new Variable('occluder');
+  return new ForAll(occluderVar, occluders, new Visible(subjectVar as any, cameraVar as any));
 }
 
 /**

@@ -24,15 +24,20 @@ export class ObjectRegistry {
     return ObjectRegistry.instance;
   }
 
-  register(name: string, category: string, generator: any, tags?: string[]): void {
-    this.objects.set(name, { name, category, generator, tags });
+  register(name: string, categoryOrGenerator?: string | any, generatorOrTags?: any, tags?: string[]): void {
+    // Support both register(name, category, generator, tags?) and register(name, generator)
+    if (typeof categoryOrGenerator === 'string') {
+      this.objects.set(name, { name, category: categoryOrGenerator, generator: generatorOrTags, tags });
+    } else {
+      this.objects.set(name, { name, category: 'uncategorized', generator: categoryOrGenerator, tags: generatorOrTags });
+    }
   }
 
   /**
    * Static convenience method to register an object on the singleton instance
    */
-  static register(name: string, category: string, generator: any, tags?: string[]): void {
-    ObjectRegistry.getInstance().register(name, category, generator, tags);
+  static register(name: string, categoryOrGenerator?: string | any, generatorOrTags?: any, tags?: string[]): void {
+    ObjectRegistry.getInstance().register(name, categoryOrGenerator, generatorOrTags, tags);
   }
 
   get(name: string): RegisteredObject | undefined {

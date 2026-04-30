@@ -354,6 +354,12 @@ export enum NodeTypes {
 
   // Shader aliases
   BSDF_PRINCIPLED = 'PrincipledBSDFNode',
+  PrincipledBSDF = 'PrincipledBSDFNode',
+  NoiseTexture = TextureNoise,
+  VoronoiTexture = TextureVoronoi,
+  MusgraveTexture = TextureMusgrave,
+  Invert = 'InvertNode',
+  BooleanMath = 'BooleanMathNode',
 
   // Aliases - SCREAMING_SNAKE_CASE aliases for PascalCase members
   VECTOR_MATH = VectorMath,

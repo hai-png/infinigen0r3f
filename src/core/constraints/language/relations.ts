@@ -993,7 +993,8 @@ export class Proximity extends GeometryRelation {
   constructor(
     objects1: ObjectSetExpression,
     objects2: ObjectSetExpression,
-    public readonly maxDistance: number = 1.0
+    public readonly maxDistance: number = 1.0,
+    public readonly minDistance: number = 0.0
   ) {
     super(objects1, objects2);
   }
@@ -1018,11 +1019,50 @@ export class Proximity extends GeometryRelation {
     return new Proximity(
       this.objects1.clone() as ObjectSetExpression,
       this.objects2.clone() as ObjectSetExpression,
-      this.maxDistance
+      this.maxDistance,
+      this.minDistance
     );
   }
 
   toString(): string {
     return `Proximity(${this.objects1}, ${this.objects2}, ${this.maxDistance})`;
+  }
+}
+
+/**
+ * Symmetric relation - enforces that a relation holds symmetrically between objects
+ */
+export class Symmetric extends Relation {
+  readonly type = 'Symmetric';
+  readonly relationType = 'symmetric';
+
+  constructor(
+    public readonly innerRelation: Relation
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['innerRelation', this.innerRelation]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    return this.innerRelation.evaluate(state);
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.innerRelation.isSatisfied(state);
+  }
+
+  getVariables(): Set<Variable> {
+    return this.innerRelation.getVariables();
+  }
+
+  clone(): Symmetric {
+    return new Symmetric(this.innerRelation.clone() as Relation);
+  }
+
+  toString(): string {
+    return `Symmetric(${this.innerRelation})`;
   }
 }

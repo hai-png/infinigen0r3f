@@ -160,6 +160,7 @@ export interface ParticleCollider {
   frictionFactor: number;
   killOnCollision: boolean;
   enabled: boolean;
+  collisionRadius: number;
 }
 
 // ============================================================================
@@ -426,7 +427,10 @@ export class ParticleEmitter {
       particle.data.color.g += (Math.random() - 0.5) * config.colorVariation.g;
       particle.data.color.b += (Math.random() - 0.5) * config.colorVariation.b;
     }
-    particle.data.color.clamp();
+    // Clamp color values to 0-1 range
+    particle.data.color.r = Math.max(0, Math.min(1, particle.data.color.r));
+    particle.data.color.g = Math.max(0, Math.min(1, particle.data.color.g));
+    particle.data.color.b = Math.max(0, Math.min(1, particle.data.color.b));
 
     // Alpha
     particle.data.alpha = 1.0;

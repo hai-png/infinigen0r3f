@@ -194,7 +194,7 @@ export class FogSystem {
 
     // Update Three.js scene fog
     if (this.scene.fog) {
-      this.scene.fog.density = this.params.density * 0.02;
+      (this.scene.fog as any).density = this.params.density * 0.02;
     }
   }
 

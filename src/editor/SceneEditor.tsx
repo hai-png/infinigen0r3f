@@ -5,7 +5,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, TransformControls, GridHelper, AxesHelper } from '@react-three/drei';
+import { OrbitControls, TransformControls } from '@react-three/drei';
+import { GridHelper, AxesHelper } from 'three';
 import * as THREE from 'three';
 
 export interface SceneObject {

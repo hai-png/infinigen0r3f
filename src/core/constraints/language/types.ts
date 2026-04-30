@@ -155,9 +155,53 @@ export abstract class Domain {
   }
 
   /**
+   * Alias for isSubset - check if this domain is a subset of another
+   */
+  isSubsetOf(other: Domain): boolean {
+    return this.isSubset(other);
+  }
+
+  /**
    * Get a sample value from this domain
    */
   abstract sample(seed?: number): any;
+
+  /**
+   * Deep clone this domain
+   */
+  abstract clone(): Domain;
+
+  /**
+   * Get the children/sub-domains of this domain
+   */
+  children(): Domain[] {
+    return [];
+  }
+
+  /**
+   * Check if this domain contains a value
+   */
+  contains(value: any): boolean {
+    return this.satisfies(value);
+  }
+
+  /**
+   * Get the size (number of possible values) of this domain.
+   * Returns Infinity for continuous domains.
+   */
+  size(): number {
+    return Infinity;
+  }
+
+  /**
+   * Get the bounding box of this domain (if applicable)
+   */
+  boundingBox?: { mins: number[]; maxs: number[] };
+
+  /**
+   * Get the allowed values for this domain (if discrete)
+   */
+  allowedValues?: any[];
 }
 
 /**
@@ -687,6 +731,7 @@ export class BBoxDomain extends Domain {
     public readonly maxs: number[] = [Infinity, Infinity, Infinity]
   ) {
     super();
+    this.boundingBox = { mins: [...mins], maxs: [...maxs] };
   }
 
   implies(other: Domain): boolean {
@@ -775,8 +820,16 @@ export class BBoxDomain extends Domain {
 export class BooleanDomain extends Domain {
   readonly type: DomainType = 'boolean';
 
+  /** Allowed values for this boolean domain */
+  allowedValues?: boolean[];
+
   constructor(public readonly value?: boolean) {
     super();
+    if (value !== undefined) {
+      this.allowedValues = [value];
+    } else {
+      this.allowedValues = [true, false];
+    }
   }
 
   implies(other: Domain): boolean {
@@ -1254,6 +1307,7 @@ export interface NodeExecutionContext {
   depth: number;
   maxDepth: number;
   metadata: Record<string, any>;
+  inputs: Record<string, any>;
 }
 
 /**

@@ -469,13 +469,15 @@ export class SimulatedAnnealingSolver extends Solver {
   private currentScore: number;
   private bestScore: number;
   private bestState: State;
+  private currentTemperature: number;
+  private currentIteration: number;
   
   constructor(
-    problem: Problem,
-    initialState: State,
+    problem?: Problem,
+    initialState?: State,
     config: Partial<SimulatedAnnealingConfig> = {}
   ) {
-    super(problem, initialState);
+    super(problem ?? new Problem(), initialState ?? new State());
     
     this.config = {
       initialTemperature: 100.0,
@@ -488,7 +490,22 @@ export class SimulatedAnnealingSolver extends Solver {
     
     this.currentScore = 0;
     this.bestScore = Infinity;
-    this.bestState = initialState;
+    this.bestState = initialState ?? new State();
+    this.currentTemperature = this.config.initialTemperature;
+    this.currentIteration = 0;
+  }
+
+  /**
+   * Perform a single step of simulated annealing
+   */
+  step(state: SolverState, proposal: any): SolverState {
+    this.currentIteration++;
+    this.currentTemperature *= this.config.coolingRate;
+    return {
+      ...state,
+      iteration: this.currentIteration,
+      temperature: this.currentTemperature,
+    };
   }
   
   async solve(maxIterations?: number): Promise<SolverState> {
@@ -537,7 +554,13 @@ export class SimulatedAnnealingSolver extends Solver {
       state: this.bestState,
       score: this.bestScore,
       iteration,
-      temperature
+      temperature,
+      energy: this.bestScore,
+      currentScore: this.bestScore,
+      bestScore: this.bestScore,
+      assignments: new Map(),
+      lastMove: null,
+      lastMoveAccepted: false
     };
   }
   
@@ -671,7 +694,13 @@ export class GreedySolver extends Solver {
       state: this.bestState,
       score: this.bestScore,
       iteration,
-      temperature: undefined
+      temperature: undefined,
+      energy: this.bestScore,
+      currentScore: this.bestScore,
+      bestScore: this.bestScore,
+      assignments: new Map(),
+      lastMove: null,
+      lastMoveAccepted: false
     };
   }
   

@@ -6,7 +6,7 @@
  */
 
 import { NodeTree, NodeInstance, NodeLink, NodeGroup, SocketType } from './types';
-import { NodeType } from './node-types';
+import { NodeTypes as NodeType } from './node-types';
 
 // ============================================================================
 // Type Definitions

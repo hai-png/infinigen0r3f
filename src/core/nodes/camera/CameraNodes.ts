@@ -7,6 +7,17 @@
 import { Camera } from 'three';
 import type { NodeBase, AttributeDomain } from '../core/types';
 
+/**
+ * Extended Camera interface with Infinigen-specific properties
+ * Three.js Camera doesn't include focal/near/far directly;
+ * these are available on PerspectiveCamera but we reference them generically here.
+ */
+export interface InfinigenCamera extends Camera {
+  focal?: number;
+  near: number;
+  far: number;
+}
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -110,7 +121,7 @@ export class DepthOfFieldNode implements CameraNodeBase {
     };
   }
 
-  execute(camera: Camera): DepthOfFieldOutputs {
+  execute(camera: InfinigenCamera): DepthOfFieldOutputs {
     const focalLength = this.inputs.focalLength ?? camera.focal ?? 50;
     const fStop = this.inputs.fStop ?? 2.8;
     const focusDistance = this.inputs.focusDistance ?? 10;
@@ -165,7 +176,7 @@ export class FocalLengthNode implements CameraNodeBase {
     };
   }
 
-  execute(camera: Camera): FocalLengthOutputs {
+  execute(camera: InfinigenCamera): FocalLengthOutputs {
     let focalLength = this.inputs.focalLength ?? camera.focal ?? 50;
     const sensorWidth = this.inputs.sensorWidth ?? 36;
     
