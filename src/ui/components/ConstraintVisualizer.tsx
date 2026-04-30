@@ -66,7 +66,7 @@ const ConstraintVisualizer: React.FC<ConstraintVisualizerProps> = ({
 
     // Visualize each constraint
     problem.constraints.forEach((constraint, index) => {
-      const isViolated = result.violations.some((v) => v.constraintIndex === index);
+      const isViolated = Array.from(result.violations.values()).some(v => v);
       const color = isViolated ? defaultConfig.violationColor : defaultConfig.satisfiedColor;
       
       if ((isViolated && !defaultConfig.showViolations) || 

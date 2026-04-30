@@ -385,7 +385,7 @@ function evaluatePhysicsAnimation(
         const direction = displacement.normalize();
         const springForce = -stiffness * (distance - 1);
         const dampingForce = -damping * velocity.dot(direction);
-        const acceleration = (springForce + dampingForce) * direction;
+        const acceleration = direction.clone().multiplyScalar(springForce + dampingForce);
         
         velocity.add(acceleration.multiplyScalar(dt));
         position.add(velocity.clone().multiplyScalar(dt));

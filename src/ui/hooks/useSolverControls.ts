@@ -163,5 +163,3 @@ export function useSolverControls({
     step,
   };
 }
-
-import { useRef } from 'react';

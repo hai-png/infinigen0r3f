@@ -125,7 +125,7 @@ export function expressionMapBoundBinop(
         case 'mul': return a * b;
         default: return b;
       }
-    }, lhs=lhsVal));
+    }, lhsVal));
   }
 
   if (!lhsConst && rhsConst) {
@@ -138,7 +138,7 @@ export function expressionMapBoundBinop(
         case 'mul': return Math.floor(a / b);
         default: return a;
       }
-    }, rhs=rhsVal));
+    }, undefined, rhsVal));
   }
 
   return [];

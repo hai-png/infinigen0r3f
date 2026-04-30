@@ -553,13 +553,15 @@ export class CollisionAvoidance {
     const bbox = new BBox();
     bbox.setFromObject(mesh);
     
-    const center = bbox.center(new Vector3());
-    const size = bbox.getSize(new Vector3());
+    const c = bbox.center();
+    const s = bbox.getSize();
+    const center = new Vector3(c.x, c.y, c.z);
+    const size = new Vector3(s.x, s.y, s.z);
     
     this.addShape({
       type: 'box',
-      position: center,
-      size: size
+      position: center as number | Vector3,
+      size: size as number | Vector3
     });
   }
 }

@@ -162,7 +162,7 @@ export class WallShelfGenerator {
     const spacing = this.config.width / (bracketCount - 1);
 
     for (let i = 0; i < bracketCount; i++) {
-      const x = -this.config.width / 2 + i * spacing;
+      let x = -this.config.width / 2 + i * spacing;
 
       // Skip end brackets for cleaner look
       if (i === 0 || i === bracketCount - 1) {

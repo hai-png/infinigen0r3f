@@ -366,7 +366,6 @@ export {
 } from '../language/util';
 
 export {
-  constraintBounds,
   boundAnalysis
 } from '../../constraints/reasoning/constraint-bounding';
 

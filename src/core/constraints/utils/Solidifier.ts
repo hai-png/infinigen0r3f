@@ -133,7 +133,7 @@ export class Solidifier {
    */
   private generateWalls(room: Room): THREE.BufferGeometry {
     const wallSegments = this.extractWallSegments(room);
-    const geometries: THREE.BoxGeometry[] = [];
+    const geometries: THREE.BufferGeometry[] = [];
 
     for (const segment of wallSegments) {
       const wallGeom = this.createWallSegment(segment);

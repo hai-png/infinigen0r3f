@@ -144,7 +144,7 @@ export class KinematicNode {
 }
 
 export function kinematicNodeFactory(typeOrConfig: KinematicType | (Partial<KinematicNodeConfig> & { name: string }), jointType?: JointType): KinematicNode {
-  if (typeof typeOrConfig === 'string' || typeOrConfig instanceof KinematicType) {
+  if (typeof typeOrConfig === 'string' || Object.values(KinematicType).includes(typeOrConfig as any)) {
     // kinematicNodeFactory(kinematicType, jointType) form
     return new KinematicNode({
       name: `node_${KinematicNode['_nextIdn']}`,

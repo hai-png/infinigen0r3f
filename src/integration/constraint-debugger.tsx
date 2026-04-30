@@ -79,7 +79,7 @@ export const ConstraintDebugger: React.FC<ConstraintDebuggerProps> = ({
             <Box
               args={[0.5, 0.5, 0.5]}
               position={objState.position}
-              rotation={objState.rotation.toEuler()}
+              rotation={new THREE.Euler(objState.rotation.x, objState.rotation.y, objState.rotation.z)}
             >
               <meshStandardMaterial
                 color={isViolated ? 'red' : 'blue'}

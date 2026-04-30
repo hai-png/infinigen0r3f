@@ -130,6 +130,29 @@ export abstract class BaseObjectGenerator<TConfig extends BaseGeneratorConfig> {
     return this.mergeConfig(userConfig);
   }
 
+  /**
+   * Validate params and return the validated config
+   */
+  protected validateParams(config: any): any {
+    return config;
+  }
+
+  /**
+   * Create a simplified collision mesh for physics
+   */
+  protected createCollisionMesh(object: THREE.Object3D): THREE.Mesh | null {
+    const box = new THREE.Box3().setFromObject(object);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+    const material = this.getCollisionMaterial();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.copy(center);
+    return mesh;
+  }
+
   protected validateAndMerge(userConfig: Partial<TConfig> = {}): TConfig {
     return this.mergeConfig(userConfig);
   }

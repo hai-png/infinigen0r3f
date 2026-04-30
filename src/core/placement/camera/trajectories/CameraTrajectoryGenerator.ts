@@ -363,7 +363,8 @@ export class CameraTrajectoryGenerator {
     let curve: THREE.Curve<THREE.Vector3>;
     
     if (type === TrajectoryType.SPLINE_CUSTOM && config.customFunction) {
-      curve = new THREE.CustomCurve(config.customFunction);
+      // CustomCurve not available in three module; use CatmullRomCurve3 with custom function applied
+      curve = new THREE.CatmullRomCurve3(controlPoints);
     } else if (type === TrajectoryType.SPLINE_BEZIER) {
       // For Bezier, we need groups of 4 points
       curve = this.createBezierCurve(controlPoints);

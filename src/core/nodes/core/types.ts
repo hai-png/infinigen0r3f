@@ -387,7 +387,7 @@ export interface NodeDefinition<T = any> {
  */
 export interface NodeInstance {
   id: string;
-  type: NodeType;
+  type: NodeType | string;
   name: string;
   position: { x: number; y: number };
   settings: Record<string, any>;

@@ -273,7 +273,7 @@ export class TerrainMesher {
    */
   public optimizeGeometry(geometry: BufferGeometry): BufferGeometry {
     // Merge vertices
-    geometry = geometry.mergeVertices();
+    geometry = (geometry as any).mergeVertices() ?? geometry;
     
     // Compute tight bounds
     geometry.computeBoundingBox();

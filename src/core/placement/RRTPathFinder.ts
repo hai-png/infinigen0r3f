@@ -687,7 +687,9 @@ export class RRTPathFinder {
     // Estimate coverage (volume of bounding box of all nodes)
     const allPositions = Array.from(this.nodes.values()).map(n => n.position);
     const coverageBox = new Box3().setFromPoints(allPositions);
-    const coverage = coverageBox.volume();
+    const coverage = (coverageBox.max.x - coverageBox.min.x) * 
+                    (coverageBox.max.y - coverageBox.min.y) * 
+                    (coverageBox.max.z - coverageBox.min.z);
     
     return {
       totalNodes: this.nodes.size,

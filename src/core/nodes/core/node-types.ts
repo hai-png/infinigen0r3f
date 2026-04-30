@@ -337,8 +337,6 @@ export enum NodeTypes {
   Slerp = 'SlerpNode',
   PolarToCart = 'PolarToCartNode',
   CartToPolar = 'CartToPolarNode',
-  HueSaturationValue = 'HueSaturationNode',
-
   // Subdivision
   SubdivisionSurface = 'SubdivisionSurfaceNode',
 

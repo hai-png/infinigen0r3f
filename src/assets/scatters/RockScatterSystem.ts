@@ -384,7 +384,7 @@ export class RockScatterSystem {
     
     // Create instanced mesh for each rock type
     byType.forEach((instances, typeName) => {
-      const rockType = this.config.rockTypes.find(t => t.name === typeName);
+      const rockType = this.config.rockTypes.find(t => typeof t !== 'string' && t.name === typeName) as RockType | undefined;
       if (!rockType) return;
       
       // Create base geometry (simplified icosahedron for rocks)

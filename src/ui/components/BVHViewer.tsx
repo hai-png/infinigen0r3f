@@ -173,8 +173,8 @@ function BVHCameraControls({ target }: { target: THREE.Vector3 }) {
   
   useFrame(() => {
     if (controls) {
-      controls.target.copy(target);
-      controls.update();
+      (controls as any).target.copy(target);
+      (controls as any).update();
     }
   });
   

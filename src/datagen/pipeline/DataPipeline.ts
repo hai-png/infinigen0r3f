@@ -475,7 +475,16 @@ export class DataPipeline {
       1000
     );
 
-    const gtData: GroundTruthMetadata = {};
+    const gtData: GroundTruthMetadata = {
+      jobId: `job_${Date.now()}`,
+      cameraId: 'default',
+      timestamp: new Date(),
+      resolution: { width: this.config.imageWidth, height: this.config.imageHeight },
+      nearPlane: 0.1,
+      farPlane: 1000,
+      fov: this.config.fovRange![0],
+      objectCount: 0,
+    };
 
     if (this.config.generateDepth) {
       gtData.depth = await this.groundTruthGen.generateDepth({

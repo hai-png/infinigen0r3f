@@ -665,7 +665,7 @@ export class NodeSerializer {
       'ShaderNodeTexMusgrave': NodeType.MusgraveTexture,
       'ShaderNodeValToRGB': NodeType.ColorRamp,
       'ShaderNodeMixRGB': NodeType.MixRGB,
-      'ShaderNodeTexCoord': NodeType.TextureCoordinate,
+      'ShaderNodeTexCoord': NodeType.TextureCoord,
       'ShaderNodeMapping': NodeType.Mapping,
       'ShaderNodeOutputMaterial': NodeType.MaterialOutput,
       'GeometryNodeGroupInput': NodeType.GroupInput,

@@ -283,7 +283,7 @@ export class EXRExporter {
     const currentFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING);
 
     // Read pixels
-    gl.bindFramebuffer(gl.FRAMEBUFFER, renderTarget.framebuffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, (renderTarget as any).framebuffer ?? renderTarget);
     gl.readPixels(
       0, 0, width, height,
       gl.RGBA,

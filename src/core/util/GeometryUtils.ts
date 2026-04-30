@@ -168,7 +168,7 @@ export function laplacianSmooth(
   }
   
   const result = geometry.clone();
-  result.attributes.position.array = positionCopy;
+  (result.attributes.position as any).array = positionCopy;
   result.attributes.position.needsUpdate = true;
   result.computeVertexNormals();
   

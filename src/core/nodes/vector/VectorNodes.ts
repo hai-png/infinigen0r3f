@@ -22,7 +22,7 @@ export interface VectorNodeBase {
 export interface VectorMathInputs {
   operation?: 'add' | 'subtract' | 'multiply' | 'divide' | 'cross_product' | 'project' | 'reflect' | 
               'refract' | 'faceforward' | 'dot_product' | 'distance' | 'length' | 'scale' | 
-              'normalize' | 'wrap' | 'snap' | 'floor' | 'ceiling' | 'modulus' | 'fraction' | 
+              'normalize' | 'wrap' | 'snap' | 'floor' | 'ceiling' | 'modulus' | 'modulo' | 'fraction' | 
               'absolute' | 'minimum' | 'maximum' | 'sine' | 'cosine' | 'tangent' | 'arcsine' | 
               'arccosine' | 'arctangent' | 'arctan2' | 'hyperbolic_sine' | 'hyperbolic_cosine' | 
               'hyperbolic_tangent' | 'radians' | 'degrees' | 'power' | 'logarithm' | 'square_root' | 

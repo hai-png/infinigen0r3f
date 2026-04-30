@@ -284,9 +284,9 @@ export class ExportToolkit {
     const textures = new Set<Texture>();
     scene.traverse((object) => {
       if (object instanceof Mesh) {
-        const materials = Array.isArray((object as Mesh).material) 
-          ? (object as Mesh).material 
-          : [(object as Mesh).material];
+        const materials: Material[] = Array.isArray((object as Mesh).material) 
+          ? (object as Mesh).material as Material[]
+          : [(object as Mesh).material as Material];
         materials.forEach(material => {
           if (material) {
             Object.values(material).forEach(value => {

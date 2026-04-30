@@ -75,21 +75,22 @@ export class FabricDrape {
     const vertices = positions.length / 3;
     
     // Apply draping based on style
+    const posArray = positions as Float32Array;
     switch (this.config.style) {
       case 'curtain':
-        this.applyCurtainDrape(positions, segments, rows);
+        this.applyCurtainDrape(posArray, segments, rows);
         break;
       case 'tablecloth':
-        this.applyTableclothDrape(positions, segments, rows);
+        this.applyTableclothDrape(posArray, segments, rows);
         break;
       case 'blanket':
-        this.applyBlanketDrape(positions, segments, rows);
+        this.applyBlanketDrape(posArray, segments, rows);
         break;
       case 'towel':
-        this.applyTowelDrape(positions, segments, rows);
+        this.applyTowelDrape(posArray, segments, rows);
         break;
       case 'sheet':
-        this.applySheetDrape(positions, segments, rows);
+        this.applySheetDrape(posArray, segments, rows);
         break;
     }
     

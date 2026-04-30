@@ -491,7 +491,7 @@ export class InstanceScatterSystem {
       let closestDist = Infinity;
       
       for (const triangle of triangles) {
-        const point = triangle.closestPointToPoint(sample, false);
+        const point = triangle.closestPointToPoint(sample, new Vector3());
         const dist = point.distanceTo(sample);
         
         if (dist < closestDist) {
@@ -506,7 +506,7 @@ export class InstanceScatterSystem {
       }
       
       // Get point on surface
-      const surfacePoint = closestTriangle.closestPointToPoint(sample, true);
+      const surfacePoint = closestTriangle.closestPointToPoint(sample, new Vector3());
       const normal = closestTriangle.getNormal(new Vector3());
       
       // Validate placement

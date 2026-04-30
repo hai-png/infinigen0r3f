@@ -741,7 +741,7 @@ export function executeDistributePointsOnFaces(node: DistributePointsOnFacesNode
 export function executeDistributePointsInVolume(node: DistributePointsInVolumeNode, geometry: THREE.BufferGeometry): {
   points: Vector3[];
 } {
-  const { count, volumeType } = node.parameters;
+  const { count = 100, volumeType } = node.parameters as typeof node.parameters & { count?: number };
   const { seed } = node.parameters;
   const random = seededRandom(seed);
   

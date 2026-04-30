@@ -53,7 +53,7 @@ const EditableObject: React.FC<{
 
   if (!object.visible) return null;
 
-  const handleClick = (e: THREE.Event) => {
+  const handleClick = (e: any) => {
     e.stopPropagation();
     if (!object.locked) {
       onSelect();

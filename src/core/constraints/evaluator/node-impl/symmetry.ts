@@ -386,7 +386,7 @@ function computeCovarianceMatrix(points: THREE.Vector3[]): THREE.Matrix3 {
   points.forEach(p => centroid.add(p));
   centroid.divideScalar(points.length);
   
-  const cov = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const cov: [number, number, number, number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
   
   for (const p of points) {
     const dx = p.x - centroid.x;

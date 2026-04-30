@@ -13,9 +13,11 @@ export interface AssetParameters extends AssetConfig {
 export abstract class AssetFactory<TConfig = AssetConfig, TResult = THREE.Object3D> {
   protected seed: number;
   protected rng: SeededRandom;
+  protected factorySeed: number;
   
   constructor(seed?: number, coarse?: boolean) {
     this.seed = seed ?? Math.random() * 10000;
+    this.factorySeed = this.seed;
     this.rng = new SeededRandom(this.seed);
     void coarse;
   }

@@ -357,8 +357,8 @@ export function tagToString(tag: Tag | string): string {
     return tag;
   }
 
-  if (tag instanceof Semantics || tag instanceof Subpart) {
-    return tag.valueOf().toString();
+  if (Object.values(Semantics).includes(tag as any) || Object.values(Subpart).includes(tag as any)) {
+    return (tag as any).valueOf().toString();
   }
 
   if (tag instanceof StringTag) {

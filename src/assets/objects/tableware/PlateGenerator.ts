@@ -183,7 +183,7 @@ export class PlateGenerator extends BaseObjectGenerator<PlateParams> {
       bevelEnabled: false,
     });
     
-    const rim = new THREE.Mesh(rimGeo, rimMaterial);
+    const rim = new THREE.Mesh(rimGeo, material);
     rim.position.z = 0;
     group.add(rim);
   }

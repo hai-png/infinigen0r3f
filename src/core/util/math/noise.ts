@@ -10,6 +10,8 @@ export {
   ridgedMultifractal
 } from '../MathUtils';
 
+import { noise3D } from '../MathUtils';
+
 /**
  * Fractal Brownian Motion - layered noise function
  */

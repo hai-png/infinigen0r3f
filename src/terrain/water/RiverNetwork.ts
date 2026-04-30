@@ -130,7 +130,7 @@ export class RiverNetwork {
     // Compute flow accumulation using recursive approach
     // Start from highest elevations and work down
     const visited = new Uint8Array(heightmap.length);
-    const elevationOrder = heightmap
+    const elevationOrder = Array.from(heightmap)
       .map((elev, idx) => ({ elev, idx }))
       .sort((a, b) => b.elev - a.elev);
     

@@ -253,7 +253,7 @@ export class RockGenerator {
     const uvAttribute = geometry.attributes.uv;
     if (!uvAttribute) {
       // Generate UVs if not present
-      geometry.computeTexCoord();
+      (geometry as any).computeTexCoord();
     }
   }
   

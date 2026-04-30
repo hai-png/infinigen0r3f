@@ -57,7 +57,7 @@ export class FishGenerator extends CreatureBase {
   }
 
   generateAppendages(): Mesh[] {
-    return this.generateFins(this.getDefaultConfig());
+    return [this.generateFins(this.getDefaultConfig())];
   }
 
   applySkin(materials: any): any[] {

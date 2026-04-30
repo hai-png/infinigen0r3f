@@ -25,7 +25,7 @@ export interface ColorNodeBase {
 export interface ColorRampInputs {
   factor?: number;
   colorRamp?: Array<{ position: number; color: ColorLike }>;
-  interpolation?: 'constant' | 'linear' | 'b_spline' | 'cardinal' | 'ease' | 'smooth_step';
+  interpolation?: 'constant' | 'linear' | 'b_spline' | 'cardinal' | 'ease' | 'smooth_step' | 'smooth';
 }
 
 export interface ColorRampOutputs {

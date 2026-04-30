@@ -98,11 +98,15 @@ export function useInfinigenSolver(
 
   // Initialize solver
   useEffect(() => {
-    solverRef.current = new SimulatedAnnealingSolver({
-      maxIterations: solverConfig.maxIterations || 1000,
-      initialTemperature: solverConfig.temperature || 100,
-      coolingRate: solverConfig.coolingRate || 0.95
-    });
+    solverRef.current = new SimulatedAnnealingSolver(
+      undefined,
+      undefined,
+      {
+        maxIterations: solverConfig.maxIterations || 1000,
+        initialTemperature: solverConfig.temperature || 100,
+        coolingRate: solverConfig.coolingRate || 0.95
+      }
+    );
 
     const initialState: SolverState = {
       state: {} as any,

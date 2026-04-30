@@ -16,10 +16,10 @@ export interface CameraPose {
 }
 
 export interface SphericalMesherConfig {
-  base90dResolution: number;
-  rMin: number;
-  rMax: number;
-  testDownscale: number;
+  base90dResolution?: number;
+  rMin?: number;
+  rMax?: number;
+  testDownscale?: number;
   renderHeight?: number;
   adaptiveErrorThreshold?: number;
   maxLOD?: number;

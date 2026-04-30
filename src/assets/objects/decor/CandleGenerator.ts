@@ -146,7 +146,7 @@ export class CandleGenerator extends BaseObjectGenerator<CandleConfig> {
         roughness = 0.3;
     }
 
-    return new THREE.MeshStandardMaterial({
+    return new THREE.MeshPhysicalMaterial({
       color: config.waxColor,
       roughness,
       transmission,

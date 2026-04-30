@@ -461,7 +461,7 @@ export class WardrobeGenerator {
    */
   private createFeet(params: WardrobeParams): THREE.Group {
     const group = new THREE.Group();
-    const footPositions = [
+    const footPositions: [number, number, number][] = [
       [-params.width / 2 + 0.05, 0.04, -params.depth / 2 + 0.05],
       [params.width / 2 - 0.05, 0.04, -params.depth / 2 + 0.05],
       [-params.width / 2 + 0.05, 0.04, params.depth / 2 - 0.05],

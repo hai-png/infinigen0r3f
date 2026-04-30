@@ -67,7 +67,7 @@ export class GLTFLoaderExtended {
     // Initialize KTX2 Loader
     if (this.defaultOptions.enableKTX2) {
       this.ktx2Loader = new KTX2Loader();
-      this.ktx2Loader.setTranscoderPath('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/jsm/libs/basis/');
+      (this.ktx2Loader as any).setTranscoderPath('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/jsm/libs/basis/');
       this.ktx2Loader.detectSupport(new THREE.WebGLRenderer());
       this.loader.setKTX2Loader(this.ktx2Loader);
     }

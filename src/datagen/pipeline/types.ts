@@ -49,6 +49,7 @@ export interface JobProgress {
   estimatedTimeRemaining?: number; // seconds
   completedAt?: Date;
   error?: JobError;
+  errorMessage?: string;
 }
 
 export interface JobError {

@@ -24,6 +24,7 @@ import {
   Box3,
   Triangle,
   Ray,
+  Raycaster,
   Color,
 } from 'three';
 
@@ -235,7 +236,11 @@ export class MeshOperations {
     }
 
     // Create bounding box for spatial hashing
-    const bbox = new Box3().setFromAttribute(positions);
+    const bbox = new Box3();
+    const posArray = positions.array as Float32Array;
+    for (let i = 0; i < posArray.length; i += 3) {
+      bbox.expandByPoint(new Vector3(posArray[i], posArray[i + 1], posArray[i + 2]));
+    }
     const size = new Vector3();
     bbox.getSize(size);
 
@@ -362,7 +367,7 @@ export class MeshOperations {
     const positions: number[] = [];
 
     // Create raycaster for testing occupancy
-    const raycaster = new Ray();
+    const raycaster = new Raycaster();
     const direction = new Vector3(0, 0, 1);
 
     // Sample points in bounding box
@@ -452,7 +457,7 @@ export class MeshOperations {
     }
 
     // Merge close vertices
-    geometry.mergeVertices();
+    (geometry as any).mergeVertices();
   }
 
   /**
@@ -517,7 +522,11 @@ export class MeshOperations {
 
     if (!indices || !positions) return voxels;
 
-    const bbox = new Box3().setFromAttribute(positions);
+    const bbox = new Box3();
+    const posArr = positions.array as Float32Array;
+    for (let i = 0; i < posArr.length; i += 3) {
+      bbox.expandByPoint(new Vector3(posArr[i], posArr[i + 1], posArr[i + 2]));
+    }
     const size = new Vector3();
     bbox.getSize(size);
     const cellSize = Math.max(size.x, size.y, size.z) / resolution;
@@ -638,9 +647,14 @@ export class MeshOperations {
     }
 
     // Get bounding box from reference geometry
-    const bbox = new Box3().setFromAttribute(
-      referenceGeom.getAttribute('position')
-    );
+    const bbox = new Box3();
+    const refPosAttr = referenceGeom.getAttribute('position');
+    if (refPosAttr) {
+      const refPosArr = refPosAttr.array as Float32Array;
+      for (let i = 0; i < refPosArr.length; i += 3) {
+        bbox.expandByPoint(new Vector3(refPosArr[i], refPosArr[i + 1], refPosArr[i + 2]));
+      }
+    }
     const size = new Vector3();
     bbox.getSize(size);
     const cellSize = Math.max(size.x, size.y, size.z) / resolution;

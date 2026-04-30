@@ -411,12 +411,12 @@ export class WeatherSystem {
         this.state.currentType === 'storm' ||
         this.state.currentType === 'thunderstorm';
       
-      this.rainParticles.material.opacity = this.state.params.intensity * 0.6;
+      (this.rainParticles.material as THREE.PointsMaterial).opacity = this.state.params.intensity * 0.6;
     }
     
     if (this.snowParticles) {
       this.snowParticles.visible = this.state.currentType === 'snow';
-      this.snowParticles.material.opacity = this.state.params.intensity * 0.8;
+      (this.snowParticles.material as THREE.PointsMaterial).opacity = this.state.params.intensity * 0.8;
     }
   }
 

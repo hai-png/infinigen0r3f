@@ -277,7 +277,7 @@ export class ShaderGraphBuilder {
     position?: { x: number; y: number }
   ): ShaderGraphNode {
     return this.createNode(
-      NodeType.TextureCoordinate,
+      NodeType.TextureCoord,
       name,
       {},
       position

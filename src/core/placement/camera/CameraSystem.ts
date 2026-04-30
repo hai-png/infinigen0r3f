@@ -118,6 +118,9 @@ export interface CameraProperties {
   
   /** Vignette intensity (0-1) */
   vignette?: number;
+  
+  /** Interaxial distance for stereo cameras (default: 0.065) */
+  interaxialDistance?: number;
 }
 
 /**

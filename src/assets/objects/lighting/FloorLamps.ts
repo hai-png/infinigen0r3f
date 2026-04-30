@@ -443,8 +443,8 @@ export class FloorLamps extends BaseObjectGenerator<FloorLampParams> {
     
     // Find all shades and add lights
     object.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.geometry.type.includes('Cylinder') || 
-          child.geometry.type.includes('Sphere') || child.geometry.type.includes('Cone')) {
+      if (child instanceof THREE.Mesh && (child.geometry.type.includes('Cylinder') || 
+          child.geometry.type.includes('Sphere') || child.geometry.type.includes('Cone'))) {
         const light = new THREE.PointLight(bulbColor, intensity, 8);
         light.position.y = -0.1;
         child.add(light);

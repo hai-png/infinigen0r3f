@@ -25,6 +25,11 @@ export abstract class Tag extends Node {
    * Get the category of this tag
    */
   abstract get category(): string;
+
+  /**
+   * Clone this tag
+   */
+  abstract clone(): Tag;
 }
 
 /**

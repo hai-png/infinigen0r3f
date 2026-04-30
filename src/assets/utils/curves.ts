@@ -43,4 +43,40 @@ export class BezierCurveGenerator {
     }
     return points;
   }
+
+  /**
+   * Create a bezier curve from anchor arrays
+   * @param xAnchors - X coordinates of control points
+   * @param yAnchors - Y coordinates of control points
+   * @param zAnchors - Z coordinates of control points
+   * @param vectorLocations - Indices of vector control points
+   * @returns Array of Vector3 points along the curve
+   */
+  createBezierCurve(xAnchors: number[], yAnchors: number[], zAnchors: number[], vectorLocations: number[]): THREE.Vector3[] {
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i < xAnchors.length; i++) {
+      points.push(new THREE.Vector3(xAnchors[i], yAnchors[i], zAnchors[i]));
+    }
+    // Interpolate through points using Catmull-Rom
+    if (points.length >= 2) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      return curve.getPoints(points.length * 5);
+    }
+    return points;
+  }
+
+  /**
+   * Extrude a curve into a geometry with given thickness
+   * @param curvePoints - Points defining the curve path
+   * @param thickness - Thickness of the extrusion
+   * @returns Extruded BufferGeometry
+   */
+  extrudeCurve(curvePoints: THREE.Vector3[], thickness: number): THREE.BufferGeometry {
+    if (curvePoints.length < 2) {
+      return new THREE.BufferGeometry();
+    }
+    const curve = new THREE.CatmullRomCurve3(curvePoints);
+    const tubeGeometry = new THREE.TubeGeometry(curve, curvePoints.length * 4, thickness / 2, 8, false);
+    return tubeGeometry;
+  }
 }
