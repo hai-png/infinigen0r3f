@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * InsectGenerator - Procedural insect generation
  * Generates insects with 3 body segments, 6 legs, antennae, and optional wings
@@ -15,8 +16,9 @@ export interface InsectParameters extends CreatureParams {
 export type InsectSpecies = 'ant' | 'bee' | 'beetle' | 'butterfly' | 'spider' | 'grasshopper';
 
 export class InsectGenerator extends CreatureBase {
+  private _rng = new SeededRandom(42);
   constructor(params: Partial<InsectParameters> = {}) {
-    super({ ...params, seed: params.seed || Math.random() * 10000 });
+    super({ ...params, seed: params.seed || 42 });
   }
 
   getDefaultConfig(): InsectParameters {

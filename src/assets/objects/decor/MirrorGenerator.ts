@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * MirrorGenerator - Procedural mirror generation with various frame styles
  * Generates wall mirrors, standing mirrors, decorative mirrors
@@ -38,6 +39,7 @@ export interface MirrorConfig {
 }
 
 export class MirrorGenerator extends BaseObjectGenerator<MirrorConfig> {
+  private _rng = new SeededRandom(42);
   protected readonly defaultParams: MirrorConfig = {
     style: 'wall',
     frameStyle: 'simple',
@@ -371,17 +373,17 @@ export class MirrorGenerator extends BaseObjectGenerator<MirrorConfig> {
     
     const configs: MirrorConfig[] = [];
     for (let i = 0; i < count; i++) {
-      const style = styles[Math.floor(Math.random() * styles.length)];
+      const style = styles[Math.floor(this._rng.next() * styles.length)];
       configs.push({
         style,
-        frameStyle: frameStyles[Math.floor(Math.random() * frameStyles.length)],
-        shape: shapes[Math.floor(Math.random() * shapes.length)],
-        width: 0.5 + Math.random() * 1.0,
-        height: 0.8 + Math.random() * 1.2,
-        frameWidth: 0.03 + Math.random() * 0.08,
-        frameThickness: 0.02 + Math.random() * 0.04,
-        hasStand: style === 'standing' || Math.random() > 0.7,
-        seed: Math.floor(Math.random() * 10000)
+        frameStyle: frameStyles[Math.floor(this._rng.next() * frameStyles.length)],
+        shape: shapes[Math.floor(this._rng.next() * shapes.length)],
+        width: 0.5 + this._rng.next() * 1.0,
+        height: 0.8 + this._rng.next() * 1.2,
+        frameWidth: 0.03 + this._rng.next() * 0.08,
+        frameThickness: 0.02 + this._rng.next() * 0.04,
+        hasStand: style === 'standing' || this._rng.next() > 0.7,
+        seed: Math.floor(this._rng.next() * 10000)
       });
     }
 

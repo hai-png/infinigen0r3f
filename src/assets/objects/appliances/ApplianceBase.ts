@@ -220,16 +220,16 @@ export abstract class ApplianceBase<T extends ApplianceParams = ApplianceParams>
     const handleStyles = ['bar', 'tube', 'recessed', 'knob'] as const;
     
     return {
-      width: 0.5 + Math.random() * 0.4,
-      height: 0.7 + Math.random() * 0.5,
-      depth: 0.55 + Math.random() * 0.2,
-      style: styles[Math.floor(Math.random() * styles.length)],
-      finish: finishes[Math.floor(Math.random() * finishes.length)],
-      hasDisplay: Math.random() > 0.5,
-      hasHandle: Math.random() > 0.2,
-      handleStyle: handleStyles[Math.floor(Math.random() * handleStyles.length)],
-      doorCount: 1 + Math.floor(Math.random() * 3),
-      vented: Math.random() > 0.6,
+      width: this.rng.nextFloat(0.5, 0.9),
+      height: this.rng.nextFloat(0.7, 1.2),
+      depth: this.rng.nextFloat(0.55, 0.75),
+      style: this.rng.choice(styles),
+      finish: this.rng.choice(finishes),
+      hasDisplay: this.rng.boolean(0.5),
+      hasHandle: this.rng.boolean(0.8),
+      handleStyle: this.rng.choice(handleStyles),
+      doorCount: this.rng.nextInt(1, 3),
+      vented: this.rng.boolean(0.4),
     };
   }
 }

@@ -7,6 +7,7 @@
 
 import { Group, BoxGeometry, CylinderGeometry, TorusGeometry, Mesh, CircleGeometry } from 'three';
 import { ApplianceBase, ApplianceParams } from './ApplianceBase';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 export interface LaundryApplianceParams extends ApplianceParams {
   applianceType: 'washer' | 'dryer' | 'combo';
@@ -515,17 +516,17 @@ export class LaundryAppliances extends ApplianceBase<LaundryApplianceParams> {
     const capacities = ['compact', 'standard', 'large'] as const;
     const loadTypes = ['front', 'top'] as const;
     
-    const applianceType = types[Math.floor(Math.random() * types.length)];
-    const loadType = applianceType === 'dryer' ? 'front' : loadTypes[Math.floor(Math.random() * loadTypes.length)] as 'front' | 'top';
+    const applianceType = this.rng.choice(types);
+    const loadType = applianceType === 'dryer' ? 'front' : this.rng.choice(loadTypes) as 'front' | 'top';
 
     return {
       ...super.getRandomParams(),
       applianceType,
-      capacity: capacities[Math.floor(Math.random() * capacities.length)],
+      capacity: this.rng.choice(capacities),
       loadType,
-      hasSteam: Math.random() > 0.6,
-      hasSmartControls: Math.random() > 0.5,
-      drumSize: 0.3 + Math.random() * 0.15,
+      hasSteam: this.rng.boolean(0.4),
+      hasSmartControls: this.rng.boolean(0.5),
+      drumSize: this.rng.nextFloat(0.3, 0.45),
     };
   }
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 /**
  * Density-Based Placement System
@@ -135,10 +136,10 @@ export interface DensityPlacementResult {
 /**
  * Simple pseudo-random number generator for seeded randomness
  */
-class SeededRandom {
+class LocalSeededRandom {
   private seed: number;
   
-  constructor(seed: number = Math.random()) {
+  constructor(seed: number = 42) {
     this.seed = seed;
   }
   
@@ -154,14 +155,14 @@ class SeededRandom {
 class SimpleNoise {
   private permutation: number[];
   
-  constructor(seed: number = Math.random()) {
+  constructor(seed: number = 42) {
     this.permutation = [];
     for (let i = 0; i < 256; i++) {
       this.permutation[i] = i;
     }
     
     // Shuffle based on seed
-    const rng = new SeededRandom(seed);
+    const rng = new LocalSeededRandom(seed);
     for (let i = 255; i > 0; i--) {
       const j = Math.floor(rng.next() * (i + 1));
       [this.permutation[i], this.permutation[j]] = [this.permutation[j], this.permutation[i]];
@@ -269,7 +270,7 @@ export class DensityPlacementSystem {
   private raycaster: THREE.Raycaster;
 
   constructor() {
-    this.rng = new SeededRandom();
+    this.rng = new SeededRandom(42);
     this.noise = new SimpleNoise();
     this.spatialGrid = new Map();
     this.raycaster = new THREE.Raycaster();

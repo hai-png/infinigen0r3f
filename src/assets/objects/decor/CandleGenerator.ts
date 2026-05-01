@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * Candle Generator
  * 
@@ -24,6 +25,7 @@ export interface CandleConfig {
 }
 
 export class CandleGenerator extends BaseObjectGenerator<CandleConfig> {
+  private _rng = new SeededRandom(42);
   protected readonly defaultParams: CandleConfig = {
     style: 'pillar',
     waxType: 'beeswax',
@@ -259,9 +261,9 @@ export class CandleGenerator extends BaseObjectGenerator<CandleConfig> {
     const positions = new Float32Array(particleCount * 3);
     
     for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 0.05;
-      positions[i * 3 + 1] = config.height + Math.random() * 0.1;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+      positions[i * 3] = (this._rng.next() - 0.5) * 0.05;
+      positions[i * 3 + 1] = config.height + this._rng.next() * 0.1;
+      positions[i * 3 + 2] = (this._rng.next() - 0.5) * 0.05;
     }
     
     const geometry = new THREE.BufferGeometry();

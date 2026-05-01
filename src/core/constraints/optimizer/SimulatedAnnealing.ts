@@ -6,6 +6,7 @@
 import { ConstraintDomain, ConstraintEvaluationResult } from '../core/ConstraintTypes';
 import { MoveOperatorFactory, Move, MoveType, MoveResult } from '../moves/MoveOperators';
 import { Vector3 } from 'three';
+import { SeededRandom } from '../../util/MathUtils';
 
 export interface AnnealingConfig {
   initialTemperature: number;
@@ -34,6 +35,7 @@ export class SimulatedAnnealing {
   private currentEnergy: number = Infinity;
   private iterationCount: number = 0;
   private stats: AnnealingStats;
+  private rng: SeededRandom;
 
   constructor(domain: ConstraintDomain, config: Partial<AnnealingConfig> = {}) {
     this.domain = domain;
@@ -47,6 +49,7 @@ export class SimulatedAnnealing {
       acceptanceThreshold: config.acceptanceThreshold ?? 0.001,
     };
     
+    this.rng = new SeededRandom(this.config.randomSeed ?? 42);
     this.moveFactory = new MoveOperatorFactory(domain);
     this.stats = {
       totalIterations: 0,
@@ -134,7 +137,7 @@ export class SimulatedAnnealing {
    */
   private generateRandomMove(): Move {
     const moveTypes = Object.values(MoveType);
-    const randomType = moveTypes[Math.floor(Math.random() * moveTypes.length)];
+    const randomType = moveTypes[this.rng.nextInt(0, moveTypes.length - 1)];
     
     const objects = Array.from(this.domain.objects.keys());
     const rooms = Array.from(this.domain.rooms.keys());
@@ -147,10 +150,10 @@ export class SimulatedAnnealing {
     switch (randomType) {
       case MoveType.SWAP:
         if (objects.length >= 2) {
-          const idx1 = Math.floor(Math.random() * objects.length);
-          let idx2 = Math.floor(Math.random() * objects.length);
+          const idx1 = this.rng.nextInt(0, objects.length - 1);
+          let idx2 = this.rng.nextInt(0, objects.length - 1);
           while (idx2 === idx1 && objects.length > 1) {
-            idx2 = Math.floor(Math.random() * objects.length);
+            idx2 = this.rng.nextInt(0, objects.length - 1);
           }
           move.objectId = objects[idx1];
           move.targetObjectId = objects[idx2];
@@ -159,36 +162,36 @@ export class SimulatedAnnealing {
 
       case MoveType.POSE:
         if (objects.length > 0) {
-          move.objectId = objects[Math.floor(Math.random() * objects.length)];
+          move.objectId = this.rng.choice(objects);
           // Small random perturbation
           move.position = this.domain.objects.get(move.objectId)!.position.clone();
-          move.position.x += (Math.random() - 0.5) * 2;
-          move.position.z += (Math.random() - 0.5) * 2;
+          move.position.x += (this.rng.next() - 0.5) * 2;
+          move.position.z += (this.rng.next() - 0.5) * 2;
         }
         break;
 
       case MoveType.ADD:
         move.objectId = `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         move.position = new Vector3(
-          (Math.random() - 0.5) * 20,
+          (this.rng.next() - 0.5) * 20,
           0,
-          (Math.random() - 0.5) * 20,
+          (this.rng.next() - 0.5) * 20,
         );
         if (rooms.length > 0) {
-          move.roomId = rooms[Math.floor(Math.random() * rooms.length)];
+          move.roomId = this.rng.choice(rooms);
         }
         break;
 
       case MoveType.DELETE:
         if (objects.length > 0) {
-          move.objectId = objects[Math.floor(Math.random() * objects.length)];
+          move.objectId = this.rng.choice(objects);
         }
         break;
 
       case MoveType.REASSIGN:
         if (objects.length > 0 && rooms.length > 0) {
-          move.objectId = objects[Math.floor(Math.random() * objects.length)];
-          move.roomId = rooms[Math.floor(Math.random() * rooms.length)];
+          move.objectId = this.rng.choice(objects);
+          move.roomId = this.rng.choice(rooms);
         }
         break;
     }
@@ -224,7 +227,7 @@ export class SimulatedAnnealing {
     if (energyChange <= 0) return true;
     
     const probability = Math.exp(-energyChange / this.currentTemperature);
-    return Math.random() < probability;
+    return this.rng.next() < probability;
   }
 
   /**

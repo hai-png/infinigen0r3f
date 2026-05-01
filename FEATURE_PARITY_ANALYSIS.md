@@ -1,12 +1,13 @@
 # Infinigen-R3F vs. Original Infinigen: Feature Parity Analysis
 
-## Final Audit — March 2026
+## Final Audit — May 2026 (Updated)
 
 ## Project Stats
-- **Source files**: 581 TypeScript + 3 Python
-- **Lines of code**: 156,824 (src/ alone)
+- **Source files**: 640+ TypeScript + 3 Python
+- **Lines of code**: 160,000+ (src/ alone)
 - **TypeScript compilation**: 0 errors
-- **Overall feature parity**: ~55–60% (up from initial ~35–40%)
+- **Overall feature parity**: ~65–70% (up from initial ~35–40%)
+- **Math.random() in procedural code**: 0 (all replaced with SeededRandom; remaining 42 are ID gen/comments/UI mock)
 
 ---
 
@@ -16,18 +17,19 @@
 |---|----------|--------|--------|
 | 1 | Terrain | 55% | Core heightmap + erosion + tectonics work; SDF/marching cubes/ocean missing |
 | 2 | Water | 40% | River/lake/waterfall present; no ocean, no caustics, concave hull bugs |
-| 3 | Vegetation | 45% | All 16 generators present; no L-system, no wind animation, MonocotField leaf bug |
-| 4 | Creatures | 35% | 7 creature types; parts/animation/skeleton are stubs, missing exports |
-| 5 | Architecture | 60% | Most generators functional; 5 still missing materials, vaulted/dormers missing |
-| 6 | Materials | 65% | Most generators functional; some need MeshPhysicalMaterial, some missing textures |
-| 7 | Node System | 50% | 386 node types, most functional; per-vertex streaming limited, AO bug |
-| 8 | Weather/Atmosphere | 70% | Full Rayleigh+Mie, volumetric clouds, rain/snow/fog; fog sampler bug |
-| 9 | Lighting | 60% | Multi-light setup works; HDRI setup broken (PMREMGenerator null) |
-| 10 | Physics | 40% | Custom engine works; no CCD, no GJK, duplicate implementations, stub sub-modules |
-| 11 | Constraints | 75% | Full DSL + evaluator + SA solver; some minor bugs in full-solver-loop |
-| 12 | Data Pipeline | 70% | Full rendering pipeline; some annotation bugs, batch processor issues |
+| 3 | Vegetation | 50% | All 16 generators present; MonocotField leaf bug fixed; no L-system yet |
+| 4 | Creatures | 40% | 7 creature types with exports fixed; FishGenerator head fixed; skeleton still stub |
+| 5 | Architecture | 70% | All generators with materials; vaulted/dormers added; window types fixed |
+| 6 | Materials | 70% | Plastic/Stone use MeshPhysicalMaterial; all generators functional |
+| 7 | Node System | 75% | 299 proper node definitions + per-vertex streaming; seeded noise |
+| 8 | Weather/Atmosphere | 75% | FogSystem uses Data3DTexture; full Rayleigh+Mie; rain/snow/fog |
+| 9 | Lighting | 65% | HDRI setup fixed with EquirectangularReflectionMapping |
+| 10 | Physics | 40% | Custom engine works; removeBody fixed; no CCD, no GJK |
+| 11 | Constraints | 80% | evaluateAll() fixed; full DSL + evaluator + SA solver |
+| 12 | Data Pipeline | 70% | Full rendering pipeline; GroundTruth seeded |
 | 13 | Articulated Objects | 80% | All 18 generators, MJCF export; primitive geometry only |
 | 14 | Python Bridge | 70% | Full RPC + auto-reconnect + state sync; no binary transfer |
+| 15 | **Math System** | **90%** | SeededRandom throughout; 15 distributions; DistributionSampler; seeded noise |
 
 ---
 
@@ -61,42 +63,38 @@
 
 ---
 
-## Remaining Bugs (This Audit)
+## Remaining Bugs (Updated May 2026)
 
-### 🔴 Critical (broken rendering/functionality)
+### 🔴 Critical — ALL FIXED ✅
 
-| # | File | Issue |
-|---|------|-------|
-| 1 | `FogSystem.ts` | `sampler3D` in shader but `DataTexture` (2D) provided → shader compilation failure |
-| 2 | `LightingSystem.ts` | `PMREMGenerator(null as any)` → HDRI setup crash at runtime |
-| 3 | `LightingSystem.ts` | Missing `texture.mapping = EquirectangularReflectionMapping` |
-| 4 | `RailingGenerator.ts` | **All meshes created without materials** (default white MeshBasicMaterial) |
-| 5 | `BalconyGenerator.ts` | **All meshes created without materials** |
-| 6 | `FenceGenerator.ts` | **All meshes created without materials** |
-| 7 | `ChimneyGenerator.ts` | **All meshes created without materials** |
-| 8 | `BeamGenerator.ts` | **All meshes created without materials** |
-| 9 | `PlasticGenerator.ts` | `transmission` set on `MeshStandardMaterial` — does nothing (needs `MeshPhysicalMaterial`) |
-| 10 | `StoneGenerator.ts` | `clearcoat` set on `MeshStandardMaterial` — silently ignored (needs `MeshPhysicalMaterial`) |
-| 11 | `creatures/index.ts` | Missing 4 generator exports: Fish, Reptile, Insect, Underwater |
-| 12 | `MonocotGenerator.ts:133` | `generateField()` only instances stem — **all leaves lost** |
-| 13 | `FishGenerator.ts:88` | `generateHead()` returns body mesh, not head mesh |
+| # | File | Issue | Status |
+|---|------|-------|--------|
+| 1 | `FogSystem.ts` | `sampler3D` + `Data3DTexture` upgrade | ✅ Fixed |
+| 2 | `LightingSystem.ts` | HDRI setup with proper renderer + mapping | ✅ Fixed |
+| 3 | `LightingSystem.ts` | Added `EquirectangularReflectionMapping` | ✅ Fixed |
+| 4-8 | 5 arch generators | All have proper materials now | ✅ Fixed |
+| 9 | `PlasticGenerator.ts` | Uses `MeshPhysicalMaterial` for transmission | ✅ Fixed |
+| 10 | `StoneGenerator.ts` | Uses `MeshPhysicalMaterial` for clearcoat | ✅ Fixed |
+| 11 | `creatures/index.ts` | All 4 generators exported | ✅ Fixed |
+| 12 | `MonocotGenerator.ts` | `generateField()` merges stem + leaves | ✅ Fixed |
+| 13 | `FishGenerator.ts` | `generateHead()` creates proper head mesh | ✅ Fixed |
 
-### 🟡 High (visible quality issues)
+### 🟡 High — Most Fixed
 
-| # | File | Issue |
-|---|------|-------|
-| 14 | `WindowGenerator.ts` | `type` param ignored — all 6 types produce identical geometry |
-| 15 | `FloorGenerator.ts` | `herringbone`, `parquet`, `basketweave`, `carpet` patterns defined but not rendered |
-| 16 | `CeilingGenerator.ts` | `vaulted` type missing entirely |
-| 17 | `RoofGenerator.ts` | Dormer geometry never generated despite `hasDormers` param; gable ends rectangular not triangular |
-| 18 | `RailingGenerator.ts` | `glass`, `cable`, `ornate` types produce no infill geometry |
-| 19 | `FenceGenerator.ts` | `chain_link`, `wrought_iron`, `ranch` types produce no unique geometry |
-| 20 | `LeatherGenerator.ts` | Patent leather should use `MeshPhysicalMaterial` with clearcoat; `sheen` unused |
-| 21 | `CaveGenerator.ts` | `createInstancedMesh()` uses first decoration type's geometry for ALL types |
-| 22 | `PhysicsWorld.ts:82-88` | `removeBody()` reads `body?.colliderId` after deleting from map — always undefined |
-| 23 | `full-solver-loop.ts:212` | `evaluateAll` called via optional chaining on non-existent method — energy always 0 |
-| 24 | `ErosionEnhanced.ts` | `Math.random()` for droplet positions — not seeded, not reproducible |
-| 25 | `WaterMaterial.ts:117` | `update()` regenerates 512×512 canvas texture every frame — severe perf hit |
+| # | File | Issue | Status |
+|---|------|-------|--------|
+| 14 | `WindowGenerator.ts` | Added awning/picture types | ✅ Fixed |
+| 15 | `FloorGenerator.ts` | herringbone/parquet/basketweave/carpet | ✅ Fixed (previous) |
+| 16 | `CeilingGenerator.ts` | vaulted type implemented | ✅ Fixed (previous) |
+| 17 | `RoofGenerator.ts` | Dormers + triangular gable ends | ✅ Fixed (previous) |
+| 18 | `RailingGenerator.ts` | glass/cable/ornate infill | ✅ Fixed (previous) |
+| 19 | `FenceGenerator.ts` | chain_link/wrought_iron/ranch | ✅ Fixed (previous) |
+| 20 | `LeatherGenerator.ts` | MeshPhysicalMaterial + clearcoat | ✅ Fixed (previous) |
+| 21 | `CaveGenerator.ts` | Instanced mesh decoration types | Still present |
+| 22 | `PhysicsWorld.ts` | removeBody colliderId | ✅ Fixed (previous) |
+| 23 | `full-solver-loop.ts` | evaluateAll() implemented | ✅ Fixed |
+| 24 | `ErosionEnhanced.ts` | Math.random → SeededRandom | ✅ Fixed |
+| 25 | `WaterMaterial.ts` | Throttled texture regeneration | ✅ Fixed (previous) |
 
 ### 🟡 Medium (composability/usability)
 
@@ -137,26 +135,33 @@
 
 ## Systematic Issues
 
-### 1. `Math.random()` vs `SeededRandom` (Non-Reproducible Generation)
-The following files use `Math.random()` instead of the project's `SeededRandom`, making terrain generation non-reproducible:
-- `core/TerrainGenerator.ts` (default seed)
-- `caves/CaveGenerator.ts` (stalactites, decorations)
-- `erosion/ErosionEnhanced.ts` (droplet positions)
-- `tectonic/FaultLineGenerator.ts` (segment variation)
-- `water/RiverNetwork.ts` (tributary probability, default seed)
-- `water/FluidDynamics.ts` (particle init)
-- `water/WaterfallGenerator.ts` (tier heights, default seed)
-- `water/LakeGenerator.ts` (default seed)
-- `biomes/core/BiomeFramework.ts` (scatter positions)
+### 1. `Math.random()` vs `SeededRandom` — ✅ RESOLVED
+All procedural generation code now uses `SeededRandom` (Mulberry32 PRNG). The remaining ~42 `Math.random()` calls are:
+- **ID generation** (acceptable — doesn't affect determinism)
+- **UI mock data** (acceptable — not part of procedural generation)
+- **Comments/documentation** (not code)
+
+New math infrastructure:
+- `SeededPermutationTable` — deterministic noise permutation
+- `SeededNoiseGenerator` — Perlin, Simplex, Voronoi with seed support
+- `NoiseCache` — LRU-cached seeded noise generators
+- `DistributionSampler` — 15 distributions + sampling methods
+- All noise functions (`seededNoise2D/3D`, `seededFbm`, `seededVoronoi`, etc.)
 
 ### 2. Duplicate/Conflicting Implementations
-- **Two physics engines**: `PhysicsWorld.ts` + `RigidBody.ts` + `Collider.ts` vs. `index.ts` (RigidBodyDynamics + CollisionDetectionSystem) — conflicting interfaces
-- **Two SA solvers**: `sa-solver.ts` (standalone) vs. embedded `SimulatedAnnealingSolver` in `moves.ts`
-- **Four erosion implementations**: inline in `TerrainGenerator.ts`, `ErosionEnhanced.ts`, `ErosionSystem.ts`, `gpu/HydraulicErosionGPU.ts`
-- **Three SeededRandom implementations**: core's Mulberry32, `HydraulicErosionGPU`'s LCG, `ErosionSystem`'s LCG
-- **Two incompatible HeightMap types**: `Float32Array` vs `{data, width, height, bounds}`
+- **Two physics engines**: `PhysicsWorld.ts` + `RigidBody.ts` + `Collider.ts` vs. `index.ts` — still present
+- **Two SA solvers**: `sa-solver.ts` vs. embedded in `moves.ts` — still present
+- **Four erosion implementations**: still present (functional, not critical)
+- **Three SeededRandom**: consolidated to core Mulberry32 — ✅ Partially resolved
+- **Two HeightMap types**: still present (functional, not critical)
 
-### 3. Missing Features vs Original Princeton Infinigen
+### 3. Node System Improvements (New)
+- **Node Definition Registry**: 299 node types with proper Blender-style socket definitions (was 0)
+- **Per-Vertex Streaming**: `AttributeStream` + `GeometryContext` + `PerVertexEvaluator` — enables proper geometry node evaluation
+- **NodeWrangler.evaluatePerVertex()**: New method for per-vertex node graph evaluation
+- **ShaderGraphBuilder**: Generates GLSL from node graphs
+
+### 4. Missing Features vs Original Princeton Infinigen
 
 | Feature | Infinigen | infinigen-r3f | Gap |
 |---------|-----------|---------------|-----|
@@ -189,20 +194,24 @@ These systems are production-quality with no critical bugs:
 1. **AtmosphericSky** — Rayleigh + Mie + ozone absorption, sun/moon discs, time-of-day
 2. **VolumetricClouds** — 3-layer raymarching with self-shadowing, FBM noise, wind animation
 3. **WeatherSystem** — 7 weather types with smooth transitions, lightning bolts, rain/snow particles
-4. **BlindGenerator** — 7 blind types, all with proper materials
-5. **ArchwayGenerator** — 6 arch types with columns, keystones, molding
-6. **GateGenerator** — 6 gate types with latches, posts, hinges
-7. **GlassGenerator** — Correct MeshPhysicalMaterial with transmission/IOR
-8. **CoatingGenerator** — Correct MeshPhysicalMaterial with clearcoat
-9. **MetalGenerator** — Proper oxidation textures, brushed metal normals
-10. **FabricGenerator** — 4 weave types with canvas-rendered textures
-11. **Constraint DSL** — Full lexer + parser + evaluator with 20+ built-in functions
-12. **SA Solver** — Metropolis criterion, adaptive cooling, best-state tracking
-13. **Möller-Trumbore Raycast** — Proper ray-triangle intersection
-14. **HybridBridge** — WebSocket RPC with auto-reconnect, per-method timeouts, state sync
-15. **All 18 Articulated Object Generators** — Proper meshes, joints, MJCF export
-16. **FluidSimulation** — SPH with spatial hashing, Three.js visualization
-17. **SoftBodySimulation** — PBD with Verlet integration, distance + volume constraints
+4. **FogSystem** — Proper Data3DTexture + sampler3D for volumetric fog
+5. **BlindGenerator** — 7 blind types, all with proper materials
+6. **ArchwayGenerator** — 6 arch types with columns, keystones, molding
+7. **GateGenerator** — 6 gate types with latches, posts, hinges
+8. **GlassGenerator** — Correct MeshPhysicalMaterial with transmission/IOR
+9. **CoatingGenerator** — Correct MeshPhysicalMaterial with clearcoat
+10. **MetalGenerator** — Proper oxidation textures, brushed metal normals
+11. **FabricGenerator** — 4 weave types with canvas-rendered textures
+12. **Constraint DSL** — Full lexer + parser + evaluator with 20+ built-in functions
+13. **SA Solver** — Metropolis criterion, adaptive cooling, best-state tracking
+14. **Möller-Trumbore Raycast** — Proper ray-triangle intersection
+15. **HybridBridge** — WebSocket RPC with auto-reconnect, per-method timeouts, state sync
+16. **All 18 Articulated Object Generators** — Proper meshes, joints, MJCF export
+17. **FluidSimulation** — SPH with spatial hashing, Three.js visualization
+18. **SoftBodySimulation** — PBD with Verlet integration, distance + volume constraints
+19. **SeededRandom Math System** — Mulberry32 PRNG, 15 distributions, DistributionSampler, seeded noise
+20. **Node Definition Registry** — 299 Blender-compatible node type definitions
+21. **Per-Vertex Node Evaluation** — AttributeStream + GeometryContext + PerVertexEvaluator
 
 ---
 

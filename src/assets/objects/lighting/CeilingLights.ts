@@ -406,13 +406,13 @@ export class CeilingLights extends BaseObjectGenerator<CeilingLightParams> {
     });
     
     for (let i = 0; i < 5; i++) {
-      const size = 0.02 + Math.random() * 0.02;
+      const size = 0.02 + this.rng.next() * 0.02;
       const crystalGeometry = new THREE.OctahedronGeometry(size);
       const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
       crystal.position.set(
-        (Math.random() - 0.5) * 0.1,
+        (this.rng.next() - 0.5) * 0.1,
         yPos - i * 0.03,
-        (Math.random() - 0.5) * 0.1
+        (this.rng.next() - 0.5) * 0.1
       );
       group.add(crystal);
     }
@@ -436,16 +436,16 @@ export class CeilingLights extends BaseObjectGenerator<CeilingLightParams> {
     const shapes: CeilingLightParams['shadeShape'][] = ['dome', 'drum', 'globe', 'cylinder', 'cone'];
     
     return {
-      fixtureType: fixtureTypes[Math.floor(Math.random() * fixtureTypes.length)],
-      width: 0.3 + Math.random() * 0.6,
-      depth: 0.3 + Math.random() * 0.6,
-      height: 0.1 + Math.random() * 0.4,
-      numLights: Math.floor(Math.random() * 5) + 1,
-      style: styles[Math.floor(Math.random() * styles.length)],
-      material: materials[Math.floor(Math.random() * materials.length)],
-      shadeShape: shapes[Math.floor(Math.random() * shapes.length)],
-      chainLength: Math.random() * 0.8,
-      dimmable: Math.random() > 0.7,
+      fixtureType: this.rng.choice(fixtureTypes),
+      width: this.rng.nextFloat(0.3, 0.9),
+      depth: this.rng.nextFloat(0.3, 0.9),
+      height: this.rng.nextFloat(0.1, 0.5),
+      numLights: this.rng.nextInt(1, 5),
+      style: this.rng.choice(styles),
+      material: this.rng.choice(materials),
+      shadeShape: this.rng.choice(shapes),
+      chainLength: this.rng.nextFloat(0, 0.8),
+      dimmable: this.rng.boolean(0.3),
     };
   }
 

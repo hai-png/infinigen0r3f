@@ -22,6 +22,7 @@ import {
   UniformsUtils,
   UniformsLib,
 } from 'three';
+import { SeededRandom } from '../../util/MathUtils';
 
 /**
  * Ground truth flat shading shader
@@ -31,7 +32,7 @@ export class GTFlatShadingMaterial extends ShaderMaterial {
   constructor(instanceId?: number) {
     const randomColor = instanceId !== undefined
       ? GTFlatShadingMaterial.generateRandomColor(instanceId)
-      : new Color().setHSL(Math.random(), 0.7, 0.5);
+      : new Color().setHSL(new SeededRandom(42).next(), 0.7, 0.5);
 
     super({
       uniforms: {

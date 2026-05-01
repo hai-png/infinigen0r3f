@@ -22,7 +22,7 @@ export abstract class BaseMaterialGenerator<T extends Record<string, unknown>> {
   protected rng: SeededRandom;
 
   constructor(seed?: number) {
-    this.rng = new SeededRandom(seed ?? Math.random() * 10000);
+    this.rng = new SeededRandom(seed ?? 42);
   }
 
   /**

@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -21,6 +22,7 @@ export interface FlowerMaterialConfig {
  * Procedural flower material generator
  */
 export class FlowerMaterial {
+  private static _rng = new SeededRandom(42);
   private static readonly DEFAULT_CONFIG: FlowerMaterialConfig = {
     petalColor: new THREE.Color(0xff69b4),
     petalOpacity: 0.95,
@@ -166,9 +168,9 @@ export class FlowerMaterial {
     const numDewdrops = 8;
     
     for (let i = 0; i < numDewdrops; i++) {
-      const x = Math.random() * size * 0.8 + size * 0.1;
-      const y = Math.random() * size * 0.8 + size * 0.1;
-      const radius = Math.random() * 3 + 2;
+      const x = FlowerMaterial._rng.next() * size * 0.8 + size * 0.1;
+      const y = FlowerMaterial._rng.next() * size * 0.8 + size * 0.1;
+      const radius = FlowerMaterial._rng.next() * 3 + 2;
 
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
       gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');

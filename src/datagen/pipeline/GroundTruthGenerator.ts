@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * Phase 4: Data Pipeline - Ground Truth Generator
  * 
@@ -543,7 +544,7 @@ export class GroundTruthGenerator {
         
         const objectId = objectIdMap.get(object.uuid)!;
         const label = this.segmentationLabels.get(object.userData?.label ?? 'unknown');
-        const color = label?.color ?? new Color(Math.random(), Math.random(), Math.random());
+        const color = label?.color ?? new Color(new SeededRandom(42).next(), new SeededRandom(42).next(), new SeededRandom(42).next());
         
         const mesh = object.clone();
         (mesh as any).material = this.segmentationMaterial.clone();

@@ -8,6 +8,7 @@
 import { Group, BoxGeometry, CylinderGeometry, SphereGeometry, TorusGeometry, Mesh, CircleGeometry, ExtrudeGeometry, Shape } from 'three';
 import { BaseObjectGenerator, BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
 import { BBox } from '../../../core/util/math/bbox';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 export interface BathroomFixtureParams extends BaseGeneratorConfig {
   fixtureType: 'toilet' | 'sink' | 'bathtub' | 'shower';
@@ -714,17 +715,17 @@ export class BathroomFixtures extends BaseObjectGenerator<BathroomFixtureParams>
     const showerTypes = ['enclosure', 'walk-in', 'tub-shower'] as const;
     const sizes = ['compact', 'standard', 'large'] as const;
 
-    const fixtureType = types[Math.floor(Math.random() * types.length)];
+    const fixtureType = this.rng.choice(types);
 
     return {
       fixtureType,
-      style: styles[Math.floor(Math.random() * styles.length)],
-      finish: finishes[Math.floor(Math.random() * finishes.length)],
-      faucetStyle: faucetStyles[Math.floor(Math.random() * faucetStyles.length)],
-      hasBidet: fixtureType === 'toilet' && Math.random() > 0.7,
-      tubShape: tubShapes[Math.floor(Math.random() * tubShapes.length)],
-      showerType: showerTypes[Math.floor(Math.random() * showerTypes.length)],
-      size: sizes[Math.floor(Math.random() * sizes.length)],
+      style: this.rng.choice(styles),
+      finish: this.rng.choice(finishes),
+      faucetStyle: this.rng.choice(faucetStyles),
+      hasBidet: fixtureType === 'toilet' && this.rng.boolean(0.3),
+      tubShape: this.rng.choice(tubShapes),
+      showerType: this.rng.choice(showerTypes),
+      size: this.rng.choice(sizes),
     };
   }
 }

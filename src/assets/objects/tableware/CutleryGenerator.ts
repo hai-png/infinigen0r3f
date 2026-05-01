@@ -41,7 +41,7 @@ export class CutleryGenerator extends BaseObjectGenerator<CutleryParams> {
 
   generate(params: Partial<CutleryParams> = {}): Group {
     const finalParams = this.validateParams({ ...this.defaultParams, ...params });
-    const seed = finalParams.seed ?? Math.floor(Math.random() * 1000000);
+    const seed = finalParams.seed ?? 42;
     
     using ctx = new SeededRandom(seed);
     

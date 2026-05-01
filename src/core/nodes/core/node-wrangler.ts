@@ -8,6 +8,7 @@
 
 import { NodeTypes } from './node-types';
 import { SocketType, NodeSocket, SocketDefinition } from './socket-types';
+import { nodeDefinitionRegistry } from './node-definition-registry';
 
 export interface NodeDefinition {
   type: NodeTypes;
@@ -381,22 +382,25 @@ export class NodeWrangler {
   }
 
   /**
-   * Get node definition (stub - should be populated with actual definitions)
+   * Get node definition from the central registry.
+   * Falls back to an empty definition for unregistered types.
    */
   private getNodeDefinition(type: NodeTypes): NodeDefinition {
-    // This is a stub implementation
-    // In a full implementation, this would return detailed definitions
-    // for each node type based on Three.js node capabilities
-    
-    return {
-      type,
-      inputs: [
-        { name: 'Value', type: SocketType.FLOAT, defaultValue: 0 },
-      ],
-      outputs: [
-        { name: 'Value', type: SocketType.FLOAT },
-      ],
-    };
+    const entry = nodeDefinitionRegistry.get(String(type));
+    if (entry) {
+      return {
+        type: type,
+        inputs: entry.inputs,
+        outputs: entry.outputs,
+        properties: entry.properties
+          ? Object.fromEntries(
+              Object.entries(entry.properties).map(([k, v]) => [k, v.default])
+            )
+          : undefined,
+      };
+    }
+    // Fallback for unregistered types
+    return { type, inputs: [], outputs: [] };
   }
 
   /**
@@ -743,6 +747,23 @@ export class NodeWrangler {
 
     const lastNodeId = order[order.length - 1];
     return results.get(lastNodeId) || {};
+  }
+
+  /**
+   * Evaluate the node graph per-vertex for the given geometry.
+   * This is the main entry point for geometry node evaluation.
+   *
+   * Unlike the scalar `evaluate()` which produces a single value per node,
+   * this produces an AttributeStream per node output — one value per vertex.
+   * The result is a new GeometryContext with per-vertex attributes applied.
+   */
+  evaluatePerVertex(geometry: import('./geometry-context').GeometryContext): import('./geometry-context').GeometryContext {
+    // Lazy import to avoid circular dependency at module load time.
+    // PerVertexEvaluator imports NodeWrangler, so we cannot use a static import here.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const PvE = require('./per-vertex-evaluator').PerVertexEvaluator as typeof import('./per-vertex-evaluator').PerVertexEvaluator;
+    const evaluator = new PvE(this);
+    return evaluator.evaluate(geometry);
   }
 
   /**

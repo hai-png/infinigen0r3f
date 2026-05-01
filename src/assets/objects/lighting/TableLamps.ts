@@ -510,17 +510,17 @@ export class TableLamps extends BaseObjectGenerator<TableLampParams> {
     const switchTypes: TableLampParams['switchType'][] = ['pull-chain', 'rotary', 'touch', 'inline'];
 
     return {
-      lampType: lampTypes[Math.floor(Math.random() * lampTypes.length)],
-      baseWidth: 0.12 + Math.random() * 0.15,
-      height: 0.35 + Math.random() * 0.35,
-      shadeDiameter: 0.18 + Math.random() * 0.15,
-      style: styles[Math.floor(Math.random() * styles.length)],
-      baseMaterial: baseMaterials[Math.floor(Math.random() * baseMaterials.length)],
-      shadeMaterial: shadeMaterials[Math.floor(Math.random() * shadeMaterials.length)],
-      switchType: switchTypes[Math.floor(Math.random() * switchTypes.length)],
-      bulbVisible: Math.random() > 0.6,
-      dimmable: Math.random() > 0.5,
-      adjustable: Math.random() > 0.7,
+      lampType: this.rng.choice(lampTypes),
+      baseWidth: this.rng.nextFloat(0.12, 0.27),
+      height: this.rng.nextFloat(0.35, 0.7),
+      shadeDiameter: this.rng.nextFloat(0.18, 0.33),
+      style: this.rng.choice(styles),
+      baseMaterial: this.rng.choice(baseMaterials),
+      shadeMaterial: this.rng.choice(shadeMaterials),
+      switchType: this.rng.choice(switchTypes),
+      bulbVisible: this.rng.boolean(0.4),
+      dimmable: this.rng.boolean(0.5),
+      adjustable: this.rng.boolean(0.3),
     };
   }
 

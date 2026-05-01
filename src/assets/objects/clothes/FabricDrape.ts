@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -32,6 +33,7 @@ export interface FabricDrapeConfig {
  * Fabric drape generator for creating realistic cloth simulations
  */
 export class FabricDrape {
+  private static _rng = new SeededRandom(42);
   private config: FabricDrapeConfig;
   
   constructor(config: FabricDrapeConfig) {
@@ -301,7 +303,7 @@ export class FabricDrape {
         
         // Weave pattern
         const weave = ((x % 4) < 2) !== ((y % 4) < 2) ? 1 : -1;
-        const noise = (Math.random() - 0.5) * 10;
+        const noise = (FabricDrape._rng.next() - 0.5) * 10;
         const variation = weave * 5 + noise;
         
         data[index] = Math.min(255, Math.max(0, data[index] + variation));
@@ -387,7 +389,7 @@ export class FabricDrape {
       
       const towel = drape.generate();
       towel.position.y = i * 0.02;
-      towel.rotation.z = (Math.random() - 0.5) * 0.1;
+      towel.rotation.z = (FabricDrape._rng.next() - 0.5) * 0.1;
       group.add(towel);
     }
     

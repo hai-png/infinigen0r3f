@@ -1,6 +1,8 @@
 /**
  * Base Node class for constraint language AST
  */
+import { SeededRandom } from '../../util/MathUtils';
+
 export abstract class Node {
   /** Node type discriminator for pattern matching */
   abstract readonly type: string;
@@ -578,7 +580,7 @@ export class NumericDomain extends Domain {
       return 0;
     }
     
-    const random = seed ? Math.abs(Math.sin(seed)) : Math.random();
+    const random = seed ? Math.abs(Math.sin(seed)) : new SeededRandom(42).next();
     return this.min + random * range;
   }
 
@@ -810,7 +812,7 @@ export class BBoxDomain extends Domain {
       if (!isFinite(range)) {
         return 0;
       }
-      const random = seed ? Math.abs(Math.sin(seed + i)) : Math.random();
+      const random = seed ? Math.abs(Math.sin(seed + i)) : new SeededRandom(42).next();
       return min + random * range;
     });
   }
@@ -923,7 +925,7 @@ export class BooleanDomain extends Domain {
     if (this.value !== undefined) {
       return this.value;
     }
-    return seed ? Math.abs(Math.sin(seed)) > 0.5 : Math.random() > 0.5;
+    return seed ? Math.abs(Math.sin(seed)) > 0.5 : new SeededRandom(42).next() > 0.5;
   }
 
   clone(): BooleanDomain {

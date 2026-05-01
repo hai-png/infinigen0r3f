@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 /**
  * Configuration for wood material generation
@@ -61,6 +62,8 @@ export class WoodMaterialGenerator {
       woodType: 'cherry'
     }
   };
+
+  private _rng = new SeededRandom(42);
 
   /**
    * Generate wood material with custom or preset configuration
@@ -127,7 +130,7 @@ export class WoodMaterialGenerator {
       
       for (let x = 0; x < 512; x += 2) {
         const wave = Math.sin((x + y) * 0.02) * config.grainScale;
-        const noise = (Math.random() - 0.5) * config.grainIntensity * 20;
+        const noise = (this._rng.next() - 0.5) * config.grainIntensity * 20;
         
         if (x === 0) {
           ctx.moveTo(x, y + offset + wave + noise);
@@ -142,8 +145,8 @@ export class WoodMaterialGenerator {
     
     // Add some darker grain streaks
     for (let i = 0; i < 20; i++) {
-      const y = Math.random() * 512;
-      const height = 5 + Math.random() * 15;
+      const y = this._rng.next() * 512;
+      const height = 5 + this._rng.next() * 15;
       
       const gradient = ctx.createLinearGradient(0, y, 512, y + height);
       gradient.addColorStop(0, 'transparent');

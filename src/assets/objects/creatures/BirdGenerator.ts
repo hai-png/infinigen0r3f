@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 export interface BirdParameters extends CreatureParams {
   wingSpan: number;
@@ -21,7 +22,7 @@ export type BirdSpecies = 'eagle' | 'sparrow' | 'parrot' | 'owl' | 'hummingbird'
 
 export class BirdGenerator extends CreatureBase {
   constructor(seed?: number) {
-    super({ seed: seed || Math.random() * 10000 });
+    super({ seed: seed ?? 42 });
   }
 
   getDefaultConfig(): BirdParameters {

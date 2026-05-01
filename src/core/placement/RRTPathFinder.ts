@@ -23,6 +23,7 @@ import {
   Object3D,
   MathUtils
 } from 'three';
+import { SeededRandom } from '../../util/MathUtils';
 
 // ============================================================================
 // Type Definitions
@@ -233,7 +234,7 @@ function samplePoint(
   obstacles?: Obstacle[]
 ): Vector3 {
   // Goal bias sampling
-  if (strategy.name === 'goal_bias' && goal && Math.random() < strategy.goalBiasProbability) {
+  if (strategy.name === 'goal_bias' && goal && new SeededRandom(42).next() < strategy.goalBiasProbability) {
     return goal.clone();
   }
   

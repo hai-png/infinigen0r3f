@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * WallDecor - Procedural generation of wall decorations
  * 
@@ -21,6 +22,7 @@ export interface WallDecorParams extends BaseGeneratorConfig {
 }
 
 export class WallDecor extends BaseObjectGenerator<WallDecorParams> {
+  private _rng = new SeededRandom(42);
   protected defaultParams: WallDecorParams = {
     decorType: 'picture',
     style: 'modern',
@@ -358,7 +360,7 @@ export class WallDecor extends BaseObjectGenerator<WallDecorParams> {
                      style === 'traditional' ? colors[1] :
                      style === 'minimal' ? colors[2] : colors[3];
     
-    const baseColor = colorSet[Math.floor(Math.random() * colorSet.length)];
+    const baseColor = colorSet[Math.floor(this._rng.next() * colorSet.length)];
     
     return this.createPBRMaterial({
       color: baseColor,
@@ -424,17 +426,17 @@ export class WallDecor extends BaseObjectGenerator<WallDecorParams> {
     const shapes = ['rectangle', 'square', 'circle', 'oval'] as const;
     const hangingStyles = ['wire', 'cleat', 'bracket', 'adhesive'] as const;
     
-    const decorType = types[Math.floor(Math.random() * types.length)];
+    const decorType = types[Math.floor(this._rng.next() * types.length)];
     
     return {
       decorType,
-      style: styles[Math.floor(Math.random() * styles.length)],
-      frameMaterial: decorType === 'art' && Math.random() > 0.5 ? 'none' : materials[Math.floor(Math.random() * materials.length)],
-      width: 0.3 + Math.random() * 0.8,
-      height: 0.3 + Math.random() * 0.8,
-      shape: shapes[Math.floor(Math.random() * shapes.length)],
-      hasGlass: decorType !== 'mirror' && Math.random() > 0.3,
-      hangingStyle: hangingStyles[Math.floor(Math.random() * hangingStyles.length)],
+      style: styles[Math.floor(this._rng.next() * styles.length)],
+      frameMaterial: decorType === 'art' && this._rng.next() > 0.5 ? 'none' : materials[Math.floor(this._rng.next() * materials.length)],
+      width: 0.3 + this._rng.next() * 0.8,
+      height: 0.3 + this._rng.next() * 0.8,
+      shape: shapes[Math.floor(this._rng.next() * shapes.length)],
+      hasGlass: decorType !== 'mirror' && this._rng.next() > 0.3,
+      hangingStyle: hangingStyles[Math.floor(this._rng.next() * hangingStyles.length)],
     };
   }
 }

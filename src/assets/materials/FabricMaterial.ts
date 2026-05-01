@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 /**
  * Configuration for fabric material generation
@@ -63,6 +64,8 @@ export class FabricMaterialGenerator {
       fabricType: 'linen'
     }
   };
+
+  private _rng = new SeededRandom(42);
 
   /**
    * Generate fabric material with custom or preset configuration
@@ -254,7 +257,7 @@ export class FabricMaterialGenerator {
     const data = imageData.data;
     
     for (let i = 0; i < data.length; i += 4) {
-      const noise = (Math.random() - 0.5) * intensity * 255;
+      const noise = (this._rng.next() - 0.5) * intensity * 255;
       data[i] = Math.max(0, Math.min(255, data[i] + noise));
       data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
       data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));

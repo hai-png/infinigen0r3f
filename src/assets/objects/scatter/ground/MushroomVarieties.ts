@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 /**
  * Enhanced mushroom species for diverse fungal varieties
@@ -46,6 +47,7 @@ export interface MushroomVarietyConfig {
   clusterGrowth?: boolean;   // grow in clusters
   bioluminescence?: number;  // 0-1 glow intensity (fantasy)
   sporeCloud?: boolean;      // visible spores (mature only)
+  seed?: number;             // seed for deterministic generation
 }
 
 /**
@@ -155,6 +157,7 @@ export class MushroomVarieties {
    * Generate single mushroom with detailed geometry
    */
   static generateMushroom(config: MushroomVarietyConfig): THREE.Group {
+    const rng = new SeededRandom(config.seed ?? 42);
     const group = new THREE.Group();
     const speciesData = this.SPECIES_DATA[config.species];
     
@@ -172,7 +175,7 @@ export class MushroomVarieties {
     
     // Add spots if species has them
     if (speciesData.hasSpots && speciesData.spotColor) {
-      const spots = this.createCapSpots(cap, speciesData.spotColor);
+      const spots = this.createCapSpots(cap, speciesData.spotColor, rng);
       group.add(spots);
     }
     
@@ -183,7 +186,7 @@ export class MushroomVarieties {
     
     // Add spore cloud for mature mushrooms
     if (config.sporeCloud && config.growthStage === GrowthStage.MATURE) {
-      const spores = this.createSporeCloud(config.species);
+      const spores = this.createSporeCloud(config.species, rng);
       spores.position.y = cap.position.y + 0.05;
       group.add(spores);
     }
@@ -302,9 +305,9 @@ export class MushroomVarieties {
   /**
    * Create white spots on caps (e.g., fly agaric)
    */
-  private static createCapSpots(cap: THREE.Mesh, spotColor: THREE.Color): THREE.Group {
+  private static createCapSpots(cap: THREE.Mesh, spotColor: THREE.Color, rng: SeededRandom): THREE.Group {
     const group = new THREE.Group();
-    const spotCount = 8 + Math.floor(Math.random() * 8);
+    const spotCount = rng.nextInt(8, 15);
     
     for (let i = 0; i < spotCount; i++) {
       const spotGeometry = new THREE.SphereGeometry(0.01, 8, 8);
@@ -315,8 +318,8 @@ export class MushroomVarieties {
       const spot = new THREE.Mesh(spotGeometry, spotMaterial);
       
       // Position on cap surface
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI / 3;
+      const theta = rng.next() * Math.PI * 2;
+      const phi = rng.next() * Math.PI / 3;
       const radius = (cap.geometry.boundingBox?.max.x ?? 0.08) || 0.08;
       
       spot.position.set(
@@ -355,15 +358,15 @@ export class MushroomVarieties {
   /**
    * Create spore cloud particle effect
    */
-  private static createSporeCloud(species: MushroomSpecies): THREE.Points {
+  private static createSporeCloud(species: MushroomSpecies, rng: SeededRandom): THREE.Points {
     const particleCount = 100;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     
     for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 0.2;
-      positions[i * 3 + 1] = Math.random() * 0.15;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+      positions[i * 3] = (rng.next() - 0.5) * 0.2;
+      positions[i * 3 + 1] = rng.next() * 0.15;
+      positions[i * 3 + 2] = (rng.next() - 0.5) * 0.2;
     }
     
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -415,6 +418,7 @@ export class MushroomVarieties {
    * Generate mushroom cluster
    */
   static generateCluster(config: MushroomVarietyConfig, count: number): THREE.Group {
+    const rng = new SeededRandom((config.seed ?? 42) + 1);
     const group = new THREE.Group();
     const clusterRadius = 0.3;
     
@@ -422,8 +426,8 @@ export class MushroomVarieties {
       const mushroom = this.generateMushroom(config);
       
       // Position in cluster
-      const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * clusterRadius;
+      const angle = rng.next() * Math.PI * 2;
+      const radius = rng.next() * clusterRadius;
       mushroom.position.set(
         Math.cos(angle) * radius,
         0,
@@ -431,7 +435,7 @@ export class MushroomVarieties {
       );
       
       // Slight rotation variation
-      mushroom.rotation.y = Math.random() * Math.PI * 2;
+      mushroom.rotation.y = rng.next() * Math.PI * 2;
       
       group.add(mushroom);
     }
@@ -443,27 +447,28 @@ export class MushroomVarieties {
    * Generate scattered mushrooms across area
    */
   static generateScattered(config: MushroomVarietyConfig): THREE.Group {
+    const rng = new SeededRandom((config.seed ?? 42) + 2);
     const group = new THREE.Group();
     const mushroomCount = Math.floor(config.density * config.area.x * config.area.y);
     
     for (let i = 0; i < mushroomCount; i++) {
       const mushroomConfig: MushroomVarietyConfig = {
         ...config,
-        growthStage: this.getRandomGrowthStage()
+        growthStage: this.getRandomGrowthStage(rng)
       };
       
       const mushroom = this.generateMushroom(mushroomConfig);
       
       // Position in area
-      const x = (Math.random() - 0.5) * config.area.x;
-      const z = (Math.random() - 0.5) * config.area.y;
+      const x = (rng.next() - 0.5) * config.area.x;
+      const z = (rng.next() - 0.5) * config.area.y;
       const y = this.calculateHeight(x, z, config.area);
       
       mushroom.position.set(x, y, z);
-      mushroom.rotation.y = Math.random() * Math.PI * 2;
+      mushroom.rotation.y = rng.next() * Math.PI * 2;
       
-      if (config.clusterGrowth && Math.random() > 0.7) {
-        const clusterSize = 3 + Math.floor(Math.random() * 5);
+      if (config.clusterGrowth && rng.next() > 0.7) {
+        const clusterSize = rng.nextInt(3, 7);
         const cluster = this.generateCluster(mushroomConfig, clusterSize);
         cluster.position.copy(mushroom.position);
         group.add(cluster);
@@ -487,8 +492,8 @@ export class MushroomVarieties {
   /**
    * Get random growth stage with weighted distribution
    */
-  private static getRandomGrowthStage(): GrowthStage {
-    const rand = Math.random();
+  private static getRandomGrowthStage(rng: SeededRandom): GrowthStage {
+    const rand = rng.next();
     if (rand < 0.2) return GrowthStage.YOUNG;
     if (rand < 0.6) return GrowthStage.MATURE;
     if (rand < 0.85) return GrowthStage.AGING;

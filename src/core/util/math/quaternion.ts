@@ -4,6 +4,7 @@
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from './MathUtils';
 
 export { Quaternion } from 'three';
 
@@ -44,14 +45,16 @@ export function identity(): THREE.Quaternion {
 }
 
 /**
- * Creates a random rotation quaternion
+ * Creates a random rotation quaternion using seeded RNG
+ * @param rng - Optional SeededRandom instance. If not provided, uses default seed 42.
  */
-export function random(): THREE.Quaternion {
+export function random(rng?: SeededRandom): THREE.Quaternion {
+  const r = rng ?? new SeededRandom(42);
   const q = new THREE.Quaternion();
   q.setFromEuler(new THREE.Euler(
-    Math.random() * Math.PI * 2,
-    Math.random() * Math.PI * 2,
-    Math.random() * Math.PI * 2
+    r.next() * Math.PI * 2,
+    r.next() * Math.PI * 2,
+    r.next() * Math.PI * 2
   ));
   return q;
 }

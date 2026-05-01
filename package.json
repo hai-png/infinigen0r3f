@@ -42,11 +42,13 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "lint": "eslint src/**/*.ts",
+    "build": "next build",
+    "dev": "next dev -p 3000",
+    "start": "next start",
+    "lint": "next lint",
+    "build:lib": "tsc",
     "test": "vitest",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build:lib"
   },
   "keywords": [
     "react",
@@ -63,7 +65,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "react": ">=18.0.0",
+    "react": "^19.2.5",
     "three": "^0.184.0"
   },
   "dependencies": {
@@ -72,6 +74,8 @@
     "@react-three/postprocessing": "^3.0.4",
     "@react-three/rapier": "^2.2.0",
     "lucide-react": "^1.14.0",
+    "next": "^16.2.4",
+    "react-dom": "^19.2.5",
     "recharts": "^3.8.1",
     "simplex-noise": "^4.0.1"
   },

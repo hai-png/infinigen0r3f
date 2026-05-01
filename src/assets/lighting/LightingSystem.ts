@@ -128,7 +128,6 @@ export class LightingSystem {
   private config: LightingConfig;
   private lights: Map<string, THREE.Light> = new Map();
   private hdriTexture: THREE.Texture | null = null;
-  private environment: THREE.WebGLCubeRenderTarget | null = null;
 
   constructor(scene: THREE.Scene, config: LightingConfig = {}) {
     this.scene = scene;
@@ -349,9 +348,6 @@ export class LightingSystem {
     this.clearLights();
     if (this.hdriTexture) {
       this.hdriTexture.dispose();
-    }
-    if (this.environment) {
-      this.environment.dispose();
     }
   }
 }

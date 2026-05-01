@@ -478,17 +478,17 @@ export class FloorLamps extends BaseObjectGenerator<FloorLampParams> {
     const bulbTypes: FloorLampParams['bulbType'][] = ['edison', 'standard', 'globe'];
     
     return {
-      lampType: lampTypes[Math.floor(Math.random() * lampTypes.length)],
-      height: 1.2 + Math.random() * 0.8,
-      baseWidth: 0.25 + Math.random() * 0.2,
-      shadeDiameter: 0.25 + Math.random() * 0.2,
-      style: styles[Math.floor(Math.random() * styles.length)],
-      material: materials[Math.floor(Math.random() * materials.length)],
-      shadeMaterial: shadeMaterials[Math.floor(Math.random() * shadeMaterials.length)],
-      bulbType: bulbTypes[Math.floor(Math.random() * bulbTypes.length)],
-      numShades: Math.floor(Math.random() * 3) + 1,
-      dimmable: Math.random() > 0.6,
-      adjustable: Math.random() > 0.7,
+      lampType: this.rng.choice(lampTypes),
+      height: this.rng.nextFloat(1.2, 2.0),
+      baseWidth: this.rng.nextFloat(0.25, 0.45),
+      shadeDiameter: this.rng.nextFloat(0.25, 0.45),
+      style: this.rng.choice(styles),
+      material: this.rng.choice(materials),
+      shadeMaterial: this.rng.choice(shadeMaterials),
+      bulbType: this.rng.choice(bulbTypes),
+      numShades: this.rng.nextInt(1, 3),
+      dimmable: this.rng.boolean(0.4),
+      adjustable: this.rng.boolean(0.3),
     };
   }
 

@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * ReptileGenerator - Procedural reptile generation
  * Generates reptiles with flat body, triangular head with jaw, 4 splayed legs, tapered tail, scale material
@@ -15,8 +16,9 @@ export interface ReptileParameters extends CreatureParams {
 export type ReptileSpecies = 'lizard' | 'snake' | 'turtle' | 'crocodile' | 'gecko';
 
 export class ReptileGenerator extends CreatureBase {
+  private _rng = new SeededRandom(42);
   constructor(params: Partial<ReptileParameters> = {}) {
-    super({ ...params, seed: params.seed || Math.random() * 10000 });
+    super({ ...params, seed: params.seed || 42 });
   }
 
   getDefaultConfig(): ReptileParameters {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 /**
  * Configuration for gravel generation
@@ -13,6 +14,7 @@ export interface GravelConfig {
   colorVariation: THREE.Color;
   density: number;
   includeMixedSizes: boolean;
+  seed?: number;
 }
 
 /**
@@ -22,9 +24,11 @@ export interface GravelConfig {
 export class GravelGenerator {
   private noiseUtils: NoiseUtils;
   private materialCache: Map<string, THREE.MeshStandardMaterial>;
+  private rng: SeededRandom;
 
-  constructor() {
-    this.noiseUtils = new NoiseUtils();
+  constructor(seed: number = 42) {
+    this.rng = new SeededRandom(seed);
+    this.noiseUtils = new NoiseUtils(seed);
     this.materialCache = new Map();
   }
 
@@ -41,8 +45,11 @@ export class GravelGenerator {
       colorVariation: new THREE.Color(0x777777),
       density: 0.8,
       includeMixedSizes: true,
+      seed: 42,
       ...config,
     };
+
+    const rng = new SeededRandom(finalConfig.seed ?? 42);
 
     // Create base geometry for a single gravel piece
     const baseGeometry = this.createGravelGeometry(
@@ -64,22 +71,22 @@ export class GravelGenerator {
     let instanceIndex = 0;
 
     for (let i = 0; i < finalConfig.count && instanceIndex < finalConfig.count; i++) {
-      const x = (Math.random() - 0.5) * finalConfig.spreadArea.width;
-      const z = (Math.random() - 0.5) * finalConfig.spreadArea.depth;
+      const x = (rng.next() - 0.5) * finalConfig.spreadArea.width;
+      const z = (rng.next() - 0.5) * finalConfig.spreadArea.depth;
       
       // Skip based on density
-      if (Math.random() > finalConfig.density) continue;
+      if (rng.next() > finalConfig.density) continue;
 
       const size = finalConfig.includeMixedSizes
-        ? finalConfig.sizeMin + Math.random() * (finalConfig.sizeMax - finalConfig.sizeMin)
+        ? rng.nextFloat(finalConfig.sizeMin, finalConfig.sizeMax)
         : (finalConfig.sizeMin + finalConfig.sizeMax) / 2;
 
       dummy.position.set(x, 0, z);
       dummy.scale.set(size, size, size);
       dummy.rotation.set(
-        Math.random() * Math.PI,
-        Math.random() * Math.PI * 2,
-        Math.random() * Math.PI
+        rng.next() * Math.PI,
+        rng.next() * Math.PI * 2,
+        rng.next() * Math.PI
       );
       dummy.updateMatrix();
 
@@ -111,11 +118,14 @@ export class GravelGenerator {
       colorVariation: new THREE.Color(0x888888),
       density: 0.9,
       includeMixedSizes: true,
+      seed: 42,
       pathWidth: 2,
       pathLength: 20,
       curvature: 0,
       ...config,
     };
+
+    const rng = new SeededRandom(pathConfig.seed ?? 42);
 
     const baseGeometry = this.createGravelGeometry(0.08);
     const material = this.getGravelMaterial(pathConfig);
@@ -126,7 +136,7 @@ export class GravelGenerator {
 
     for (let i = 0; i < pathConfig.count && instanceIndex < pathConfig.count; i++) {
       // Position along path length
-      const t = Math.random(); // 0 to 1 along path
+      const t = rng.next(); // 0 to 1 along path
       const alongPath = t * pathConfig.pathLength - pathConfig.pathLength / 2;
       
       // Apply curvature if specified
@@ -135,20 +145,20 @@ export class GravelGenerator {
         : 0;
 
       // Width distribution (more dense in center)
-      const widthOffset = (Math.random() - 0.5) * pathConfig.pathWidth * 
-                         (0.5 + 0.5 * Math.cos(Math.random() * Math.PI));
+      const widthOffset = (rng.next() - 0.5) * pathConfig.pathWidth * 
+                         (0.5 + 0.5 * Math.cos(rng.next() * Math.PI));
 
       const x = widthOffset;
       const z = alongPath + curveOffset;
 
-      const size = pathConfig.sizeMin + Math.random() * (pathConfig.sizeMax - pathConfig.sizeMin);
+      const size = rng.nextFloat(pathConfig.sizeMin, pathConfig.sizeMax);
 
       dummy.position.set(x, 0, z);
       dummy.scale.set(size, size * 0.6, size); // Flatter for path gravel
       dummy.rotation.set(
-        Math.random() * 0.3, // Slight tilt
-        Math.random() * Math.PI * 2,
-        Math.random() * 0.3
+        rng.next() * 0.3, // Slight tilt
+        rng.next() * Math.PI * 2,
+        rng.next() * 0.3
       );
       dummy.updateMatrix();
 
@@ -170,7 +180,7 @@ export class GravelGenerator {
     const positions = geometry.attributes.position.array as Float32Array;
     
     for (let i = 0; i < positions.length; i += 3) {
-      const variation = 0.85 + Math.random() * 0.3;
+      const variation = this.rng.nextFloat(0.85, 1.15);
       positions[i] *= variation;
       positions[i + 1] *= variation * 0.7; // Flatter
       positions[i + 2] *= variation;

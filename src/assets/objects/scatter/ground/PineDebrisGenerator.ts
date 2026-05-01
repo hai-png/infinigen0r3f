@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 /**
  * Pine debris types for coniferous forest floors
@@ -31,6 +32,7 @@ export interface PineDebrisConfig {
   needleColorVariation?: boolean;
   coneSizeVariation?: boolean;
   seedDispersal?: boolean;   // scattered seeds around cones
+  seed?: number;             // seed for deterministic generation
 }
 
 /**
@@ -64,6 +66,7 @@ export class PineDebrisGenerator {
    * Generate pine needle carpet with instanced rendering
    */
   static generateNeedleCarpet(config: PineDebrisConfig): THREE.InstancedMesh {
+    const rng = new SeededRandom(config.seed ?? 42);
     const needleCount = Math.floor(config.density * config.area.x * config.area.y * 10);
     const geometry = this.createNeedleGeometry();
     const material = new THREE.MeshStandardMaterial({
@@ -76,31 +79,31 @@ export class PineDebrisGenerator {
     const dummy = new THREE.Object3D();
 
     for (let i = 0; i < needleCount; i++) {
-      const x = (Math.random() - 0.5) * config.area.x;
-      const z = (Math.random() - 0.5) * config.area.y;
+      const x = (rng.next() - 0.5) * config.area.x;
+      const z = (rng.next() - 0.5) * config.area.y;
       const y = this.calculateHeight(x, z, config.area);
 
       dummy.position.set(x, y, z);
 
       // Needles lie flat with slight variation
       dummy.rotation.set(
-        (Math.random() - 0.5) * 0.2,
-        Math.random() * Math.PI * 2,
-        (Math.random() - 0.5) * 0.1
+        (rng.next() - 0.5) * 0.2,
+        rng.next() * Math.PI * 2,
+        (rng.next() - 0.5) * 0.1
       );
 
       // Scale variation for natural look
-      const scale = 0.8 + Math.random() * 0.4;
+      const scale = rng.nextFloat(0.8, 1.2);
       dummy.scale.set(scale * 0.1, scale, scale * 0.1);
 
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
 
       // Color variation
-      const colorIndex = Math.floor(Math.random() * PineDebrisGenerator.NEEDLE_COLORS.length);
+      const colorIndex = rng.nextInt(0, PineDebrisGenerator.NEEDLE_COLORS.length - 1);
       const color = PineDebrisGenerator.NEEDLE_COLORS[colorIndex].clone();
       if (config.needleColorVariation) {
-        color.offsetHSL(0, 0, (Math.random() - 0.5) * 0.1);
+        color.offsetHSL(0, 0, (rng.next() - 0.5) * 0.1);
       }
       mesh.setColorAt(i, color);
     }
@@ -115,8 +118,9 @@ export class PineDebrisGenerator {
    * Generate pinecones with instanced rendering
    */
   static generatePinecones(config: PineDebrisConfig): THREE.InstancedMesh {
+    const rng = new SeededRandom((config.seed ?? 42) + 1);
     const coneCount = Math.floor(config.density * config.area.x * config.area.y * 0.1);
-    const geometry = this.createPineconeGeometry(config.pineConeState || PineConeState.OPEN);
+    const geometry = this.createPineconeGeometry(config.pineConeState || PineConeState.OPEN, rng);
     const material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.8
@@ -127,30 +131,30 @@ export class PineDebrisGenerator {
     const colors = PineDebrisGenerator.PINECONE_COLORS[config.pineConeState || PineConeState.OPEN];
 
     for (let i = 0; i < coneCount; i++) {
-      const x = (Math.random() - 0.5) * config.area.x;
-      const z = (Math.random() - 0.5) * config.area.y;
+      const x = (rng.next() - 0.5) * config.area.x;
+      const z = (rng.next() - 0.5) * config.area.y;
       const y = this.calculateHeight(x, z, config.area);
 
       dummy.position.set(x, y, z);
 
       // Random rotation
       dummy.rotation.set(
-        (Math.random() - 0.5) * Math.PI,
-        Math.random() * Math.PI * 2,
-        (Math.random() - 0.5) * Math.PI
+        (rng.next() - 0.5) * Math.PI,
+        rng.next() * Math.PI * 2,
+        (rng.next() - 0.5) * Math.PI
       );
 
       // Size variation
-      const scale = config.coneSizeVariation ? 0.7 + Math.random() * 0.6 : 1.0;
+      const scale = config.coneSizeVariation ? rng.nextFloat(0.7, 1.3) : 1.0;
       dummy.scale.set(scale, scale, scale);
 
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
 
       // Color variation
-      const colorIndex = Math.floor(Math.random() * colors.length);
+      const colorIndex = rng.nextInt(0, colors.length - 1);
       const color = colors[colorIndex].clone();
-      color.offsetHSL(0, 0, (Math.random() - 0.5) * 0.1);
+      color.offsetHSL(0, 0, (rng.next() - 0.5) * 0.1);
       mesh.setColorAt(i, color);
     }
 
@@ -184,7 +188,7 @@ export class PineDebrisGenerator {
   /**
    * Create pinecone geometry with scale detail
    */
-  private static createPineconeGeometry(state: PineConeState): THREE.BufferGeometry {
+  private static createPineconeGeometry(state: PineConeState, rng: SeededRandom): THREE.BufferGeometry {
     const group = new THREE.Group();
     
     // Central core
@@ -223,8 +227,8 @@ export class PineDebrisGenerator {
       
       // Add weathering for aged cones
       if (state === PineConeState.AGED || state === PineConeState.DAMAGED) {
-        scale.scale.multiplyScalar(0.9 + Math.random() * 0.2);
-        if (state === PineConeState.DAMAGED && Math.random() > 0.7) {
+        scale.scale.multiplyScalar(rng.nextFloat(0.9, 1.1));
+        if (state === PineConeState.DAMAGED && rng.next() > 0.7) {
           scale.scale.setScalar(0.5); // Broken scale
         }
       }
@@ -293,6 +297,7 @@ export class PineDebrisGenerator {
    * Generate scattered pine seeds around cones
    */
   private static generateSeeds(config: PineDebrisConfig): THREE.InstancedMesh {
+    const rng = new SeededRandom((config.seed ?? 42) + 2);
     const seedCount = Math.floor(config.density * config.area.x * config.area.y * 0.5);
     const geometry = new THREE.CapsuleGeometry(0.005, 0.02, 4, 4);
     const material = new THREE.MeshStandardMaterial({
@@ -304,17 +309,17 @@ export class PineDebrisGenerator {
     const dummy = new THREE.Object3D();
 
     for (let i = 0; i < seedCount; i++) {
-      const x = (Math.random() - 0.5) * config.area.x;
-      const z = (Math.random() - 0.5) * config.area.y;
+      const x = (rng.next() - 0.5) * config.area.x;
+      const z = (rng.next() - 0.5) * config.area.y;
       const y = this.calculateHeight(x, z, config.area);
 
       dummy.position.set(x, y, z);
       dummy.rotation.set(
-        Math.random() * Math.PI,
-        Math.random() * Math.PI * 2,
-        Math.random() * Math.PI
+        rng.next() * Math.PI,
+        rng.next() * Math.PI * 2,
+        rng.next() * Math.PI
       );
-      dummy.scale.setScalar(0.5 + Math.random() * 0.5);
+      dummy.scale.setScalar(rng.nextFloat(0.5, 1.0));
 
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
@@ -328,6 +333,7 @@ export class PineDebrisGenerator {
    * Generate dense needle clusters under trees
    */
   static generateNeedleClusters(config: PineDebrisConfig, clusterCount: number): THREE.Group {
+    const rng = new SeededRandom((config.seed ?? 42) + 3);
     const group = new THREE.Group();
 
     for (let i = 0; i < clusterCount; i++) {
@@ -339,8 +345,8 @@ export class PineDebrisGenerator {
 
       const cluster = this.generateNeedleCarpet(clusterConfig);
       
-      const x = (Math.random() - 0.5) * config.area.x * 0.8;
-      const z = (Math.random() - 0.5) * config.area.y * 0.8;
+      const x = (rng.next() - 0.5) * config.area.x * 0.8;
+      const z = (rng.next() - 0.5) * config.area.y * 0.8;
       cluster.position.set(x, 0, z);
       
       group.add(cluster);

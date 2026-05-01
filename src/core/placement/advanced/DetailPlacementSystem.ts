@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SeededRandom } from '../../util/MathUtils';
 
 /**
  * Detail Placement System
@@ -205,7 +206,11 @@ export class DetailPlacementSystem {
   /** Grid cell size */
   private gridSize: number = 0.2;
 
-  constructor() {
+  /** Seeded random number generator */
+  private rng: SeededRandom;
+
+  constructor(seed?: number) {
+    this.rng = new SeededRandom(seed ?? 42);
     this.raycaster = new THREE.Raycaster();
     this.spatialGrid = new Map();
   }
@@ -325,8 +330,8 @@ export class DetailPlacementSystem {
     const targetCount = config.count * extraFactor;
     
     for (let i = 0; i < targetCount; i++) {
-      const x = THREE.MathUtils.lerp(bounds.min.x, bounds.max.x, Math.random());
-      const z = THREE.MathUtils.lerp(bounds.min.z, bounds.max.z, Math.random());
+      const x = THREE.MathUtils.lerp(bounds.min.x, bounds.max.x, this.rng.next());
+      const z = THREE.MathUtils.lerp(bounds.min.z, bounds.max.z, this.rng.next());
       const y = bounds.min.y;
       
       const candidate = new THREE.Vector3(x, y, z);
@@ -366,9 +371,9 @@ export class DetailPlacementSystem {
     const centers: THREE.Vector3[] = [];
     for (let i = 0; i < clusterConfig.clusterCount; i++) {
       const center = new THREE.Vector3(
-        THREE.MathUtils.lerp(bounds.min.x, bounds.max.x, Math.random()),
+        THREE.MathUtils.lerp(bounds.min.x, bounds.max.x, this.rng.next()),
         bounds.min.y,
-        THREE.MathUtils.lerp(bounds.min.z, bounds.max.z, Math.random())
+        THREE.MathUtils.lerp(bounds.min.z, bounds.max.z, this.rng.next())
       );
       
       // Project to surface
@@ -392,8 +397,8 @@ export class DetailPlacementSystem {
           );
       
       for (let j = 0; j < objCount; j++) {
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * clusterConfig.clusterRadius;
+        const angle = this.rng.next() * Math.PI * 2;
+        const radius = this.rng.next() * clusterConfig.clusterRadius;
         const offset = new THREE.Vector3(
           Math.cos(angle) * radius,
           0,
@@ -565,9 +570,9 @@ export class DetailPlacementSystem {
           // Add multiple points near corner
           for (let i = 0; i < 3; i++) {
             const offset = new THREE.Vector3(
-              (Math.random() - 0.5) * 0.5,
+              (this.rng.next() - 0.5) * 0.5,
               0,
-              (Math.random() - 0.5) * 0.5
+              (this.rng.next() - 0.5) * 0.5
             );
             const candidate = projected.clone().add(offset);
             const projCandidate = this.projectToSurface(candidate, config.surface);
@@ -606,15 +611,15 @@ export class DetailPlacementSystem {
     
     for (let i = 0; i < sampleCount; i++) {
       // Random triangle
-      const triIndex = Math.floor(Math.random() * (positions.length / 9)) * 9;
+      const triIndex = Math.floor(this.rng.next() * (positions.length / 9)) * 9;
       
       const v0 = new THREE.Vector3(positions[triIndex], positions[triIndex + 1], positions[triIndex + 2]);
       const v1 = new THREE.Vector3(positions[triIndex + 3], positions[triIndex + 4], positions[triIndex + 5]);
       const v2 = new THREE.Vector3(positions[triIndex + 6], positions[triIndex + 7], positions[triIndex + 8]);
       
       // Random barycentric coordinates
-      const r1 = Math.random();
-      const r2 = Math.random();
+      const r1 = this.rng.next();
+      const r2 = this.rng.next();
       const sqrtR1 = Math.sqrt(r1);
       
       const u = 1 - sqrtR1;
@@ -722,7 +727,7 @@ export class DetailPlacementSystem {
     const rotation = new THREE.Euler(0, 0, 0);
     if (config.rotation) {
       if (config.rotation.randomY) {
-        rotation.y = Math.random() * Math.PI * 2;
+        rotation.y = this.rng.next() * Math.PI * 2;
       } else if (config.rotation.fixedY !== undefined) {
         rotation.y = config.rotation.fixedY;
       }
@@ -731,7 +736,7 @@ export class DetailPlacementSystem {
         rotation.x = THREE.MathUtils.lerp(
           config.rotation.xRange[0],
           config.rotation.xRange[1],
-          Math.random()
+          this.rng.next()
         );
       }
       
@@ -739,7 +744,7 @@ export class DetailPlacementSystem {
         rotation.z = THREE.MathUtils.lerp(
           config.rotation.zRange[0],
           config.rotation.zRange[1],
-          Math.random()
+          this.rng.next()
         );
       }
     }
@@ -751,24 +756,24 @@ export class DetailPlacementSystem {
         const s = THREE.MathUtils.lerp(
           config.scale.uniform[0],
           config.scale.uniform[1],
-          Math.random()
+          this.rng.next()
         );
         scale.set(s, s, s);
       } else if (config.scale.perAxis) {
         scale.x = THREE.MathUtils.lerp(
           config.scale.perAxis.x[0],
           config.scale.perAxis.x[1],
-          Math.random()
+          this.rng.next()
         );
         scale.y = THREE.MathUtils.lerp(
           config.scale.perAxis.y[0],
           config.scale.perAxis.y[1],
-          Math.random()
+          this.rng.next()
         );
         scale.z = THREE.MathUtils.lerp(
           config.scale.perAxis.z[0],
           config.scale.perAxis.z[1],
-          Math.random()
+          this.rng.next()
         );
       }
     }

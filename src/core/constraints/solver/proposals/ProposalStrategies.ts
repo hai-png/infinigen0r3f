@@ -13,15 +13,17 @@
 import * as THREE from 'three';
 import type { ObjectState, Proposal } from '../types';
 import type { AssetDescription, Relation } from '../../../placement/domain/types';
+import { SeededRandom } from '../../../util/MathUtils';
 
 export interface ProposalStrategyOptions {
   stepSize?: number;
   rotationStep?: number;
   scaleStep?: number;
   maxAttempts?: number;
+  seed?: number;
 }
 
-const DEFAULT_OPTIONS: Required<ProposalStrategyOptions> = {
+const DEFAULT_OPTIONS: Omit<Required<ProposalStrategyOptions>, 'seed'> = {
   stepSize: 0.5,
   rotationStep: Math.PI / 8,
   scaleStep: 0.1,
@@ -33,10 +35,12 @@ const DEFAULT_OPTIONS: Required<ProposalStrategyOptions> = {
  * Generates small perturbations to position, rotation, and scale
  */
 export class ContinuousProposalGenerator {
-  private options: Required<ProposalStrategyOptions>;
+  private options: Required<Omit<ProposalStrategyOptions, 'seed'>> & { seed?: number };
+  private rng: SeededRandom;
 
   constructor(options: Partial<ProposalStrategyOptions> = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.rng = new SeededRandom(options.seed ?? 42);
   }
 
   /**
@@ -53,7 +57,7 @@ export class ContinuousProposalGenerator {
     };
 
     // Randomly choose which dimension to perturb
-    const choice = Math.random();
+    const choice = this.rng.next();
     
     if (choice < 0.4) {
       // Perturb position (40% chance)
@@ -101,16 +105,16 @@ export class ContinuousProposalGenerator {
     // If relation suggests specific positioning (e.g., "on", "near"), bias accordingly
     if ((relation as any)?.relationType === 'on' || (relation as any)?.relationType === 'supportedBy') {
       // Keep X/Z similar, adjust Y for support
-      newPos.y += (Math.random() - 0.5) * this.options.stepSize * 0.5;
+      newPos.y += (this.rng.next() - 0.5) * this.options.stepSize * 0.5;
     } else if ((relation as any)?.relationType === 'near' || (relation as any)?.relationType === 'touching') {
       // Larger movement in all directions
-      newPos.x += (Math.random() - 0.5) * this.options.stepSize * 2;
-      newPos.z += (Math.random() - 0.5) * this.options.stepSize * 2;
+      newPos.x += (this.rng.next() - 0.5) * this.options.stepSize * 2;
+      newPos.z += (this.rng.next() - 0.5) * this.options.stepSize * 2;
     } else {
       // Standard random walk
-      newPos.x += (Math.random() - 0.5) * this.options.stepSize;
-      newPos.y += (Math.random() - 0.5) * this.options.stepSize;
-      newPos.z += (Math.random() - 0.5) * this.options.stepSize;
+      newPos.x += (this.rng.next() - 0.5) * this.options.stepSize;
+      newPos.y += (this.rng.next() - 0.5) * this.options.stepSize;
+      newPos.z += (this.rng.next() - 0.5) * this.options.stepSize;
     }
     
     return newPos;
@@ -125,16 +129,16 @@ export class ContinuousProposalGenerator {
   ): THREE.Euler | THREE.Quaternion {
     if (current instanceof THREE.Quaternion) {
       const euler = new THREE.Euler().setFromQuaternion(current);
-      euler.y += (Math.random() - 0.5) * this.options.rotationStep;
+      euler.y += (this.rng.next() - 0.5) * this.options.rotationStep;
       return new THREE.Quaternion().setFromEuler(euler);
     } else {
       const newRot = current.clone();
       
       // Bias towards Y-axis rotation for most furniture
       if (relation?.type === 'facing') {
-        newRot.y += (Math.random() - 0.5) * this.options.rotationStep * 2;
+        newRot.y += (this.rng.next() - 0.5) * this.options.rotationStep * 2;
       } else {
-        newRot.y += (Math.random() - 0.5) * this.options.rotationStep;
+        newRot.y += (this.rng.next() - 0.5) * this.options.rotationStep;
       }
       
       return newRot;
@@ -146,14 +150,14 @@ export class ContinuousProposalGenerator {
    */
   private perturbScale(current: THREE.Vector3): THREE.Vector3 {
     const newScale = current.clone();
-    const axis = Math.floor(Math.random() * 3);
+    const axis = this.rng.nextInt(0, 2);
     
     if (axis === 0) {
-      newScale.x *= 1 + (Math.random() - 0.5) * this.options.scaleStep;
+      newScale.x *= 1 + (this.rng.next() - 0.5) * this.options.scaleStep;
     } else if (axis === 1) {
-      newScale.y *= 1 + (Math.random() - 0.5) * this.options.scaleStep;
+      newScale.y *= 1 + (this.rng.next() - 0.5) * this.options.scaleStep;
     } else {
-      newScale.z *= 1 + (Math.random() - 0.5) * this.options.scaleStep;
+      newScale.z *= 1 + (this.rng.next() - 0.5) * this.options.scaleStep;
     }
     
     // Clamp to reasonable bounds
@@ -168,10 +172,12 @@ export class ContinuousProposalGenerator {
  * Generates discrete changes like object selection or room assignment
  */
 export class DiscreteProposalGenerator {
-  private options: Required<ProposalStrategyOptions>;
+  private options: Required<Omit<ProposalStrategyOptions, 'seed'>> & { seed?: number };
+  private rng: SeededRandom;
 
   constructor(options: Partial<ProposalStrategyOptions> = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.rng = new SeededRandom(options.seed ?? 43);
   }
 
   /**
@@ -191,11 +197,11 @@ export class DiscreteProposalGenerator {
       metadata: { type: 'discrete' },
     };
 
-    const choice = Math.random();
+    const choice = this.rng.next();
     
     if (choice < 0.5 && candidates.length > 0) {
       // Swap asset (50% chance)
-      const newIndex = Math.floor(Math.random() * candidates.length);
+      const newIndex = this.rng.nextInt(0, candidates.length - 1);
       proposal.newState.assetDescription = candidates[newIndex];
       proposal.metadata.changeType = 'asset_swap';
     } else if (choice < 0.8) {
@@ -254,7 +260,7 @@ export class DiscreteProposalGenerator {
     }
     
     // Default: random selection
-    return candidates[Math.floor(Math.random() * candidates.length)];
+    return this.rng.choice(candidates);
   }
 }
 
@@ -265,10 +271,12 @@ export class DiscreteProposalGenerator {
 export class HybridProposalGenerator {
   private continuous: ContinuousProposalGenerator;
   private discrete: DiscreteProposalGenerator;
-  options: Required<ProposalStrategyOptions>;
+  options: Required<Omit<ProposalStrategyOptions, 'seed'>> & { seed?: number };
+  private rng: SeededRandom;
 
   constructor(options: Partial<ProposalStrategyOptions> = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.rng = new SeededRandom(options.seed ?? 44);
     this.continuous = new ContinuousProposalGenerator(options);
     this.discrete = new DiscreteProposalGenerator(options);
   }
@@ -282,7 +290,7 @@ export class HybridProposalGenerator {
     relation?: Relation
   ): Proposal {
     // Decide between continuous and discrete based on state
-    const useDiscrete = !currentState.position || Math.random() < 0.3;
+    const useDiscrete = !currentState.position || this.rng.next() < 0.3;
     
     if (useDiscrete && candidates && candidates.length > 0) {
       return this.discrete.generate(currentState, candidates, relation);

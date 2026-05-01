@@ -14,18 +14,69 @@
 export * from '../MathUtils';
 
 // Re-export sub-modules for organized imports
-export { SeededRandom } from './distributions';
-export type { RandomGenerator } from './distributions';
+// SeededRandom and RandomGenerator already come from '../MathUtils' via the star export above,
+// so we only need to explicitly export the new distributions module content here.
+export {
+  // Core distributions
+  uniform,
+  gaussian,
+  exponential,
+  poisson,
+  binomial,
+  gamma,
+  beta,
+  chiSquared,
+  logNormal,
+  weibull,
+  pareto,
+  cauchy,
+  geometric,
+  negativeBinomial,
+  hypergeometric,
+  // Sampling methods
+  weightedChoice,
+  sampleWithoutReplacement,
+  shuffle,
+  reservoirSample,
+  rejectionSample,
+  // Statistical utilities
+  normalCDF,
+  normalInvCDF,
+  normalPDF,
+  clampToDistribution,
+  // Classes & types
+  DistributionSampler,
+} from './distributions';
+export type { DistributionSpec } from './distributions';
 
-export { 
-  noise3D, 
-  noise2D, 
-  voronoi2D, 
-  ridgedMultifractal,
+// Noise module — SeededNoiseGenerator, convenience functions, legacy Noise3D
+export {
+  SeededNoiseGenerator,
+  NoiseType,
+  defaultNoiseGenerator,
+  perlin3D,
+  perlin2D,
+  simplex3D,
+  simplex2D,
+  voronoi2D,
+  voronoi3D,
   fbm,
-  Noise3D 
+  ridgedMultifractal,
+  turbulence,
+  domainWarp,
+  Noise3D,
+  seededNoise2D,
+  seededNoise3D,
+  seededVoronoi2D,
+  seededFbm,
+  seededRidgedMultifractal,
+  noise3D,
+  noise2D,
 } from './noise';
 export type { NoiseFunction } from './noise';
+
+// Noise cache
+export { NoiseCache, defaultNoiseCache } from './noise-cache';
 
 // Export from ./vector with aliases to avoid conflicts with MathUtils re-exports
 export {

@@ -1,3 +1,4 @@
+import { SeededRandom } from '../core/util/MathUtils';
 /**
  * Boulder Factory - Procedural boulder generation
  * 
@@ -21,6 +22,7 @@ export interface BoulderConfig {
 
 export class BoulderFactory {
   private config: BoulderConfig;
+  private _rng = new SeededRandom(42);
 
   constructor(config: Partial<BoulderConfig> = {}) {
     this.config = {
@@ -53,7 +55,7 @@ export class BoulderFactory {
     for (let i = 0; i < count; i++) {
       const boulder = await this.generateAsset();
       // Randomize scale
-      const scale = 0.5 + Math.random() * 1.5;
+      const scale = 0.5 + this._rng.next() * 1.5;
       boulder.scale.set(scale, scale * this.config.flatness, scale);
       boulders.push(boulder);
     }

@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -20,6 +21,7 @@ export interface SlimeMaterialConfig {
  * Procedural slime material generator with translucent and iridescent effects
  */
 export class SlimeMaterial {
+  private static _rng = new SeededRandom(42);
   private static readonly DEFAULT_CONFIG: SlimeMaterialConfig = {
     baseColor: new THREE.Color(0x32cd32), // Lime green
     transparency: 0.7,
@@ -237,9 +239,9 @@ export class SlimeMaterial {
     const numBubbles = Math.floor(20 * config.bubbleSize * 10);
     
     for (let i = 0; i < numBubbles; i++) {
-      const x = Math.random() * size;
-      const y = Math.random() * size;
-      const radius = Math.random() * config.bubbleSize * size * 0.5 + 2;
+      const x = SlimeMaterial._rng.next() * size;
+      const y = SlimeMaterial._rng.next() * size;
+      const radius = SlimeMaterial._rng.next() * config.bubbleSize * size * 0.5 + 2;
 
       // Bubble highlight
       const gradient = ctx.createRadialGradient(

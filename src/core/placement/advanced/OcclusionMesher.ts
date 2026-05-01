@@ -9,6 +9,7 @@
 
 import { Vector3, Box3, BoxGeometry, Float32BufferAttribute, Mesh, BufferGeometry } from 'three';
 import { BBox } from '../../util/math/bbox';
+import { SeededRandom } from '../../util/MathUtils';
 
 // ============================================================================
 // Configuration Types
@@ -135,10 +136,12 @@ class VoxelGrid {
 export class Voxelizer {
   private config: VoxelConfig;
   private grid: VoxelGrid;
+  private rng: SeededRandom;
 
   constructor(config: VoxelConfig) {
     this.config = config;
     this.grid = new VoxelGrid(config.voxelSize);
+    this.rng = new SeededRandom(42);
   }
 
   /**
@@ -159,7 +162,7 @@ export class Voxelizer {
     
     for (let i = 0; i < sampleCount; i++) {
       // Pick random triangle
-      const triIndex = Math.floor(Math.random() * (indices.length / 3)) * 3;
+      const triIndex = Math.floor(this.rng.next() * (indices.length / 3)) * 3;
       
       // Get triangle vertices
       const v0 = new Vector3(
@@ -181,8 +184,8 @@ export class Voxelizer {
       ).applyMatrix4(matrix);
       
       // Random point in triangle using barycentric coordinates
-      const r1 = Math.random();
-      const r2 = Math.random();
+      const r1 = this.rng.next();
+      const r2 = this.rng.next();
       const sqrtR1 = Math.sqrt(r1);
       
       const u = 1 - sqrtR1;

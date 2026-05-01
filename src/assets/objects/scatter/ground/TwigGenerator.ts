@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 /**
  * Twig and branch types for forest floor debris
@@ -32,6 +33,7 @@ export interface TwigConfig {
   mossCoverage?: number;     // 0-1 probability
   lichenCoverage?: number;   // 0-1 probability
   breakagePatterns?: boolean;
+  seed?: number;             // seed for deterministic generation
 }
 
 /**
@@ -64,6 +66,7 @@ export class TwigGenerator {
    * Generate twig scatter with instanced rendering
    */
   static generate(config: TwigConfig): THREE.InstancedMesh {
+    const rng = new SeededRandom(config.seed ?? 42);
     const twigCount = Math.floor(config.density * config.area.x * config.area.y);
     const geometry = this.createTwigGeometry(config.twigType, config.barkType);
     const material = new THREE.MeshStandardMaterial({
@@ -77,24 +80,24 @@ export class TwigGenerator {
     const barkColors = this.BARK_COLORS[config.barkType];
 
     for (let i = 0; i < twigCount; i++) {
-      const x = (Math.random() - 0.5) * config.area.x;
-      const z = (Math.random() - 0.5) * config.area.y;
+      const x = (rng.next() - 0.5) * config.area.x;
+      const z = (rng.next() - 0.5) * config.area.y;
       const y = this.calculateHeight(x, z, config.area);
 
       dummy.position.set(x, y, z);
 
       // Random rotation
       dummy.rotation.set(
-        (Math.random() - 0.5) * Math.PI,
-        Math.random() * Math.PI * 2,
-        (Math.random() - 0.5) * Math.PI
+        (rng.next() - 0.5) * Math.PI,
+        rng.next() * Math.PI * 2,
+        (rng.next() - 0.5) * Math.PI
       );
 
       // Length and radius variation
       const lengthRange = config.lengthVariation;
       const radiusRange = config.radiusVariation;
-      const length = lengthRange[0] + Math.random() * (lengthRange[1] - lengthRange[0]);
-      const radius = radiusRange[0] + Math.random() * (radiusRange[1] - radiusRange[0]);
+      const length = rng.nextFloat(lengthRange[0], lengthRange[1]);
+      const radius = rng.nextFloat(radiusRange[0], radiusRange[1]);
       
       dummy.scale.set(radius, length, radius);
 
@@ -102,9 +105,9 @@ export class TwigGenerator {
       mesh.setMatrixAt(i, dummy.matrix);
 
       // Bark color variation
-      const colorIndex = Math.floor(Math.random() * barkColors.length);
+      const colorIndex = rng.nextInt(0, barkColors.length - 1);
       const color = barkColors[colorIndex].clone();
-      color.offsetHSL(0, 0, (Math.random() - 0.5) * 0.15);
+      color.offsetHSL(0, 0, (rng.next() - 0.5) * 0.15);
       mesh.setColorAt(i, color);
     }
 
@@ -261,6 +264,7 @@ export class TwigGenerator {
    * Generate twig clusters (fallen branch piles)
    */
   static generateClusters(config: TwigConfig, clusterCount: number): THREE.Group {
+    const rng = new SeededRandom((config.seed ?? 42) + 1);
     const group = new THREE.Group();
 
     for (let i = 0; i < clusterCount; i++) {
@@ -272,8 +276,8 @@ export class TwigGenerator {
 
       const cluster = this.generate(clusterConfig);
       
-      const x = (Math.random() - 0.5) * config.area.x * 0.8;
-      const z = (Math.random() - 0.5) * config.area.y * 0.8;
+      const x = (rng.next() - 0.5) * config.area.x * 0.8;
+      const z = (rng.next() - 0.5) * config.area.y * 0.8;
       cluster.position.set(x, 0, z);
       
       group.add(cluster);
@@ -285,17 +289,18 @@ export class TwigGenerator {
   /**
    * Add moss growth to twigs
    */
-  static addMossGrowth(mesh: THREE.InstancedMesh, coverage: number): void {
+  static addMossGrowth(mesh: THREE.InstancedMesh, coverage: number, seed: number = 42): void {
     if (!mesh.instanceColor) return;
 
+    const rng = new SeededRandom(seed);
     const colors = mesh.instanceColor;
     for (let i = 0; i < mesh.count; i++) {
-      if (Math.random() < coverage) {
+      if (rng.next() < coverage) {
         const baseColor = new THREE.Color();
         // Read color directly from the array buffer
         baseColor.fromArray(colors.array, i * 3);
         
-        baseColor.lerp(TwigGenerator.MOSS_COLOR, 0.3 + Math.random() * 0.4);
+        baseColor.lerp(TwigGenerator.MOSS_COLOR, rng.nextFloat(0.3, 0.7));
         colors.setXYZ(i, baseColor.r, baseColor.g, baseColor.b);
       }
     }
@@ -305,17 +310,18 @@ export class TwigGenerator {
   /**
    * Add lichen growth to twigs
    */
-  static addLichenGrowth(mesh: THREE.InstancedMesh, coverage: number): void {
+  static addLichenGrowth(mesh: THREE.InstancedMesh, coverage: number, seed: number = 42): void {
     if (!mesh.instanceColor) return;
 
+    const rng = new SeededRandom(seed + 1);
     const colors = mesh.instanceColor;
     for (let i = 0; i < mesh.count; i++) {
-      if (Math.random() < coverage) {
+      if (rng.next() < coverage) {
         const baseColor = new THREE.Color();
         // Read color directly from the array buffer
         baseColor.fromArray(colors.array, i * 3);
         
-        baseColor.lerp(TwigGenerator.LICHEN_COLOR, 0.2 + Math.random() * 0.3);
+        baseColor.lerp(TwigGenerator.LICHEN_COLOR, rng.nextFloat(0.2, 0.5));
         colors.setXYZ(i, baseColor.r, baseColor.g, baseColor.b);
       }
     }

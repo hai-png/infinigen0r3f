@@ -203,7 +203,7 @@ export class DataPipeline {
     this.scene = scene;
     this.config = {
       sceneId: `scene_${Date.now()}`,
-      seed: Math.floor(Math.random() * 1000000),
+      seed: 42,
       cameraCount: 10,
       fovRange: [45, 75],
       distanceRange: [2, 10],

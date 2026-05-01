@@ -8,6 +8,7 @@
 import { NodeTypes } from '../core/node-types';
 import type { BufferGeometry } from 'three';
 import type { ColorLike } from '../color/ColorNodes';
+import { SeededRandom } from '../../util/MathUtils';
 
 // ============================================================================
 // Type Definitions
@@ -415,12 +416,14 @@ export class TextureNoiseNode implements TextureNodeBase {
   }
 
   private p: number[] = [];
+  private rng: SeededRandom;
   
   constructor() {
+    this.rng = new SeededRandom(42);
     // Initialize permutation table
     const perm = Array.from({ length: 256 }, (_, i) => i);
     for (let i = 255; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = this.rng.nextInt(0, i);
       [perm[i], perm[j]] = [perm[j], perm[i]];
     }
     this.p = [...perm, ...perm];

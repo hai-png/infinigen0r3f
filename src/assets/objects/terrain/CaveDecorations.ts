@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * CaveDecorations - Stalactites, stalagmites, crystals, and cave features
  * 
@@ -51,6 +52,7 @@ export interface CaveDecorationInstance {
 // ============================================================================
 
 export class CaveDecorations {
+  private _rng = new SeededRandom(42);
   private config: CaveDecorationConfig;
   private noise: NoiseUtils;
   private instances: CaveDecorationInstance[];
@@ -66,7 +68,7 @@ export class CaveDecorations {
       rockColor: new THREE.Color(0x4a4540),
       crystalColor: new THREE.Color(0x88ccff),
       wetness: 0.3,
-      seed: Math.random() * 10000,
+      seed: this._rng.nextInt(0, 9999),
       ...config
     };
     
@@ -100,12 +102,12 @@ export class CaveDecorations {
    */
   private generateRandomDecoration(): CaveDecorationInstance | null {
     // Select random type
-    const typeIndex = Math.floor(Math.random() * this.config.decorationTypes.length);
+    const typeIndex = Math.floor(this._rng.next() * this.config.decorationTypes.length);
     const type = this.config.decorationTypes[typeIndex];
     
     // Random position
-    const x = (Math.random() - 0.5) * 10;
-    const z = (Math.random() - 0.5) * 10;
+    const x = (this._rng.next() - 0.5) * 10;
+    const z = (this._rng.next() - 0.5) * 10;
     const y = type === 'stalactite' ? 2 : -2; // Ceiling or floor
     
     // Create mesh based on type
@@ -132,10 +134,10 @@ export class CaveDecorations {
     
     // Position and rotate
     mesh.position.set(x, y, z);
-    mesh.rotation.y = Math.random() * Math.PI * 2;
+    mesh.rotation.y = this._rng.next() * Math.PI * 2;
     
     // Scale variation
-    const scale = 1 + (Math.random() - 0.5) * this.config.sizeVariation;
+    const scale = 1 + (this._rng.next() - 0.5) * this.config.sizeVariation;
     mesh.scale.setScalar(scale);
     
     return {
@@ -154,7 +156,7 @@ export class CaveDecorations {
     const length = THREE.MathUtils.lerp(
       this.config.stalactiteLength[0],
       this.config.stalactiteLength[1],
-      Math.random()
+      this._rng.next()
     );
     
     const geometry = new THREE.ConeGeometry(0.1, length, 7);
@@ -181,7 +183,7 @@ export class CaveDecorations {
     const height = THREE.MathUtils.lerp(
       this.config.stalagmiteHeight[0],
       this.config.stalagmiteHeight[1],
-      Math.random()
+      this._rng.next()
     );
     
     const geometry = new THREE.ConeGeometry(0.15, height, 7);
@@ -207,7 +209,7 @@ export class CaveDecorations {
     const size = THREE.MathUtils.lerp(
       this.config.crystalSize[0],
       this.config.crystalSize[1],
-      Math.random()
+      this._rng.next()
     );
     
     // Use octahedron for crystal shape
@@ -233,7 +235,7 @@ export class CaveDecorations {
    * Create column (connected stalactite + stalagmite)
    */
   private createColumn(): THREE.Mesh {
-    const height = THREE.MathUtils.lerp(2, 5, Math.random());
+    const height = THREE.MathUtils.lerp(2, 5, this._rng.next());
     
     // Combine cone geometries
     const topCone = new THREE.ConeGeometry(0.2, height * 0.5, 7);
@@ -272,8 +274,8 @@ export class CaveDecorations {
    * Create flowstone (water-worn rock formation)
    */
   private createFlowstone(): THREE.Mesh {
-    const width = 0.5 + Math.random() * 1;
-    const height = 0.3 + Math.random() * 0.5;
+    const width = 0.5 + this._rng.next() * 1;
+    const height = 0.3 + this._rng.next() * 0.5;
     
     const geometry = new THREE.SphereGeometry(width, 7, 7);
     geometry.scale(1, height / width, 0.5);

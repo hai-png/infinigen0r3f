@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import { BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
@@ -33,6 +34,7 @@ export interface CoralPreset {
 }
 
 export class CoralGenerator {
+  private static _rng = new SeededRandom(42);
   private static presets: Record<string, CoralPreset> = {
     staghorn: {
       name: 'Staghorn Coral',
@@ -147,7 +149,7 @@ export class CoralGenerator {
     
     for (let i = 0; i < branchCount; i++) {
       const baseAngle = (i / branchCount) * Math.PI * 2;
-      const height = config.size * (0.5 + Math.random() * 0.5);
+      const height = config.size * (0.5 + CoralGenerator._rng.next() * 0.5);
       const branches = Math.floor(3 + config.branchDensity * 5);
       
       this.createBranch(
@@ -172,20 +174,20 @@ export class CoralGenerator {
       for (let j = 0; j < branches; j++) {
         const t = (j + 1) / (branches + 1);
         const offset = new THREE.Vector3(
-          (Math.random() - 0.5) * config.size * 0.4,
+          (CoralGenerator._rng.next() - 0.5) * config.size * 0.4,
           height * t,
-          (Math.random() - 0.5) * config.size * 0.4
+          (CoralGenerator._rng.next() - 0.5) * config.size * 0.4
         );
         
         this.createBranch(
           positions, normals, uvs,
           offset,
           new THREE.Vector3(
-            (Math.random() - 0.5) * 0.5,
-            0.3 + Math.random() * 0.3,
-            (Math.random() - 0.5) * 0.5
+            (CoralGenerator._rng.next() - 0.5) * 0.5,
+            0.3 + CoralGenerator._rng.next() * 0.3,
+            (CoralGenerator._rng.next() - 0.5) * 0.5
           ).normalize(),
-          height * (0.3 + Math.random() * 0.3),
+          height * (0.3 + CoralGenerator._rng.next() * 0.3),
           segments,
           config.complexity * 0.7,
           config.size
@@ -381,7 +383,7 @@ export class CoralGenerator {
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
       const y = t * height;
-      const w = width * Math.sin(t * Math.PI) * (0.5 + Math.random() * 0.3);
+      const w = width * Math.sin(t * Math.PI) * (0.5 + CoralGenerator._rng.next() * 0.3);
       
       for (let j = -10; j <= 10; j++) {
         const x = (j / 10) * w;
@@ -414,8 +416,8 @@ export class CoralGenerator {
     const tubeHeight = config.size * 0.6;
     
     for (let i = 0; i < tubeCount; i++) {
-      const centerX = (Math.random() - 0.5) * config.size;
-      const centerZ = (Math.random() - 0.5) * config.size;
+      const centerX = (CoralGenerator._rng.next() - 0.5) * config.size;
+      const centerZ = (CoralGenerator._rng.next() - 0.5) * config.size;
       
       const segments = 16;
       const rings = Math.floor(10 + config.complexity * 10);

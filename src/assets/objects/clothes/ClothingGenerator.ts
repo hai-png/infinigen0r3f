@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -37,6 +38,7 @@ export interface ClothingConfig {
  * Clothing generator for creating garment meshes
  */
 export class ClothingGenerator {
+  private _rng = new SeededRandom(42);
   private config: ClothingConfig;
   
   constructor(config: ClothingConfig) {
@@ -490,9 +492,9 @@ export class ClothingGenerator {
       case 'floral':
         // Simple floral pattern
         for (let i = 0; i < 50; i++) {
-          const x = Math.random() * 512;
-          const y = Math.random() * 512;
-          const radius = 10 + Math.random() * 15;
+          const x = this._rng.next() * 512;
+          const y = this._rng.next() * 512;
+          const radius = 10 + this._rng.next() * 15;
           
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -594,8 +596,8 @@ export class ClothingGenerator {
     for (let i = 0; i < count; i++) {
       const foldedPiece = this.createFoldedPiece();
       foldedPiece.position.y = i * 0.03;
-      foldedPiece.rotation.z = (Math.random() - 0.5) * 0.3;
-      foldedPiece.rotation.x = (Math.random() - 0.5) * 0.2;
+      foldedPiece.rotation.z = (this._rng.next() - 0.5) * 0.3;
+      foldedPiece.rotation.x = (this._rng.next() - 0.5) * 0.2;
       pile.add(foldedPiece);
     }
     
@@ -627,9 +629,9 @@ export class ClothingGenerator {
     if (foldStyle !== 'neat') {
       const positions = geometry.attributes.position.array;
       for (let i = 0; i < positions.length; i += 3) {
-        positions[i] += (Math.random() - 0.5) * 0.02;
-        positions[i + 1] += (Math.random() - 0.5) * 0.01;
-        positions[i + 2] += (Math.random() - 0.5) * 0.02;
+        positions[i] += (this._rng.next() - 0.5) * 0.02;
+        positions[i + 1] += (this._rng.next() - 0.5) * 0.01;
+        positions[i + 2] += (this._rng.next() - 0.5) * 0.02;
       }
       geometry.attributes.position.needsUpdate = true;
       geometry.computeVertexNormals();

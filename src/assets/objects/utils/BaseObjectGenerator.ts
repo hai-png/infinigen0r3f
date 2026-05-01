@@ -40,7 +40,7 @@ export abstract class BaseObjectGenerator<TConfig extends BaseGeneratorConfig> {
   protected category: string = 'unknown';
   protected subcategory: string = 'unknown';
 
-  constructor(seed: number = Math.random() * 10000) {
+  constructor(seed: number = this.rng.next() * 10000) {
     this.seed = seed;
     this.rng = new SeededRandom(seed);
   }

@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * TrinketGenerator - Procedural small decorative objects
  */
@@ -16,6 +17,7 @@ export interface TrinketConfig {
 }
 
 export class TrinketGenerator extends BaseObjectGenerator<TrinketConfig> {
+  private _rng = new SeededRandom(42);
   protected readonly defaultParams: TrinketConfig = {
     type: 'figurine', materialType: 'ceramic', size: 'small', seed: undefined
   };
@@ -72,10 +74,10 @@ export class TrinketGenerator extends BaseObjectGenerator<TrinketConfig> {
     const configs: TrinketConfig[] = [];
     for (let i = 0; i < count; i++) {
       configs.push({
-        type: types[Math.floor(Math.random() * types.length)],
-        materialType: materials[Math.floor(Math.random() * materials.length)],
-        size: sizes[Math.floor(Math.random() * sizes.length)],
-        seed: Math.floor(Math.random() * 10000)
+        type: types[Math.floor(this._rng.next() * types.length)],
+        materialType: materials[Math.floor(this._rng.next() * materials.length)],
+        size: sizes[Math.floor(this._rng.next() * sizes.length)],
+        seed: Math.floor(this._rng.next() * 10000)
       });
     }
 

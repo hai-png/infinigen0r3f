@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import { LODConfig, AssetResult } from './AssetTypes';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 /**
  * LOD System for managing detail levels based on camera distance
@@ -189,7 +190,7 @@ export class LODSystem {
     const newPositions: number[] = [];
     
     for (let i = 0; i < positions.length; i += 9) {
-      if (Math.random() < sampleRate) {
+      if (new SeededRandom(42).next() < sampleRate) {
         // Keep this triangle
         newPositions.push(
           positions[i], positions[i + 1], positions[i + 2],

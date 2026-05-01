@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -29,6 +30,7 @@ export interface SeaGrassConfig {
  * Generates procedural seagrass beds with instanced rendering for performance
  */
 export class SeaGrassGenerator {
+  private static _rng = new SeededRandom(42);
   private static materialCache = new Map<string, THREE.ShaderMaterial>();
   private static bladeGeometryCache = new Map<number, THREE.BufferGeometry>();
 
@@ -58,25 +60,25 @@ export class SeaGrassGenerator {
     
     for (let c = 0; c < clusterCount && instanceIndex < totalInstances; c++) {
       // Cluster center position
-      const clusterX = (Math.random() - 0.5) * area.width;
-      const clusterZ = (Math.random() - 0.5) * area.depth;
+      const clusterX = (SeaGrassGenerator._rng.next() - 0.5) * area.width;
+      const clusterZ = (SeaGrassGenerator._rng.next() - 0.5) * area.depth;
       
       // Generate blades in this cluster
       for (let b = 0; b < clusterSize && instanceIndex < totalInstances; b++) {
         // Position within cluster (gaussian distribution)
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * Math.random() * (area.width * 0.1);
+        const angle = SeaGrassGenerator._rng.next() * Math.PI * 2;
+        const radius = SeaGrassGenerator._rng.next() * SeaGrassGenerator._rng.next() * (area.width * 0.1);
         
         const x = clusterX + Math.cos(angle) * radius;
         const z = clusterZ + Math.sin(angle) * radius;
         
         // Random rotation
-        const rotationY = Math.random() * Math.PI * 2;
-        const rotationZ = (Math.random() - 0.5) * 0.3;
-        const rotationX = (Math.random() - 0.5) * 0.2;
+        const rotationY = SeaGrassGenerator._rng.next() * Math.PI * 2;
+        const rotationZ = (SeaGrassGenerator._rng.next() - 0.5) * 0.3;
+        const rotationX = (SeaGrassGenerator._rng.next() - 0.5) * 0.2;
         
         // Scale variation
-        const scale = 0.7 + Math.random() * 0.6;
+        const scale = 0.7 + SeaGrassGenerator._rng.next() * 0.6;
         
         dummy.position.set(x, config.bladeHeight * 0.5, z);
         dummy.rotation.set(rotationX, rotationY, rotationZ);
@@ -91,7 +93,7 @@ export class SeaGrassGenerator {
     instancedMesh.userData.seaGrassData = {
       config,
       area,
-      timeOffset: Math.random() * Math.PI * 2
+      timeOffset: SeaGrassGenerator._rng.next() * Math.PI * 2
     };
     
     return instancedMesh;
@@ -219,7 +221,7 @@ export class SeaGrassGenerator {
       
       // Position within clump
       const angle = (i / actualCount) * Math.PI * 2;
-      const radius = Math.random() * 0.15;
+      const radius = SeaGrassGenerator._rng.next() * 0.15;
       
       blade.position.set(
         position.x + Math.cos(angle) * radius,
@@ -228,11 +230,11 @@ export class SeaGrassGenerator {
       );
       
       // Random orientation
-      blade.rotation.y = angle + (Math.random() - 0.5) * 0.5;
-      blade.rotation.z = (Math.random() - 0.5) * 0.3;
+      blade.rotation.y = angle + (SeaGrassGenerator._rng.next() - 0.5) * 0.5;
+      blade.rotation.z = (SeaGrassGenerator._rng.next() - 0.5) * 0.3;
       
       // Scale variation
-      const scale = 0.8 + Math.random() * 0.4;
+      const scale = 0.8 + SeaGrassGenerator._rng.next() * 0.4;
       blade.scale.set(scale, scale, scale);
       
       group.add(blade);

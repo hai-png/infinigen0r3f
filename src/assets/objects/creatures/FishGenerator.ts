@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 export interface FishParameters extends CreatureParams {
   tailType: 'forked' | 'rounded' | 'square';
@@ -18,7 +19,7 @@ export type FishSpecies = 'goldfish' | 'tuna' | 'clownfish' | 'anglerfish' | 'se
 
 export class FishGenerator extends CreatureBase {
   constructor(params: Partial<FishParameters> = {}) {
-    super({ ...params, seed: params.seed || Math.random() * 10000 });
+    super({ ...params, seed: params.seed ?? 42 });
   }
 
   getDefaultConfig(): FishParameters {

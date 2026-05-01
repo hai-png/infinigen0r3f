@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * UnderwaterGenerator - Procedural underwater creature generation
  * Generates jellyfish, octopus, crab, starfish, whale, dolphin shapes
@@ -16,8 +17,9 @@ export interface MarineParameters extends CreatureParams {
 export type MarineSpecies = 'jellyfish' | 'crab' | 'starfish' | 'octopus' | 'whale' | 'dolphin';
 
 export class UnderwaterGenerator extends CreatureBase {
+  private _rng = new SeededRandom(42);
   constructor(params: Partial<MarineParameters> = {}) {
-    super({ ...params, seed: params.seed || Math.random() * 10000 });
+    super({ ...params, seed: params.seed || 42 });
   }
 
   getDefaultConfig(): MarineParameters {
@@ -68,7 +70,14 @@ export class UnderwaterGenerator extends CreatureBase {
   }
 
   generateHead(): Mesh {
-    return this.generateBodyCore();
+    // Generate a distinct head mesh (tapered front), not the body
+    const params = this.getDefaultConfig();
+    const s = params.size;
+    const headMat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.5 });
+    const headGeo = this.createEllipsoidGeometry(s * 0.08, s * 0.08, s * 0.12);
+    const head = new Mesh(headGeo, headMat);
+    head.name = 'head';
+    return head;
   }
 
   generateLimbs(): Mesh[] {

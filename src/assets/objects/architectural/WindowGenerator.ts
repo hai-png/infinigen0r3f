@@ -1,6 +1,6 @@
 /**
  * Procedural Window Generator for Infinigen R3F
- * Generates various window types: casement, double-hung, sliding, bay, skylight, arched
+ * Generates various window types: casement, doubleHung, awning, picture, sliding, bay
  * FIX: Each window type now produces distinct geometry
  */
 
@@ -11,11 +11,13 @@ import {
 import { SeededRandom } from '../../../core/util/math/index';
 import { BaseObjectGenerator, BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
 
+export type WindowType = 'casement' | 'doubleHung' | 'awning' | 'picture' | 'sliding' | 'bay';
+
 export interface WindowParams extends BaseGeneratorConfig {
   width: number;
   height: number;
   depth: number;
-  type: 'casement' | 'double-hung' | 'sliding' | 'bay' | 'skylight' | 'arched';
+  type: WindowType;
   style: 'modern' | 'traditional' | 'industrial' | 'rustic' | 'victorian';
   paneCount: number;
   hasShutters: boolean;
@@ -30,7 +32,7 @@ export class WindowGenerator extends BaseObjectGenerator<WindowParams> {
       width: 1.2 + this.rng.range(-0.3, 0.6),
       height: 1.5 + this.rng.range(-0.3, 0.8),
       depth: 0.15 + this.rng.range(0, 0.1),
-      type: this.rng.choice(['casement', 'double-hung', 'sliding', 'bay', 'skylight', 'arched']),
+      type: this.rng.choice(['casement', 'doubleHung', 'awning', 'picture', 'sliding', 'bay']),
       style: this.rng.choice(['modern', 'traditional', 'industrial', 'rustic', 'victorian']),
       paneCount: this.rng.int(2, 12),
       hasShutters: this.rng.boolean(0.4),
@@ -52,8 +54,14 @@ export class WindowGenerator extends BaseObjectGenerator<WindowParams> {
       case 'casement':
         this.createCasementWindow(group, params);
         break;
-      case 'double-hung':
+      case 'doubleHung':
         this.createDoubleHungWindow(group, params);
+        break;
+      case 'awning':
+        this.createAwningWindow(group, params);
+        break;
+      case 'picture':
+        this.createPictureWindow(group, params);
         break;
       case 'sliding':
         this.createSlidingWindow(group, params);
@@ -61,25 +69,17 @@ export class WindowGenerator extends BaseObjectGenerator<WindowParams> {
       case 'bay':
         this.createBayWindow(group, params);
         break;
-      case 'skylight':
-        this.createSkylightWindow(group, params);
-        break;
-      case 'arched':
-        this.createArchedWindow(group, params);
-        break;
     }
 
-    // Add shutters if specified (not for bay, skylight, arched)
-    if (params.hasShutters && params.type !== 'bay' && params.type !== 'skylight') {
+    // Add shutters if specified (not for bay or awning)
+    if (params.hasShutters && params.type !== 'bay' && params.type !== 'awning') {
       const shutters = this.createShutters(params);
       shutters.forEach(s => group.add(s));
     }
 
-    // Add window sill (not for skylight)
-    if (params.type !== 'skylight') {
-      const sill = this.createSill(params);
-      group.add(sill);
-    }
+    // Add window sill (for all types)
+    const sill = this.createSill(params);
+    group.add(sill);
 
     return group;
   }
@@ -359,169 +359,106 @@ export class WindowGenerator extends BaseObjectGenerator<WindowParams> {
     group.add(bottomBoard);
   }
 
-  // ===== SKYLIGHT: Tilted pane at an angle =====
-  private createSkylightWindow(group: Group, params: WindowParams): void {
+  // ===== AWNING: Top-hinged panel that pushes outward from the bottom =====
+  private createAwningWindow(group: Group, params: WindowParams): void {
     const frameMat = this.getFrameMaterial(params);
     const glassMat = this.getGlassMaterial(params);
     const ft = 0.06;
     const { width, height, depth } = params;
 
-    const tiltAngle = Math.PI / 4; // 45-degree tilt
+    // Outer frame (4 bars)
+    this.addRectFrame(group, width, height, depth, ft, frameMat);
 
-    // Frame (rectangular, will be tilted)
-    const frameGroup = new Group();
-    this.addRectFrame(frameGroup, width, height * 0.7, depth, ft, frameMat);
+    // Single panel hinged at top, opening outward from the bottom
+    const panelWidth = width - ft * 2;
+    const panelHeight = height - ft * 2;
+    const panelFt = 0.03;
+    const glassThickness = 0.01;
+
+    const awningPanel = new Group();
+    awningPanel.name = 'awning_panel';
+
+    // Panel frame bars
+    this.addPanelFrame(awningPanel, panelWidth, panelHeight, panelFt, depth * 0.6, frameMat);
 
     // Glass pane
     const glass = new Mesh(
-      new BoxGeometry(width - ft * 2, height * 0.7 - ft * 2, 0.01),
+      new BoxGeometry(panelWidth - panelFt * 2, panelHeight - panelFt * 2, glassThickness),
       glassMat
     );
-    frameGroup.add(glass);
+    awningPanel.add(glass);
 
-    // Curb/frame border (raised edges around the skylight)
-    const curbMat = new MeshStandardMaterial({ color: 0x666666, roughness: 0.6, metalness: 0.3 });
-    const curbHeight = 0.1;
-    const curbDepth = 0.08;
-    // Front curb
-    const frontCurb = new Mesh(new BoxGeometry(width + 0.1, curbHeight, curbDepth), curbMat);
-    frontCurb.position.set(0, -height * 0.35 - curbHeight / 2, depth / 2);
-    frameGroup.add(frontCurb);
-    // Back curb
-    const backCurb = new Mesh(new BoxGeometry(width + 0.1, curbHeight, curbDepth), curbMat);
-    backCurb.position.set(0, height * 0.35 + curbHeight / 2, depth / 2);
-    frameGroup.add(backCurb);
-    // Left curb
-    const leftCurb = new Mesh(new BoxGeometry(curbDepth, curbHeight, depth + 0.05), curbMat);
-    leftCurb.position.set(-width / 2 - curbDepth / 2, 0, depth / 2);
-    frameGroup.add(leftCurb);
-    // Right curb
-    const rightCurb = new Mesh(new BoxGeometry(curbDepth, curbHeight, depth + 0.05), curbMat);
-    rightCurb.position.set(width / 2 + curbDepth / 2, 0, depth / 2);
-    frameGroup.add(rightCurb);
+    // Hinge at the top edge — position at top of frame and tilt outward
+    awningPanel.position.set(0, height / 2 - ft, 0);
+    // Pivot from the top edge: rotate around X axis at the top
+    // The panel rotates outward from the bottom
+    awningPanel.rotation.x = 0.2; // pushes bottom outward
 
-    // Apply tilt rotation on X axis
-    frameGroup.rotation.x = -tiltAngle;
-    group.add(frameGroup);
+    group.add(awningPanel);
+
+    // Hinge hardware at top (two small cylinders)
+    const hingeMat = new MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+    for (const xOff of [-width / 2 + ft + 0.04, width / 2 - ft - 0.04]) {
+      const hingeGeo = new CylinderGeometry(0.012, 0.012, 0.04, 8);
+      const hinge = new Mesh(hingeGeo, hingeMat);
+      hinge.rotation.z = Math.PI / 2;
+      hinge.position.set(xOff, height / 2 - ft / 2, depth / 2 + 0.02);
+      group.add(hinge);
+    }
+
+    // Crank handle at bottom center
+    const crankGeo = new CylinderGeometry(0.012, 0.012, 0.06, 8);
+    const crank = new Mesh(crankGeo, hingeMat);
+    crank.rotation.x = Math.PI / 2;
+    crank.position.set(0, -height / 2 + ft + 0.05, depth / 2 + 0.03);
+    group.add(crank);
   }
 
-  // ===== ARCHED: Semi-circular arch at top of frame =====
-  private createArchedWindow(group: Group, params: WindowParams): void {
+  // ===== PICTURE: Large fixed pane with minimal frame =====
+  private createPictureWindow(group: Group, params: WindowParams): void {
     const frameMat = this.getFrameMaterial(params);
     const glassMat = this.getGlassMaterial(params);
-    const ft = 0.06;
+    const ft = 0.04; // thinner frame than other types — picture windows have minimal framing
     const { width, height, depth } = params;
 
-    // Rectangular frame for bottom portion
-    const rectHeight = height * 0.6; // bottom 60% is rectangular
-    this.addRectFrame(group, width, rectHeight, depth, ft, frameMat);
+    // Outer frame (4 thin bars)
+    this.addRectFrame(group, width, height, depth, ft, frameMat);
 
-    // Bottom glass (rectangular portion)
-    const bottomGlass = new Mesh(
-      new BoxGeometry(width - ft * 2, rectHeight - ft * 2, 0.01),
+    // Single large fixed glass pane — no mullions, no sashes
+    const glassWidth = width - ft * 2;
+    const glassHeight = height - ft * 2;
+    const glassThickness = 0.012; // thicker glass for large pane
+    const glass = new Mesh(
+      new BoxGeometry(glassWidth, glassHeight, glassThickness),
       glassMat
     );
-    bottomGlass.position.set(0, 0, 0);
-    group.add(bottomGlass);
+    glass.position.set(0, 0, 0);
+    glass.name = 'picture_glass';
+    group.add(glass);
 
-    // Arched top portion
-    const archHeight = height - rectHeight;
-    const archRadius = width / 2;
-    const archCenter = rectHeight / 2;
-    const archSegments = 16;
-
-    // Arch frame pieces (curved top)
-    const archFramePieces: Mesh[] = [];
-    for (let i = 0; i <= archSegments; i++) {
-      const angle = Math.PI * (i / archSegments); // 0 to PI (semicircle)
-      const x = archRadius * Math.cos(angle) * (1 - ft / archRadius);
-      const y = archCenter + archRadius * Math.sin(angle);
-
-      if (i > 0) {
-        const prevAngle = Math.PI * ((i - 1) / archSegments);
-        const px = archRadius * Math.cos(prevAngle) * (1 - ft / archRadius);
-        const py = archCenter + archRadius * Math.sin(prevAngle);
-        const segLen = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
-        const segAngle = Math.atan2(y - py, x - px);
-        const segGeo = new BoxGeometry(segLen, ft, depth);
-        const seg = new Mesh(segGeo, frameMat);
-        seg.position.set((x + px) / 2, (y + py) / 2, 0);
-        seg.rotation.z = segAngle;
-        seg.castShadow = true;
-        archFramePieces.push(seg);
-      }
-    }
-    archFramePieces.forEach(m => group.add(m));
-
-    // Side frame bars going up to arch
-    const leftSideGeo = new BoxGeometry(ft, archHeight, depth);
-    const leftSide = new Mesh(leftSideGeo, frameMat);
-    leftSide.position.set(-width / 2 + ft / 2, rectHeight / 2 + archHeight / 2, 0);
-    leftSide.castShadow = true;
-    group.add(leftSide);
-
-    const rightSide = new Mesh(leftSideGeo.clone(), frameMat);
-    rightSide.position.set(width / 2 - ft / 2, rectHeight / 2 + archHeight / 2, 0);
-    rightSide.castShadow = true;
-    group.add(rightSide);
-
-    // Arched glass (approximated with a circle segment using custom geometry)
-    const archGlassGeo = new BufferGeometry();
-    const archGlassVerts: number[] = [];
-    const archGlassNorms: number[] = [];
-    const archGlassUvs: number[] = [];
-
-    // Center point of arch
-    const cx = 0;
-    const cy = archCenter;
-
-    for (let i = 0; i < archSegments; i++) {
-      const a1 = Math.PI * (i / archSegments);
-      const a2 = Math.PI * ((i + 1) / archSegments);
-      const innerR = ft + 0.02;
-      const outerR = archRadius - ft - 0.02;
-
-      // Triangle 1
-      archGlassVerts.push(cx, cy, 0);
-      archGlassNorms.push(0, 0, 1);
-      archGlassUvs.push(0.5, 0.5);
-
-      archGlassVerts.push(cx + innerR * Math.cos(a2), cy + innerR * Math.sin(a2), 0);
-      archGlassNorms.push(0, 0, 1);
-      archGlassUvs.push(0.5 + 0.5 * Math.cos(a2), 0.5 + 0.5 * Math.sin(a2));
-
-      archGlassVerts.push(cx + outerR * Math.cos(a1), cy + outerR * Math.sin(a1), 0);
-      archGlassNorms.push(0, 0, 1);
-      archGlassUvs.push(0.5 + 0.5 * Math.cos(a1), 0.5 + 0.5 * Math.sin(a1));
-
-      // Triangle 2
-      archGlassVerts.push(cx + outerR * Math.cos(a1), cy + outerR * Math.sin(a1), 0);
-      archGlassNorms.push(0, 0, 1);
-      archGlassUvs.push(0.5 + 0.5 * Math.cos(a1), 0.5 + 0.5 * Math.sin(a1));
-
-      archGlassVerts.push(cx + innerR * Math.cos(a2), cy + innerR * Math.sin(a2), 0);
-      archGlassNorms.push(0, 0, 1);
-      archGlassUvs.push(0.5 + 0.5 * Math.cos(a2), 0.5 + 0.5 * Math.sin(a2));
-
-      archGlassVerts.push(cx + outerR * Math.cos(a2), cy + outerR * Math.sin(a2), 0);
-      archGlassNorms.push(0, 0, 1);
-      archGlassUvs.push(0.5 + 0.5 * Math.cos(a2), 0.5 + 0.5 * Math.sin(a2));
-    }
-
-    archGlassGeo.setAttribute('position', new Float32BufferAttribute(archGlassVerts, 3));
-    archGlassGeo.setAttribute('normal', new Float32BufferAttribute(archGlassNorms, 3));
-    archGlassGeo.setAttribute('uv', new Float32BufferAttribute(archGlassUvs, 2));
-
-    const archGlass = new Mesh(archGlassGeo, glassMat);
-    archGlass.name = 'arch_glass';
-    group.add(archGlass);
-
-    // Decorative keystone at top
-    const keystoneGeo = new BoxGeometry(0.1, 0.12, depth * 0.5);
-    const keystone = new Mesh(keystoneGeo, frameMat);
-    keystone.position.set(0, archCenter + archRadius - ft / 2, 0);
-    keystone.name = 'keystone';
-    group.add(keystone);
+    // Glazing bead around the edge (thin strips holding glass in frame)
+    const beadMat = new MeshStandardMaterial({
+      color: this.getFrameColor(params),
+      roughness: 0.6,
+    });
+    const beadThickness = 0.01;
+    const beadDepth = 0.015;
+    // Top bead
+    const topBead = new Mesh(new BoxGeometry(glassWidth, beadThickness, beadDepth), beadMat);
+    topBead.position.set(0, glassHeight / 2 - beadThickness / 2, depth / 2 - beadDepth / 2);
+    group.add(topBead);
+    // Bottom bead
+    const botBead = new Mesh(new BoxGeometry(glassWidth, beadThickness, beadDepth), beadMat);
+    botBead.position.set(0, -glassHeight / 2 + beadThickness / 2, depth / 2 - beadDepth / 2);
+    group.add(botBead);
+    // Left bead
+    const leftBead = new Mesh(new BoxGeometry(beadThickness, glassHeight, beadDepth), beadMat);
+    leftBead.position.set(-glassWidth / 2 + beadThickness / 2, 0, depth / 2 - beadDepth / 2);
+    group.add(leftBead);
+    // Right bead
+    const rightBead = new Mesh(new BoxGeometry(beadThickness, glassHeight, beadDepth), beadMat);
+    rightBead.position.set(glassWidth / 2 - beadThickness / 2, 0, depth / 2 - beadDepth / 2);
+    group.add(rightBead);
   }
 
   // ===== Helper: Add rectangular frame (4 bars) =====

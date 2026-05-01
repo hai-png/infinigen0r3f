@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * CurtainGenerator - Procedural curtain generation with various styles
  * Generates drapes, sheers, valances, and different curtain types
@@ -37,6 +38,7 @@ export interface CurtainConfig {
 }
 
 export class CurtainGenerator extends BaseObjectGenerator<CurtainConfig> {
+  private _rng = new SeededRandom(42);
   protected readonly defaultParams: CurtainConfig = {
     style: 'drapes',
     materialType: 'cotton',
@@ -346,12 +348,12 @@ export class CurtainGenerator extends BaseObjectGenerator<CurtainConfig> {
         style: styles[i],
         materialType: materials[i % materials.length],
         pattern: patterns[i % patterns.length],
-        width: 1.5 + Math.random() * 2.0,
-        height: 2.0 + Math.random() * 1.0,
-        folds: 8 + Math.floor(Math.random() * 12),
-        hasValance: Math.random() > 0.7,
-        hasTieback: Math.random() > 0.5,
-        seed: Math.floor(Math.random() * 10000)
+        width: 1.5 + this._rng.next() * 2.0,
+        height: 2.0 + this._rng.next() * 1.0,
+        folds: 8 + Math.floor(this._rng.next() * 12),
+        hasValance: this._rng.next() > 0.7,
+        hasTieback: this._rng.next() > 0.5,
+        seed: Math.floor(this._rng.next() * 10000)
       };
       
       const mergedConfig = baseConfig ? { ...config, ...baseConfig } : config;

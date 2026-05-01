@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 // ============================================================================
 // Type Definitions
@@ -51,6 +52,7 @@ export class PebbleGenerator {
   private config: PebbleConfig;
   private noise: NoiseUtils;
   private baseGeometry: THREE.BufferGeometry;
+  private rng: SeededRandom;
   
   constructor(config: Partial<PebbleConfig> = {}) {
     this.config = {
@@ -69,10 +71,11 @@ export class PebbleGenerator {
       roughness: 0.8,
       metalness: 0.1,
       spread: 1,
-      seed: Math.random() * 10000,
+      seed: 42,
       ...config
     };
     
+    this.rng = new SeededRandom(this.config.seed);
     this.noise = new NoiseUtils(this.config.seed);
     this.baseGeometry = this.createBasePebbleGeometry();
   }
@@ -132,24 +135,24 @@ export class PebbleGenerator {
     
     for (let i = 0; i < this.config.count; i++) {
       // Random position within spread
-      const x = (Math.random() - 0.5) * this.config.spread;
-      const z = (Math.random() - 0.5) * this.config.spread;
+      const x = (this.rng.next() - 0.5) * this.config.spread;
+      const z = (this.rng.next() - 0.5) * this.config.spread;
       const y = 0;
       
       // Random rotation
-      const rx = Math.random() * Math.PI;
-      const ry = Math.random() * Math.PI * 2;
-      const rz = Math.random() * Math.PI;
+      const rx = this.rng.next() * Math.PI;
+      const ry = this.rng.next() * Math.PI * 2;
+      const rz = this.rng.next() * Math.PI;
       
       // Random scale
       const scale = THREE.MathUtils.lerp(
         this.config.sizeMin,
         this.config.sizeMax,
-        Math.random()
+        this.rng.next()
       );
       
       // Select random color
-      const colorIndex = Math.floor(Math.random() * this.config.colors.length);
+      const colorIndex = this.rng.nextInt(0, this.config.colors.length - 1);
       color.copy(this.config.colors[colorIndex]);
       
       // Set transform
@@ -175,20 +178,20 @@ export class PebbleGenerator {
     const instances: PebbleInstance[] = [];
     
     for (let i = 0; i < this.config.count; i++) {
-      const x = (Math.random() - 0.5) * this.config.spread;
-      const z = (Math.random() - 0.5) * this.config.spread;
+      const x = (this.rng.next() - 0.5) * this.config.spread;
+      const z = (this.rng.next() - 0.5) * this.config.spread;
       
-      const rx = Math.random() * Math.PI;
-      const ry = Math.random() * Math.PI * 2;
-      const rz = Math.random() * Math.PI;
+      const rx = this.rng.next() * Math.PI;
+      const ry = this.rng.next() * Math.PI * 2;
+      const rz = this.rng.next() * Math.PI;
       
       const scale = THREE.MathUtils.lerp(
         this.config.sizeMin,
         this.config.sizeMax,
-        Math.random()
+        this.rng.next()
       );
       
-      const colorIndex = Math.floor(Math.random() * this.config.colors.length);
+      const colorIndex = this.rng.nextInt(0, this.config.colors.length - 1);
       
       instances.push({
         position: new THREE.Vector3(x, 0, z),
@@ -206,6 +209,7 @@ export class PebbleGenerator {
    */
   setConfig(config: Partial<PebbleConfig>): void {
     this.config = { ...this.config, ...config };
+    this.rng = new SeededRandom(this.config.seed);
     this.noise = new NoiseUtils(this.config.seed);
     this.baseGeometry.dispose();
     this.baseGeometry = this.createBasePebbleGeometry();

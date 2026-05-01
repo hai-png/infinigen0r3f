@@ -7,6 +7,7 @@
 
 import { Group, BoxGeometry, CylinderGeometry, TorusGeometry, Mesh } from 'three';
 import { ApplianceBase, ApplianceParams } from './ApplianceBase';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 export interface KitchenApplianceParams extends ApplianceParams {
   applianceType: 'refrigerator' | 'stove' | 'dishwasher' | 'microwave';
@@ -89,7 +90,7 @@ export class KitchenAppliances extends ApplianceBase<KitchenApplianceParams> {
       group.add(rightDoor);
 
       // Bottom freezer drawer if French door
-      if (Math.random() > 0.5) {
+      if (this.rng.boolean(0.5)) {
         const drawer = this.createDrawer(params, width, height * 0.4);
         drawer.position.y = -height * 0.3;
         group.add(drawer);
@@ -530,20 +531,20 @@ export class KitchenAppliances extends ApplianceBase<KitchenApplianceParams> {
     const capacities = ['compact', 'standard', 'large'] as const;
     const fuelTypes = ['electric', 'gas'] as const;
     
-    const applianceType = types[Math.floor(Math.random() * types.length)];
+    const applianceType = this.rng.choice(types);
     
     let burnerCount: 4 | 5 | 6 = 4;
     if (applianceType === 'stove') {
-      burnerCount = (this.seededRandom() > 0.7 ? 6 : this.seededRandom() > 0.4 ? 5 : 4) as 4 | 5 | 6;
+      burnerCount = (this.rng.next() > 0.7 ? 6 : this.rng.next() > 0.4 ? 5 : 4) as 4 | 5 | 6;
     }
 
     return {
       ...super.getRandomParams(),
       applianceType,
-      capacity: capacities[Math.floor(Math.random() * capacities.length)],
-      fuelType: fuelTypes[Math.floor(Math.random() * fuelTypes.length)],
-      hasIceMaker: applianceType === 'refrigerator' && Math.random() > 0.5,
-      hasConvection: applianceType === 'stove' && Math.random() > 0.4,
+      capacity: this.rng.choice(capacities),
+      fuelType: this.rng.choice(fuelTypes),
+      hasIceMaker: applianceType === 'refrigerator' && this.rng.boolean(0.5),
+      hasConvection: applianceType === 'stove' && this.rng.boolean(0.6),
       burnerCount,
     };
   }

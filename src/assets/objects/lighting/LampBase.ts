@@ -454,14 +454,14 @@ export abstract class LampBase extends BaseObjectGenerator<LampParams> {
     const switchTypes = ['pull-chain', 'inline', 'base', 'touch'] as const;
 
     return {
-      style: styles[Math.floor(Math.random() * styles.length)],
-      baseMaterial: baseMaterials[Math.floor(Math.random() * baseMaterials.length)],
-      shadeMaterial: shadeMaterials[Math.floor(Math.random() * shadeMaterials.length)],
-      shadeShape: shadeShapes[Math.floor(Math.random() * shadeShapes.length)],
-      bulbType: bulbTypes[Math.floor(Math.random() * bulbTypes.length)],
-      hasDimmer: Math.random() > 0.7,
-      cordLength: 1.5 + Math.random(),
-      switchType: switchTypes[Math.floor(Math.random() * switchTypes.length)],
+      style: this.rng.choice(styles),
+      baseMaterial: this.rng.choice(baseMaterials),
+      shadeMaterial: this.rng.choice(shadeMaterials),
+      shadeShape: this.rng.choice(shadeShapes),
+      bulbType: this.rng.choice(bulbTypes),
+      hasDimmer: this.rng.boolean(0.3),
+      cordLength: this.rng.nextFloat(1.5, 2.5),
+      switchType: this.rng.choice(switchTypes),
     };
   }
 }

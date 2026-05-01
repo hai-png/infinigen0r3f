@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -29,6 +30,7 @@ export interface UrchinConfig {
  * Generates procedural sea urchin meshes with detailed spines
  */
 export class UrchinGenerator {
+  private static _rng = new SeededRandom(42);
   private static materialCache = new Map<string, THREE.MeshStandardMaterial>();
   private static spineGeometryCache = new Map<string, THREE.BufferGeometry>();
 
@@ -63,7 +65,7 @@ export class UrchinGenerator {
       spine.rotateX(Math.PI / 2);
       
       // Random rotation around axis for variation
-      spine.rotation.z = Math.random() * Math.PI * 2;
+      spine.rotation.z = UrchinGenerator._rng.next() * Math.PI * 2;
       
       group.add(spine);
     }
@@ -327,16 +329,16 @@ export class UrchinGenerator {
       
       // Random position
       urchin.position.set(
-        (Math.random() - 0.5) * area.width,
+        (UrchinGenerator._rng.next() - 0.5) * area.width,
         config.bodySize * 0.5,
-        (Math.random() - 0.5) * area.depth
+        (UrchinGenerator._rng.next() - 0.5) * area.depth
       );
       
       // Random rotation
-      urchin.rotation.y = Math.random() * Math.PI * 2;
+      urchin.rotation.y = UrchinGenerator._rng.next() * Math.PI * 2;
       
       // Slight size variation
-      const scale = 0.85 + Math.random() * 0.3;
+      const scale = 0.85 + UrchinGenerator._rng.next() * 0.3;
       urchin.scale.set(scale, scale, scale);
       
       group.add(urchin);

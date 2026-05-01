@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * MammalGenerator - Procedural mammal generation
  * Generates various mammals with fur, body proportions, and limb structures
@@ -20,10 +21,11 @@ export interface MammalParameters extends CreatureParams {
 export type MammalSpecies = 'dog' | 'cat' | 'deer' | 'bear' | 'rabbit' | 'fox' | 'elephant' | 'giraffe';
 
 export class MammalGenerator extends CreatureBase {
+  private _rng = new SeededRandom(42);
   private _seed: number = 0;
 
   constructor(seed?: number) {
-    super({ seed: seed || Math.random() * 10000 });
+    super({ seed: seed || 42 });
     this._seed = this.params.seed;
   }
 

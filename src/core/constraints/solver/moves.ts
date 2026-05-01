@@ -22,6 +22,7 @@ import { Vector3 } from '../../util/math/index';
 import { State, ObjectState } from '../evaluator/state';
 import { Problem } from '../language/constants';
 import { Semantics, TagSet, Tag } from '../tags/index';
+import { SeededRandom } from '../../util/MathUtils';
 
 // Re-export the canonical SA solver for backward compatibility
 export { SimulatedAnnealingSolver } from './sa-solver';
@@ -473,6 +474,7 @@ export class GreedySolver extends Solver {
   private currentScore: number;
   private bestScore: number;
   private bestState: State;
+  private rng: SeededRandom;
   
   constructor(
     problem: Problem,
@@ -488,6 +490,7 @@ export class GreedySolver extends Solver {
       ...config
     };
     
+    this.rng = new SeededRandom(42);
     this.currentScore = 0;
     this.bestScore = Infinity;
     this.bestState = initialState;
@@ -555,21 +558,21 @@ export class GreedySolver extends Solver {
     const objects = Array.from(state.objects.values());
     
     for (let i = 0; i < count && objects.length > 0; i++) {
-      const obj = objects[Math.floor(Math.random() * objects.length)];
-      const moveType = Math.random();
+      const obj = objects[this.rng.nextInt(0, objects.length - 1)];
+      const moveType = this.rng.next();
       
       if (moveType < 0.5) {
         const translation = new Vector3(
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5
+          (this.rng.next() - 0.5) * 0.5,
+          (this.rng.next() - 0.5) * 0.5,
+          (this.rng.next() - 0.5) * 0.5
         );
         moves.push(new TranslateMove(obj.name, translation, this.currentScore));
       } else {
         const rotation = new Vector3(
-          (Math.random() - 0.5) * 0.3,
-          (Math.random() - 0.5) * 0.3,
-          (Math.random() - 0.5) * 0.3
+          (this.rng.next() - 0.5) * 0.3,
+          (this.rng.next() - 0.5) * 0.3,
+          (this.rng.next() - 0.5) * 0.3
         );
         moves.push(new RotateMove(obj.name, rotation, this.currentScore));
       }

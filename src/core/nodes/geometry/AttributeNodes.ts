@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { Vector3, Color, BufferAttribute } from 'three';
 import type { NodeDefinition, NodeSocket, GeometryType } from '../core/types';
 import { SocketType, GeometryDataType } from '../core/socket-types';
+import { SeededRandom } from '../../util/MathUtils';
 
 // ============================================================================
 // Type Definitions
@@ -900,10 +901,11 @@ export function executeSampleUVSurface(node: SampleUVSurfaceNode, geometry: THRE
     return { positions: [], uvs: [] };
   }
   
-  // Simple random sampling
+  // Seeded random sampling
   const count = posAttr.count;
+  const rng = new SeededRandom(seed ?? 42);
   for (let i = 0; i < sampleCount; i++) {
-    const index = Math.floor(Math.random() * count);
+    const index = rng.nextInt(0, count - 1);
     
     const px = posAttr.getX(index);
     const py = posAttr.getY(index);

@@ -3,11 +3,15 @@
  * 
  * Integrates constraint evaluation, domain reasoning, and proposal strategies
  * into a complete solving pipeline.
+ * 
+ * FIX: Implemented evaluateAll() method so energy is computed correctly via
+ * constraint violation counting instead of always returning 0.
  */
 
 import { ConstraintSystem } from '../language/constraint-system';
 import { Variable, Domain } from '../language/types';
-import { evaluateNode, violCount } from '../evaluator/evaluate';
+import { evaluateNode, violCount, evaluateProblem } from '../evaluator/evaluate';
+import { State as EvaluatorState } from '../evaluator/state';
 import { 
   ContinuousProposalGenerator as ContinuousProposer, 
   DiscreteProposalGenerator as DiscreteProposer,
@@ -16,6 +20,7 @@ import {
 import { SimulatedAnnealingSolver } from './sa-solver';
 import { bridge } from './bridge';
 import { SolverState, Proposal } from './types';
+import { SeededRandom } from '../../util/MathUtils';
 
 export interface SolverConfig {
   maxIterations: number;
@@ -24,6 +29,7 @@ export interface SolverConfig {
   minTemperature: number;
   useHybridBridge: boolean;
   enableDomainReasoning: boolean;
+  seed?: number;
 }
 
 export class FullSolverLoop {
@@ -34,6 +40,13 @@ export class FullSolverLoop {
   private saSolver: SimulatedAnnealingSolver;
   private config: SolverConfig;
   private state: SolverState | null = null;
+  private rng: SeededRandom;
+  /**
+   * Evaluator state for constraint evaluation.
+   * Must be set externally via setEvaluatorState() before solving,
+   * otherwise evaluateAll() falls back to domain-containment checks.
+   */
+  private evaluatorState: EvaluatorState | null = null;
 
   constructor(config: Partial<SolverConfig> = {}) {
     this.config = {
@@ -43,8 +56,10 @@ export class FullSolverLoop {
       minTemperature: config.minTemperature ?? 0.1,
       useHybridBridge: config.useHybridBridge ?? false,
       enableDomainReasoning: config.enableDomainReasoning ?? true,
+      seed: config.seed,
     };
 
+    this.rng = new SeededRandom(this.config.seed ?? 42);
     this.constraintSystem = new ConstraintSystem();
     this.continuousProposer = new ContinuousProposer();
     this.discreteProposer = new DiscreteProposer();
@@ -64,6 +79,63 @@ export class FullSolverLoop {
    */
   addVariable(variable: Variable, domain: Domain): void {
     this.constraintSystem.addVariable(variable.name, domain);
+  }
+
+  /**
+   * Set the evaluator state used by evaluateAll() for constraint evaluation.
+   * This must be set before calling solve() if you want full constraint evaluation.
+   * Without it, evaluateAll() falls back to domain-containment checks.
+   */
+  setEvaluatorState(state: EvaluatorState): void {
+    this.evaluatorState = state;
+  }
+
+  /**
+   * Evaluate all constraints and return total energy (constraint violation count).
+   *
+   * Previously this was broken: the code read `(this.state as any)?.state` which
+   * was always undefined (SolverState has no `state` field), causing energy to
+   * always be 0 in the primary path.
+   *
+   * FIX: Now uses `this.evaluatorState` which is set via `setEvaluatorState()`.
+   * If no evaluator state is available, falls back to domain-containment checks.
+   */
+  evaluateAll(): number {
+    const problem = this.constraintSystem.buildProblem();
+
+    // Primary path: use evaluator State + violCount for accurate energy
+    if (this.evaluatorState && problem.constraints.size > 0) {
+      try {
+        const memo = new Map<any, any>();
+        let totalViolation = 0;
+
+        for (const constraint of problem.constraints.values()) {
+          try {
+            totalViolation += violCount(constraint as any, this.evaluatorState, memo);
+          } catch {
+            // If a constraint can't be evaluated, count it as a violation
+            totalViolation += 1;
+          }
+        }
+
+        return totalViolation;
+      } catch {
+        // Fall through to fallback
+      }
+    }
+
+    // Fallback: domain-containment check for each assigned variable
+    let energy = 0;
+    const variables = this.constraintSystem.getVariables();
+    for (const [id, v] of variables) {
+      if (v.value !== undefined) {
+        const domain = this.constraintSystem.getDomain(id);
+        if (domain && typeof domain.contains === 'function' && !domain.contains(v.value)) {
+          energy += 1;
+        }
+      }
+    }
+    return energy;
   }
 
   /**
@@ -91,6 +163,9 @@ export class FullSolverLoop {
 
     // Initialize state
     this.state = this.saSolver.initialize(this.constraintSystem);
+
+    // Compute initial energy using evaluateAll() instead of assuming 0
+    this.state.energy = this.evaluateAll();
 
     let iteration = 0;
     let temperature = this.config.initialTemperature;
@@ -181,7 +256,7 @@ export class FullSolverLoop {
     }
 
     // Select random variable
-    const selected = unassignedVars[Math.floor(Math.random() * unassignedVars.length)];
+    const selected = unassignedVars[this.rng.nextInt(0, unassignedVars.length - 1)];
     const domain = this.constraintSystem.getDomain(selected.id);
 
     if (!domain) {
@@ -197,7 +272,7 @@ export class FullSolverLoop {
   }
 
   /**
-   * Evaluate energy change from proposal
+   * Evaluate energy change from proposal using evaluateAll()
    */
   private evaluateProposal(proposal: Proposal): number {
     // Temporarily apply proposal
@@ -208,42 +283,15 @@ export class FullSolverLoop {
       variable.value = proposal.newValue;
     }
 
-    // Calculate total constraint violation (energy) by summing all constraint violations
-    let newEnergy = 0;
-    const problem = this.constraintSystem.buildProblem();
-    const memo = new Map<any, any>();
-    const state = (this.state as any)?.state;
-    
-    if (problem && state) {
-      // Use the proper violation counting from the evaluator
-      for (const constraint of problem.constraints.values()) {
-        try {
-          newEnergy += violCount(constraint as any, state, memo);
-        } catch {
-          // If a constraint can't be evaluated, count it as a violation
-          newEnergy += 1;
-        }
-      }
-    } else {
-      // Fallback: compute a simple energy based on variable assignment violations
-      // Sum squared distance from domain constraints for each assigned variable
-      const variables = this.constraintSystem.getVariables();
-      for (const [id, v] of variables) {
-        if (v.value !== undefined) {
-          const domain = this.constraintSystem.getDomain(id);
-          if (domain && !domain.contains(v.value)) {
-            newEnergy += 1; // Variable outside its domain
-          }
-        }
-      }
-    }
-    
+    // Calculate new energy using evaluateAll()
+    const newEnergy = this.evaluateAll();
+
     // Restore old value
     if (variable && oldValue !== undefined) {
       variable.value = oldValue;
     }
 
-    // Calculate old energy (cached or recalculated)
+    // Calculate old energy (cached from state)
     const oldEnergy = this.state?.energy ?? 0;
 
     return newEnergy - oldEnergy;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 /**
  * Leaf litter types for seasonal ground cover
@@ -31,6 +32,7 @@ export interface LeafLitterConfig {
   windDirection?: THREE.Vector3;
   clusterSize?: number;      // average cluster size
   layerDepth?: number;       // stacking depth
+  seed?: number;             // seed for deterministic generation
 }
 
 /**
@@ -78,6 +80,7 @@ export class LeafLitterGenerator {
    * Generate leaf litter mesh with instanced rendering
    */
   static generate(config: LeafLitterConfig): THREE.InstancedMesh {
+    const rng = new SeededRandom(config.seed ?? 42);
     const leafCount = Math.floor(config.density * config.area.x * config.area.y);
     const geometry = this.createLeafGeometry(config.leafType);
     const material = new THREE.MeshStandardMaterial({
@@ -92,36 +95,36 @@ export class LeafLitterGenerator {
     const colors = LeafLitterGenerator.COLORS[config.decompositionState];
 
     for (let i = 0; i < leafCount; i++) {
-      const x = (Math.random() - 0.5) * config.area.x;
-      const z = (Math.random() - 0.5) * config.area.y;
+      const x = (rng.next() - 0.5) * config.area.x;
+      const z = (rng.next() - 0.5) * config.area.y;
       const y = this.calculateHeight(x, z, config.area);
 
       dummy.position.set(x, y, z);
 
       // Random rotation with slight bias from wind
-      let rotationY = Math.random() * Math.PI * 2;
+      let rotationY = rng.next() * Math.PI * 2;
       if (config.windDirection) {
         const windInfluence = Math.atan2(config.windDirection.z, config.windDirection.x);
         rotationY = THREE.MathUtils.lerp(rotationY, windInfluence, 0.3);
       }
       dummy.rotation.set(
-        (Math.random() - 0.5) * 0.3,
+        (rng.next() - 0.5) * 0.3,
         rotationY,
-        (Math.random() - 0.5) * 0.3
+        (rng.next() - 0.5) * 0.3
       );
 
       // Scale variation
-      const scale = 0.8 + Math.random() * 0.4;
+      const scale = rng.nextFloat(0.8, 1.2);
       dummy.scale.set(scale, scale, scale);
 
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
 
       // Color variation based on decomposition
-      const colorIndex = Math.floor(Math.random() * colors.length);
+      const colorIndex = rng.nextInt(0, colors.length - 1);
       const color = colors[colorIndex].clone();
       if (config.colorVariation) {
-        color.offsetHSL(0, 0, (Math.random() - 0.5) * 0.1);
+        color.offsetHSL(0, 0, (rng.next() - 0.5) * 0.1);
       }
       mesh.setColorAt(i, color);
     }
@@ -196,6 +199,7 @@ export class LeafLitterGenerator {
    * Generate clustered leaf piles
    */
   static generateClusters(config: LeafLitterConfig, clusterCount: number): THREE.Group {
+    const rng = new SeededRandom((config.seed ?? 42) + 1);
     const group = new THREE.Group();
     const clusterSize = config.clusterSize || 50;
 
@@ -209,8 +213,8 @@ export class LeafLitterGenerator {
       const cluster = this.generate(clusterConfig);
       
       // Position cluster
-      const x = (Math.random() - 0.5) * config.area.x * 0.8;
-      const z = (Math.random() - 0.5) * config.area.y * 0.8;
+      const x = (rng.next() - 0.5) * config.area.x * 0.8;
+      const z = (rng.next() - 0.5) * config.area.y * 0.8;
       cluster.position.set(x, 0, z);
       
       group.add(cluster);

@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -20,6 +21,7 @@ export interface MosaicMaterialConfig {
  * Procedural mosaic material generator for decorative floors and walls
  */
 export class MosaicMaterial {
+  private static _rng = new SeededRandom(42);
   private static readonly DEFAULT_CONFIG: MosaicMaterialConfig = {
     tileColors: [
       new THREE.Color(0xffffff),
@@ -135,7 +137,7 @@ export class MosaicMaterial {
             
           case 'random':
           default:
-            tileColor = config.tileColors[Math.floor(Math.random() * config.tileColors.length)];
+            tileColor = config.tileColors[MosaicMaterial._rng.nextInt(0, config.tileColors.length - 1)];
             break;
         }
 

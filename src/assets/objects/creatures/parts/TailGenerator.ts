@@ -3,6 +3,7 @@
  * Supports types: straight, curled, bushy, paddle, segmented, prehensile, scorpion
  */
 import * as THREE from 'three';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 export type TailType = 'straight' | 'curled' | 'bushy' | 'paddle' | 'segmented' | 'prehensile' | 'scorpion';
 
@@ -19,9 +20,11 @@ export interface TailConfig {
 
 export class TailGenerator {
   private seed: number;
+  private rng: SeededRandom;
 
   constructor(seed?: number) {
     this.seed = seed ?? 42;
+    this.rng = new SeededRandom(this.seed);
   }
 
   generate(type: string | TailType, length: number): THREE.Mesh;
@@ -177,7 +180,7 @@ export class TailGenerator {
         length * 0.35 + Math.sin(angle) * baseRadius * 0.3,
         -length * 0.55
       );
-      tuft.rotation.x = Math.PI + (Math.random() - 0.5) * 0.3;
+      tuft.rotation.x = Math.PI + (this.rng.next() - 0.5) * 0.3;
       tuft.rotation.z = angle * 0.2;
       tuft.name = `tuft_${i}`;
       group.add(tuft);

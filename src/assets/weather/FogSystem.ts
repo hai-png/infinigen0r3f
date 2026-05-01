@@ -26,7 +26,7 @@ export class FogSystem {
   private params: FogParams;
   private rng: SeededRandom;
   private fogMesh: THREE.Mesh | null = null;
-  private noiseTexture: THREE.DataTexture | null = null;
+  private noiseTexture: THREE.Data3DTexture | null = null;
   private timeUniform: THREE.IUniform<number>;
   private densityUniform: THREE.IUniform<number>;
   private heightUniform: THREE.IUniform<number>;
@@ -106,28 +106,16 @@ export class FogSystem {
         uniform float windSpeed;
         uniform float noiseScale;
         uniform float turbulence;
-        uniform sampler2D noiseTexture;
-        
-        // Simple 2D noise function using sampler2D
-        // Simulates 3D sampling by slicing at the Y coordinate
-        float noise(vec3 p) {
-          // Use XZ for primary UV, Y to blend between two slices
-          vec2 uv1 = fract(p.xz + floor(p.y) * 0.37);
-          vec2 uv2 = fract(p.xz + (floor(p.y) + 1.0) * 0.37);
-          float blend = fract(p.y);
-          float s1 = texture(noiseTexture, uv1).r;
-          float s2 = texture(noiseTexture, uv2).r;
-          return mix(s1, s2, blend);
-        }
+        uniform sampler3D noiseTexture;
         
         void main() {
           // Animate noise with wind
           vec3 noiseCoord = vWorldPosition * noiseScale;
           noiseCoord.xz += windDirection.xz * windSpeed * time * 0.1;
           
-          // Sample noise for density variation
-          float n = noise(noiseCoord);
-          n += turbulence * noise(noiseCoord * 2.0 + time * 0.2);
+          // Sample 3D noise texture for density variation
+          float n = texture(noiseTexture, noiseCoord * 0.1).r;
+          n += turbulence * texture(noiseTexture, (noiseCoord * 2.0 + time * 0.2) * 0.1).r;
           
           // Height-based falloff
           float heightFactor = smoothstep(1.0, 0.0, vHeight);
@@ -160,23 +148,23 @@ export class FogSystem {
   }
 
   /**
-   * Create 2D noise texture for fog variation
-   * Note: Previously attempted to use sampler3D with a 2D DataTexture, which caused
-   * shader compilation failure. Now uses sampler2D with Y-slice blending in the shader.
+   * Create 3D noise texture for fog variation using Data3DTexture.
+   * This properly matches the sampler3D uniform in the shader.
    */
-  private createNoiseTexture(width: number, height: number, _depth: number): THREE.DataTexture {
-    const size = width * height;
+  private createNoiseTexture(width: number, height: number, depth: number): THREE.Data3DTexture {
+    const size = width * height * depth;
     const data = new Uint8Array(size);
 
     for (let i = 0; i < size; i++) {
       data[i] = Math.floor(this.rng.next() * 256);
     }
 
-    const texture = new THREE.DataTexture(data, width, height);
+    const texture = new THREE.Data3DTexture(data, width, height, depth);
     texture.magFilter = THREE.LinearFilter;
     texture.minFilter = THREE.LinearFilter;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
+    texture.wrapR = THREE.RepeatWrapping;
     texture.needsUpdate = true;
 
     return texture;

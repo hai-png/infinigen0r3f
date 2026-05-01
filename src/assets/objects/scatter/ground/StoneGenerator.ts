@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 /**
  * Configuration for stone generation
@@ -14,6 +15,7 @@ export interface StoneConfig {
   wetChance: number;
   count: number;
   spreadRadius: number;
+  seed?: number;
 }
 
 /**
@@ -23,9 +25,11 @@ export interface StoneConfig {
 export class StoneGenerator {
   private noiseUtils: NoiseUtils;
   private materialCache: Map<string, THREE.MeshStandardMaterial>;
+  private rng: SeededRandom;
 
-  constructor() {
-    this.noiseUtils = new NoiseUtils();
+  constructor(seed: number = 42) {
+    this.rng = new SeededRandom(seed);
+    this.noiseUtils = new NoiseUtils(seed);
     this.materialCache = new Map();
   }
 
@@ -34,17 +38,19 @@ export class StoneGenerator {
    */
   generateStone(config: Partial<StoneConfig> = {}): THREE.Mesh {
     const finalConfig: StoneConfig = {
-      size: 0.8 + Math.random() * 1.2,
+      size: this.rng.nextFloat(0.8, 2.0),
       variation: 0.3,
-      roughness: 0.7 + Math.random() * 0.3,
+      roughness: this.rng.nextFloat(0.7, 1.0),
       colorBase: new THREE.Color(0x888888),
       colorVariation: new THREE.Color(0x444444),
       mossChance: 0.15,
       wetChance: 0.1,
       count: 1,
       spreadRadius: 0,
+      seed: 42,
       ...config,
     };
+    const rng = new SeededRandom(finalConfig.seed ?? 42);
 
     const geometry = this.createStoneGeometry(finalConfig);
     const material = this.getStoneMaterial(finalConfig);
@@ -53,9 +59,9 @@ export class StoneGenerator {
     
     // Apply random rotation for natural look
     mesh.rotation.set(
-      Math.random() * Math.PI * 2,
-      Math.random() * Math.PI * 2,
-      Math.random() * Math.PI * 2
+      rng.next() * Math.PI * 2,
+      rng.next() * Math.PI * 2,
+      rng.next() * Math.PI * 2
     );
     
     return mesh;
@@ -76,27 +82,30 @@ export class StoneGenerator {
       wetChance: 0.15,
       count: 1,
       spreadRadius: 0,
+      seed: 42,
       clusterSize: 10,
       ...config,
     };
+    const rng = new SeededRandom(clusterConfig.seed ?? 42);
 
     for (let i = 0; i < clusterConfig.clusterSize; i++) {
       const stone = this.generateStone({
-        size: clusterConfig.size * (0.5 + Math.random() * 0.8),
+        size: clusterConfig.size * rng.nextFloat(0.5, 1.3),
         variation: clusterConfig.variation,
         roughness: clusterConfig.roughness,
         colorBase: clusterConfig.colorBase.clone(),
         colorVariation: clusterConfig.colorVariation.clone(),
         mossChance: clusterConfig.mossChance,
         wetChance: clusterConfig.wetChance,
+        seed: clusterConfig.seed,
       });
 
       // Position in a circular cluster
-      const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * clusterConfig.spreadRadius;
+      const angle = rng.next() * Math.PI * 2;
+      const radius = rng.next() * clusterConfig.spreadRadius;
       stone.position.set(
         Math.cos(angle) * radius,
-        Math.random() * 0.2, // Slight height variation
+        rng.nextFloat(0, 0.2), // Slight height variation
         Math.sin(angle) * radius
       );
 
@@ -134,7 +143,7 @@ export class StoneGenerator {
 
       // Flatten bottom slightly for stability
       if (positions[i + 1] < -config.size * 0.3) {
-        positions[i + 1] = -config.size * 0.3 * (0.8 + Math.random() * 0.2);
+        positions[i + 1] = -config.size * 0.3 * this.rng.nextFloat(0.8, 1.0);
       }
     }
 
@@ -156,7 +165,7 @@ export class StoneGenerator {
       color: config.colorBase.clone(),
       roughness: config.roughness,
       metalness: 0.1,
-      flatShading: Math.random() > 0.5,
+      flatShading: this.rng.next() > 0.5,
     });
 
     // Add color variation through vertex colors if needed
@@ -173,8 +182,9 @@ export class StoneGenerator {
    * Generate standing stones (monoliths)
    */
   generateStandingStone(height: number = 3.0): THREE.Mesh {
-    const width = height * (0.3 + Math.random() * 0.2);
-    const depth = width * (0.4 + Math.random() * 0.3);
+    const rng = new SeededRandom(42);
+    const width = height * rng.nextFloat(0.3, 0.5);
+    const depth = width * rng.nextFloat(0.4, 0.7);
     
     const geometry = new THREE.BoxGeometry(width, height, depth);
     const positions = geometry.attributes.position.array as Float32Array;

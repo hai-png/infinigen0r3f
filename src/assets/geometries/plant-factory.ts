@@ -1,3 +1,4 @@
+import { SeededRandom } from '../core/util/MathUtils';
 /**
  * Plant Factory - Procedural plant geometry generation
  * 
@@ -20,6 +21,7 @@ export interface PlantConfig {
 
 export class SimplePlantFactory {
   private config: PlantConfig;
+  private _rng = new SeededRandom(42);
 
   constructor(config: Partial<PlantConfig> = {}) {
     this.config = {
@@ -44,7 +46,7 @@ export class SimplePlantFactory {
     for (let i = 0; i < count; i++) {
       const plant = await this.generateAsset();
       // Randomize scale
-      const scale = 0.7 + Math.random() * 0.6;
+      const scale = 0.7 + this._rng.next() * 0.6;
       plant.scale.set(scale, scale, scale);
       plants.push(plant);
     }

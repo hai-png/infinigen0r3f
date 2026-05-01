@@ -14,6 +14,7 @@
  */
 
 import { SolverState, Proposal } from './types';
+import { SeededRandom } from '../../util/MathUtils';
 
 export interface SimulatedAnnealingConfig {
   initialTemperature: number;
@@ -24,6 +25,8 @@ export interface SimulatedAnnealingConfig {
   adaptiveCooling: boolean;
   /** Number of accepted moves tracked for adaptive cooling */
   adaptiveWindowSize: number;
+  /** Seed for deterministic randomness */
+  seed?: number;
 }
 
 /** Track recent acceptance statistics for adaptive cooling */
@@ -39,6 +42,7 @@ export class SimulatedAnnealingSolver {
   private bestState: SolverState | null;
   private bestScore: number;
   private acceptanceWindow: AcceptanceStats[];
+  private rng: SeededRandom;
 
   constructor(config: Partial<SimulatedAnnealingConfig> = {}) {
     this.config = {
@@ -52,6 +56,7 @@ export class SimulatedAnnealingSolver {
       ...config,
     };
 
+    this.rng = new SeededRandom(this.config.seed ?? 42);
     this.currentTemperature = this.config.initialTemperature;
     this.iterations = 0;
     this.bestState = null;
@@ -104,7 +109,7 @@ export class SimulatedAnnealingSolver {
     // Worse solution – accept with Boltzmann probability
     if (this.currentTemperature <= 0) return false;
     const probability = Math.exp(-deltaE / this.currentTemperature);
-    return Math.random() < probability;
+    return this.rng.next() < probability;
   }
 
   /**

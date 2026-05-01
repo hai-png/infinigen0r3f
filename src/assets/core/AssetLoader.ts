@@ -131,7 +131,7 @@ export class AssetLoader {
       const params = {
         ...generator.getDefaultParams(),
         ...baseParams,
-        seed: Math.random()
+        seed: 42
       } as TParams;
 
       const result = await this.loadProcedural(generatorId, params, options);

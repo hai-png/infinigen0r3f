@@ -180,7 +180,7 @@ export async function createRockGarden(
   seed?: number
 ): Promise<THREE.Group> {
   const scene = new THREE.Group();
-  const actualSeed = seed ?? Math.floor(Math.random() * 1000000);
+  const actualSeed = seed ?? 42;
   
   // Ground plane
   const groundGeometry = new THREE.PlaneGeometry(size, size);

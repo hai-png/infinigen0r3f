@@ -59,7 +59,7 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
   constructor(params: Partial<CreatureParams> = {}) {
     super(0);
     this.params = {
-      seed: params.seed ?? Math.floor(Date.now() * Math.random()) % 10000,
+      seed: params.seed ?? Math.floor(Date.now() * this.rng.next()) % 10000,
       species: 'unknown',
       size: 1.0,
       age: 'adult',

@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * RockGenerator - Procedural rock and terrain asset generation
  * 
@@ -135,6 +136,7 @@ const ROCK_MATERIALS: Record<RockType, RockMaterial> = {
 // ============================================================================
 
 export class RockGenerator {
+  private _rng = new SeededRandom(42);
   private config: RockConfig;
   private noise: NoiseUtils;
   private materialCache: Map<string, THREE.MeshStandardMaterial>;
@@ -155,7 +157,7 @@ export class RockGenerator {
       crackDensity: 0.2,
       mossCoverage: 0.1,
       lichenCoverage: 0.05,
-      seed: Math.random() * 10000,
+      seed: this._rng.nextInt(0, 9999),
       randomness: 0.3,
       useLOD: true,
       lodLevels: 3,
@@ -273,9 +275,9 @@ export class RockGenerator {
     const color = materialPreset.colorBase.clone();
     const variation = materialPreset.colorVariation;
     
-    color.r += (Math.random() - 0.5) * variation.r;
-    color.g += (Math.random() - 0.5) * variation.g;
-    color.b += (Math.random() - 0.5) * variation.b;
+    color.r += (this._rng.next() - 0.5) * variation.r;
+    color.g += (this._rng.next() - 0.5) * variation.g;
+    color.b += (this._rng.next() - 0.5) * variation.b;
     
     const material = new THREE.MeshStandardMaterial({
       color,
@@ -316,7 +318,7 @@ export class RockGenerator {
       
       // Random position within spread
       const angle = (i / count) * Math.PI * 2;
-      const radius = Math.random() * spread * 0.5;
+      const radius = this._rng.next() * spread * 0.5;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       const y = Math.abs(x + z) * 0.1;
@@ -324,12 +326,12 @@ export class RockGenerator {
       rockGeo.translate(x, y, z);
       
       // Random rotation
-      rockGeo.rotateX(Math.random() * Math.PI);
-      rockGeo.rotateY(Math.random() * Math.PI);
-      rockGeo.rotateZ(Math.random() * Math.PI);
+      rockGeo.rotateX(this._rng.next() * Math.PI);
+      rockGeo.rotateY(this._rng.next() * Math.PI);
+      rockGeo.rotateZ(this._rng.next() * Math.PI);
       
       // Random scale variation
-      const scale = 0.7 + Math.random() * 0.6;
+      const scale = 0.7 + this._rng.next() * 0.6;
       rockGeo.scale(
         scale * this.config.width * this.config.size,
         scale * this.config.height * this.config.size,

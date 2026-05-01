@@ -16,6 +16,7 @@ import { BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 export type ChandelierStyle = 'classic' | 'modern' | 'rustic' | 'crystal' | 'minimalist' | 'industrial';
 export type ChandelierMaterial = 'brass' | 'bronze' | 'iron' | 'gold' | 'silver' | 'black_metal' | 'chrome';
@@ -75,8 +76,12 @@ export class ChandelierGenerator {
   private params: ChandelierParams;
   private group: THREE.Group;
   private materials: Map<string, THREE.Material>;
+  private seed: number;
+  private rng: SeededRandom;
 
   constructor(params: Partial<ChandelierParams> = {}) {
+    this.seed = params.seed ?? 42;
+    this.rng = new SeededRandom(this.seed);
     this.params = { ...DEFAULT_CHANDELIER_PARAMS, ...params };
     this.group = new THREE.Group();
     this.materials = new Map();
@@ -153,7 +158,7 @@ export class ChandelierGenerator {
         transmission = 0.85;
         break;
       case 'colored':
-        color = new THREE.Color().setHSL(Math.random(), 0.7, 0.5).getHex();
+        color = new THREE.Color().setHSL(this.rng.next(), 0.7, 0.5).getHex();
         transmission = 0.9;
         break;
     }
@@ -396,12 +401,12 @@ export class ChandelierGenerator {
       const armIndex = i % this.params.armCount;
       const angle = armIndex * angleStep + (i % 2) * 0.1;
       
-      const radiusFactor = 0.3 + Math.random() * 0.5;
+      const radiusFactor = this.rng.nextFloat(0.3, 0.8);
       const radius = this.params.radius * radiusFactor;
 
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
-      const y = tierY - Math.random() * 0.3;
+      const y = tierY - this.rng.nextFloat(0, 0.3);
 
       positions.push(new THREE.Vector3(x, y, z));
     }
@@ -476,8 +481,8 @@ export class ChandelierGenerator {
 
     for (let i = 0; i < ornamentCount; i++) {
       const angle = (i / ornamentCount) * Math.PI * 2;
-      const y = (Math.random() - 0.5) * this.params.height * 0.8;
-      const radius = this.params.radius * (0.6 + Math.random() * 0.3);
+      const y = (this.rng.next() - 0.5) * this.params.height * 0.8;
+      const radius = this.params.radius * this.rng.nextFloat(0.6, 0.9);
 
       const ornamentGeometry = new THREE.SphereGeometry(0.03, 8, 8);
       const ornament = new THREE.Mesh(ornamentGeometry, frameMaterial);

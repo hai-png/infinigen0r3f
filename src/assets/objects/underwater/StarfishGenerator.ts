@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -30,6 +31,7 @@ export interface StarfishConfig {
  * Generates procedural starfish meshes with various species and patterns
  */
 export class StarfishGenerator {
+  private static _rng = new SeededRandom(42);
   private static materialCache = new Map<string, THREE.MeshStandardMaterial>();
   private static geometryCache = new Map<string, THREE.BufferGeometry>();
 
@@ -272,30 +274,30 @@ export class StarfishGenerator {
     const group = new THREE.Group();
     
     for (let i = 0; i < count; i++) {
-      const config = configs[Math.floor(Math.random() * configs.length)];
+      const config = configs[Math.floor(StarfishGenerator._rng.next() * configs.length)];
       
       // Randomize size slightly
       const randomizedConfig: StarfishConfig = {
         ...config,
-        armLength: config.armLength * (0.9 + Math.random() * 0.2),
-        bodySize: config.bodySize * (0.9 + Math.random() * 0.2)
+        armLength: config.armLength * (0.9 + StarfishGenerator._rng.next() * 0.2),
+        bodySize: config.bodySize * (0.9 + StarfishGenerator._rng.next() * 0.2)
       };
       
       const starfish = this.generateStarfish(randomizedConfig);
       
       // Position on seabed
       starfish.position.set(
-        (Math.random() - 0.5) * area.width,
+        (StarfishGenerator._rng.next() - 0.5) * area.width,
         0,
-        (Math.random() - 0.5) * area.depth
+        (StarfishGenerator._rng.next() - 0.5) * area.depth
       );
       
       // Random rotation
-      starfish.rotation.y = Math.random() * Math.PI * 2;
+      starfish.rotation.y = StarfishGenerator._rng.next() * Math.PI * 2;
       
       // Slight tilt for natural look
-      starfish.rotation.x = (Math.random() - 0.5) * 0.2;
-      starfish.rotation.z = (Math.random() - 0.5) * 0.2;
+      starfish.rotation.x = (StarfishGenerator._rng.next() - 0.5) * 0.2;
+      starfish.rotation.z = (StarfishGenerator._rng.next() - 0.5) * 0.2;
       
       group.add(starfish);
     }

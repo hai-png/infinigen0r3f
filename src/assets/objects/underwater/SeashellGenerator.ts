@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -31,6 +32,7 @@ export interface SeashellConfig {
  * Generates procedural seashell meshes with various species and patterns
  */
 export class SeashellGenerator {
+  private static _rng = new SeededRandom(42);
   private static materialCache = new Map<string, THREE.MeshStandardMaterial>();
 
   /**
@@ -358,30 +360,30 @@ export class SeashellGenerator {
     const group = new THREE.Group();
     
     for (let i = 0; i < count; i++) {
-      const type = types[Math.floor(Math.random() * types.length)];
+      const type = types[Math.floor(SeashellGenerator._rng.next() * types.length)];
       const preset = this.getPreset(type);
       
       // Randomize some properties
       const config: SeashellConfig = {
         ...preset,
-        size: preset.size * (0.7 + Math.random() * 0.6),
-        damageLevel: Math.random() * 0.7
+        size: preset.size * (0.7 + SeashellGenerator._rng.next() * 0.6),
+        damageLevel: SeashellGenerator._rng.next() * 0.7
       };
       
       const shell = this.generateShell(config);
       
       // Position on seabed
       shell.position.set(
-        (Math.random() - 0.5) * area.width,
+        (SeashellGenerator._rng.next() - 0.5) * area.width,
         0,
-        (Math.random() - 0.5) * area.depth
+        (SeashellGenerator._rng.next() - 0.5) * area.depth
       );
       
       // Random rotation
       shell.rotation.set(
-        Math.random() * 0.3,
-        Math.random() * Math.PI * 2,
-        Math.random() * 0.3
+        SeashellGenerator._rng.next() * 0.3,
+        SeashellGenerator._rng.next() * Math.PI * 2,
+        SeashellGenerator._rng.next() * 0.3
       );
       
       group.add(shell);

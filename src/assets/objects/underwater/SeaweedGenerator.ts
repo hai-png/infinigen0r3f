@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -31,6 +32,7 @@ export interface SeaweedConfig {
  * Generates procedural seaweed meshes with natural flowing animation support
  */
 export class SeaweedGenerator {
+  private static _rng = new SeededRandom(42);
   private static materialCache = new Map<string, THREE.ShaderMaterial>();
 
   /**
@@ -44,7 +46,7 @@ export class SeaweedGenerator {
     // Store animation data in userData
     mesh.userData.seaweedData = {
       config,
-      timeOffset: Math.random() * Math.PI * 2,
+      timeOffset: SeaweedGenerator._rng.next() * Math.PI * 2,
       basePosition: new THREE.Vector3()
     };
     
@@ -98,7 +100,7 @@ export class SeaweedGenerator {
     const { leafCount, leafSize, height } = config;
     
     for (let i = 0; i < leafCount; i++) {
-      const segmentIndex = Math.floor(Math.random() * (points.length - 2)) + 1;
+      const segmentIndex = Math.floor(SeaweedGenerator._rng.next() * (points.length - 2)) + 1;
       const point = points[segmentIndex];
       const nextPoint = points[segmentIndex + 1];
       
@@ -228,15 +230,15 @@ export class SeaweedGenerator {
       const strand = this.generateStrand(config);
       
       // Random position within area
-      const x = (Math.random() - 0.5) * area.width;
-      const z = (Math.random() - 0.5) * area.depth;
+      const x = (SeaweedGenerator._rng.next() - 0.5) * area.width;
+      const z = (SeaweedGenerator._rng.next() - 0.5) * area.depth;
       
       strand.position.set(x, 0, z);
       strand.userData.seaweedData.basePosition.set(x, 0, z);
       
       // Random rotation and slight scale variation
-      strand.rotation.y = Math.random() * Math.PI * 2;
-      const scale = 0.8 + Math.random() * 0.4;
+      strand.rotation.y = SeaweedGenerator._rng.next() * Math.PI * 2;
+      const scale = 0.8 + SeaweedGenerator._rng.next() * 0.4;
       strand.scale.set(scale, scale, scale);
       
       group.add(strand);

@@ -220,7 +220,7 @@ export function createHandheldSim(config: HandheldConfig): Keyframe[] {
     duration = 5,
     intensity = 0.05,
     frequency = 2,
-    seed = Math.random(),
+    seed = 42,
     samplesPerSecond = 60,
   } = config;
 

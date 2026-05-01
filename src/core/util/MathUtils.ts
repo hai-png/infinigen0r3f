@@ -76,35 +76,41 @@ export function distancePointToSegment(point: THREE.Vector3, p1: THREE.Vector3, 
 }
 
 /**
- * Generates a random point inside a unit sphere.
+ * Generates a random point inside a unit sphere using seeded RNG.
+ * @param radius - Sphere radius (default 1)
+ * @param rng - Optional SeededRandom instance. If not provided, a temporary one with default seed 42 is used.
  */
-export function randomPointInSphere(radius: number = 1): THREE.Vector3 {
-  const u = Math.random();
-  const v = Math.random();
+export function randomPointInSphere(radius: number = 1, rng?: SeededRandom): THREE.Vector3 {
+  const r = rng ?? new SeededRandom(42);
+  const u = r.next();
+  const v = r.next();
   const theta = 2 * Math.PI * u;
   const phi = Math.acos(2 * v - 1);
-  const r = radius * Math.cbrt(Math.random()); // Cube root for uniform distribution
+  const rad = radius * Math.cbrt(r.next()); // Cube root for uniform distribution
 
-  const x = r * Math.sin(phi) * Math.cos(theta);
-  const y = r * Math.sin(phi) * Math.sin(theta);
-  const z = r * Math.cos(phi);
+  const x = rad * Math.sin(phi) * Math.cos(theta);
+  const y = rad * Math.sin(phi) * Math.sin(theta);
+  const z = rad * Math.cos(phi);
 
   return new THREE.Vector3(x, y, z);
 }
 
 /**
- * Generates a random point on a unit sphere surface.
+ * Generates a random point on a unit sphere surface using seeded RNG.
+ * @param radius - Sphere radius (default 1)
+ * @param rng - Optional SeededRandom instance. If not provided, a temporary one with default seed 42 is used.
  */
-export function randomPointOnSphere(radius: number = 1): THREE.Vector3 {
-  const u = Math.random();
-  const v = Math.random();
+export function randomPointOnSphere(radius: number = 1, rng?: SeededRandom): THREE.Vector3 {
+  const r = rng ?? new SeededRandom(42);
+  const u = r.next();
+  const v = r.next();
   const theta = 2 * Math.PI * u;
   const phi = Math.acos(2 * v - 1);
-  const r = radius;
+  const rad = radius;
 
-  const x = r * Math.sin(phi) * Math.cos(theta);
-  const y = r * Math.sin(phi) * Math.sin(theta);
-  const z = r * Math.cos(phi);
+  const x = rad * Math.sin(phi) * Math.cos(theta);
+  const y = rad * Math.sin(phi) * Math.sin(theta);
+  const z = rad * Math.cos(phi);
 
   return new THREE.Vector3(x, y, z);
 }
@@ -543,214 +549,63 @@ export function clampRgb(color: RGB): RGB {
 }
 
 // ============================================================================
-// Noise Functions (Simplex/Perlin-style)
+// Seeded Permutation Table
 // ============================================================================
 
 /**
- * Simple 3D noise function using gradient hashing
- * Based on classic Perlin noise algorithm
- * @param x - X coordinate
- * @param y - Y coordinate  
- * @param z - Z coordinate
- * @param scale - Noise scale/frequency multiplier
- * @returns Noise value in range [-1, 1]
+ * SeededPermutationTable generates a deterministic permutation table
+ * from a SeededRandom instance, replacing the old Math.random()-based
+ * global permutation table. This ensures all noise functions are fully
+ * deterministic given the same seed.
  */
-export function noise3D(x: number, y: number, z: number, scale: number = 1.0): number {
-  const X = Math.floor(x * scale) & 255;
-  const Y = Math.floor(y * scale) & 255;
-  const Z = Math.floor(z * scale) & 255;
+export class SeededPermutationTable {
+  private readonly perm: number[];
 
-  x -= Math.floor(x * scale);
-  y -= Math.floor(y * scale);
-  z -= Math.floor(z * scale);
+  constructor(seed: number = 0) {
+    const rng = new SeededRandom(seed);
+    this.perm = new Array(512);
 
-  // Fade curves for smooth interpolation
-  const u = fade(x);
-  const v = fade(y);
-  const w = fade(z);
+    // Initialize identity permutation
+    for (let i = 0; i < 256; i++) {
+      this.perm[i] = i;
+    }
 
-  // Hash coordinates of cube corners
-  const A = p[X] + Y;
-  const AA = p[A] + Z;
-  const AB = p[A + 1] + Z;
-  const B = p[X + 1] + Y;
-  const BA = p[B] + Z;
-  const BB = p[B + 1] + Z;
+    // Fisher-Yates shuffle using seeded RNG
+    for (let i = 255; i > 0; i--) {
+      const j = rng.nextInt(0, i);
+      [this.perm[i], this.perm[j]] = [this.perm[j], this.perm[i]];
+    }
 
-  // Gradient contributions
-  const result = lerpNoise(
-    w,
-    lerpNoise(
-      v,
-      lerpNoise(u, grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z)),
-      lerpNoise(u, grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z))
-    ),
-    lerpNoise(
-      v,
-      lerpNoise(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)),
-      lerpNoise(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))
-    )
-  );
-
-  return result;
-}
-
-/**
- * Simple 2D noise function using gradient hashing
- * Based on classic Perlin noise algorithm
- * @param x - X coordinate
- * @param y - Y coordinate
- * @param scale - Noise scale/frequency multiplier
- * @returns Noise value in range [-1, 1]
- */
-export function noise2D(x: number, y: number, scale: number = 1.0): number {
-  const X = Math.floor(x * scale) & 255;
-  const Y = Math.floor(y * scale) & 255;
-
-  x -= Math.floor(x * scale);
-  y -= Math.floor(y * scale);
-
-  // Fade curves for smooth interpolation
-  const u = fade(x);
-  const v = fade(y);
-
-  // Hash coordinates of square corners
-  const A = p[X] + Y;
-  const B = p[X + 1] + Y;
-
-  // Gradient contributions
-  const result = lerpNoise(
-    v,
-    lerpNoise(u, grad(p[A], x, y, 0), grad(p[B], x - 1, y, 0)),
-    lerpNoise(u, grad(p[A + 1], x, y - 1, 0), grad(p[B + 1], x - 1, y - 1, 0))
-  );
-
-  return result;
-}
-
-/**
- * Alias for noise2D for backward compatibility
- */
-export function perlin2D(x: number, y: number, scale: number = 1.0): number {
-  return noise2D(x, y, scale);
-}
-
-/**
- * 2D Voronoi noise function
- * Returns distance to nearest feature point
- * @param x - X coordinate
- * @param y - Y coordinate
- * @param scale - Scale factor for cell size
- * @returns Distance to nearest point (normalized)
- */
-export function voronoi2D(x: number, y: number, scale: number = 1.0): number {
-  const cellX = Math.floor(x * scale);
-  const cellY = Math.floor(y * scale);
-  
-  let minDist = Infinity;
-
-  // Check neighboring cells
-  for (let dx = -1; dx <= 1; dx++) {
-    for (let dy = -1; dy <= 1; dy++) {
-      const neighborX = cellX + dx;
-      const neighborY = cellY + dy;
-      
-      // Hash to get feature point position within cell
-      const hash = hash2D(neighborX, neighborY);
-      const featureX = neighborX + (hash % 1000) / 1000;
-      const featureY = neighborY + ((Math.floor(hash / 1000)) % 1000) / 1000;
-      
-      // Distance to this feature point
-      const distX = (x * scale) - featureX;
-      const distY = (y * scale) - featureY;
-      const dist = Math.sqrt(distX * distX + distY * distY);
-      
-      minDist = Math.min(minDist, dist);
+    // Duplicate for overflow handling (avoids modulo in hot path)
+    for (let i = 0; i < 256; i++) {
+      this.perm[256 + i] = this.perm[i];
     }
   }
 
-  return minDist;
-}
-
-/**
- * Ridged multifractal noise function
- * Creates sharp, mountain-like features by inverting and combining noise octaves
- * Based on Ken Musgrave's ridged multifractal algorithm
- * 
- * @param x - X coordinate
- * @param y - Y coordinate
- * @param z - Z coordinate
- * @param octaves - Number of noise octaves
- * @param lacunarity - Frequency multiplier per octave (typically 2.0)
- * @param gain - Amplitude multiplier per octave (typically 0.5)
- * @param roughness - Overall roughness control (0-1)
- * @returns Ridged multifractal noise value (-1 to 1 range, typically 0-1 after processing)
- */
-export function ridgedMultifractal(
-  x: number,
-  y: number,
-  z: number,
-  octaves: number = 6,
-  lacunarity: number = 2.0,
-  gain: number = 0.5,
-  roughness: number = 0.5
-): number {
-  let signal = 0;
-  let weight = 1.0;
-  let frequency = 1.0;
-  let amplitude = 1.0;
-  
-  // Offset to ensure all values are positive after ridge operation
-  const offset = 1.0;
-  
-  for (let i = 0; i < octaves; i++) {
-    // Get noise value at current frequency
-    let n = noise3D(x * frequency, y * frequency, z * frequency, 1.0);
-    
-    // Create ridge by inverting and taking absolute value
-    // This creates sharp peaks where noise crosses zero
-    n = offset - Math.abs(n);
-    
-    // Apply weight based on previous octave's contribution
-    // This creates the characteristic self-similar ridge pattern
-    n *= weight;
-    
-    // Accumulate signal
-    signal += n * amplitude;
-    
-    // Update weight for next octave
-    // Clamp to prevent runaway feedback
-    weight = Math.min(n * gain, 1.0);
-    weight = Math.max(weight, 0);
-    
-    // Increase frequency and decrease amplitude for next octave
-    frequency *= lacunarity;
-    amplitude *= gain;
+  /** Get value at index (0-511) */
+  get(index: number): number {
+    return this.perm[index & 511];
   }
-  
-  // Normalize result to 0-1 range
-  // The theoretical maximum is approximately sum of amplitudes
-  const maxSignal = 1.0 / (1.0 - gain);
-  return ThreeMathUtils.clamp(signal / maxSignal, 0, 1) * roughness;
+
+  /** Get the raw permutation array (read-only copy) */
+  toArray(): readonly number[] {
+    return this.perm.slice();
+  }
 }
 
-// Permutation table for noise
-const p: number[] = [];
-for (let i = 0; i < 256; i++) {
-  p[i] = i;
-}
-// Shuffle permutation table
-for (let i = 255; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1));
-  [p[i], p[j]] = [p[j], p[i]];
-}
-// Duplicate for overflow handling
-for (let i = 0; i < 256; i++) {
-  p[256 + i] = p[i];
-}
+// Default global permutation table using seed 0 (deterministic!)
+const defaultPermTable = new SeededPermutationTable(0);
+
+// Legacy global permutation array for backward compatibility
+// Built from the default seeded permutation table (NOT Math.random)
+const p: number[] = defaultPermTable.toArray() as number[];
+
+// ============================================================================
+// Internal Noise Helpers
+// ============================================================================
 
 /**
- * Fade curve function (Perlin's smoothstep variant)
+ * Fade curve function (Perlin's improved smoothstep: 6t^5 - 15t^4 + 10t^3)
  */
 function fade(t: number): number {
   return t * t * t * (t * (t * 6 - 15) + 10);
@@ -764,9 +619,9 @@ function lerpNoise(t: number, a: number, b: number): number {
 }
 
 /**
- * Gradient dot product for noise
+ * Gradient dot product for Perlin noise (3D)
  */
-function grad(hash: number, x: number, y: number, z: number): number {
+function grad3D(hash: number, x: number, y: number, z: number): number {
   const h = hash & 15;
   const u = h < 8 ? x : y;
   const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
@@ -774,12 +629,349 @@ function grad(hash: number, x: number, y: number, z: number): number {
 }
 
 /**
- * 2D hash function
+ * Gradient dot product for Perlin noise (2D)
+ */
+function grad2D(hash: number, x: number, y: number): number {
+  const h = hash & 3;
+  switch (h) {
+    case 0: return x + y;
+    case 1: return -x + y;
+    case 2: return x - y;
+    case 3: return -x - y;
+    default: return 0;
+  }
+}
+
+/**
+ * Deterministic 2D hash function (no Math.random)
  */
 function hash2D(x: number, y: number): number {
   let h = (x * 374761393 + y * 668265263) | 0;
   h = (h ^ (h >> 13)) * 1274126177;
   return Math.abs(h & 0x7fffffff);
+}
+
+/**
+ * Deterministic 3D hash function (no Math.random)
+ */
+function hash3D(x: number, y: number, z: number): number {
+  let h = (x * 374761393 + y * 668265263 + z * 1013904223) | 0;
+  h = (h ^ (h >> 13)) * 1274126177;
+  h = (h ^ (h >> 16));
+  return Math.abs(h & 0x7fffffff);
+}
+
+// ============================================================================
+// Seeded Noise Functions
+// ============================================================================
+
+/**
+ * Seeded Perlin 2D noise.
+ * Produces the same output for the same seed every time.
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param scale - Noise scale/frequency multiplier (default 1.0)
+ * @param seed - Seed for the permutation table (default 0)
+ * @returns Noise value in approximately [-1, 1]
+ */
+export function seededNoise2D(x: number, y: number, scale: number = 1.0, seed: number = 0): number {
+  const perm = seed === 0 ? defaultPermTable : new SeededPermutationTable(seed);
+  const xs = x * scale;
+  const ys = y * scale;
+
+  const X = Math.floor(xs) & 255;
+  const Y = Math.floor(ys) & 255;
+
+  const xf = xs - Math.floor(xs);
+  const yf = ys - Math.floor(ys);
+
+  const u = fade(xf);
+  const v = fade(yf);
+
+  const A = perm.get(X) + Y;
+  const B = perm.get(X + 1) + Y;
+
+  return lerpNoise(
+    v,
+    lerpNoise(u, grad2D(perm.get(A), xf, yf), grad2D(perm.get(B), xf - 1, yf)),
+    lerpNoise(u, grad2D(perm.get(A + 1), xf, yf - 1), grad2D(perm.get(B + 1), xf - 1, yf - 1))
+  );
+}
+
+/**
+ * Seeded Perlin 3D noise.
+ * Produces the same output for the same seed every time.
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param z - Z coordinate
+ * @param scale - Noise scale/frequency multiplier (default 1.0)
+ * @param seed - Seed for the permutation table (default 0)
+ * @returns Noise value in approximately [-1, 1]
+ */
+export function seededNoise3D(x: number, y: number, z: number, scale: number = 1.0, seed: number = 0): number {
+  const perm = seed === 0 ? defaultPermTable : new SeededPermutationTable(seed);
+  const xs = x * scale;
+  const ys = y * scale;
+  const zs = z * scale;
+
+  const X = Math.floor(xs) & 255;
+  const Y = Math.floor(ys) & 255;
+  const Z = Math.floor(zs) & 255;
+
+  const xf = xs - Math.floor(xs);
+  const yf = ys - Math.floor(ys);
+  const zf = zs - Math.floor(zs);
+
+  const u = fade(xf);
+  const v = fade(yf);
+  const w = fade(zf);
+
+  const A = perm.get(X) + Y;
+  const AA = perm.get(A) + Z;
+  const AB = perm.get(A + 1) + Z;
+  const B = perm.get(X + 1) + Y;
+  const BA = perm.get(B) + Z;
+  const BB = perm.get(B + 1) + Z;
+
+  return lerpNoise(
+    w,
+    lerpNoise(
+      v,
+      lerpNoise(u, grad3D(perm.get(AA), xf, yf, zf), grad3D(perm.get(BA), xf - 1, yf, zf)),
+      lerpNoise(u, grad3D(perm.get(AB), xf, yf - 1, zf), grad3D(perm.get(BB), xf - 1, yf - 1, zf))
+    ),
+    lerpNoise(
+      v,
+      lerpNoise(u, grad3D(perm.get(AA + 1), xf, yf, zf - 1), grad3D(perm.get(BA + 1), xf - 1, yf, zf - 1)),
+      lerpNoise(u, grad3D(perm.get(AB + 1), xf, yf - 1, zf - 1), grad3D(perm.get(BB + 1), xf - 1, yf - 1, zf - 1))
+    )
+  );
+}
+
+/**
+ * Seeded Voronoi 2D noise.
+ * Returns the distance to the nearest feature point.
+ * Fully deterministic given the same seed.
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param scale - Scale factor for cell size (default 1.0)
+ * @param seed - Seed for feature point generation (default 0)
+ * @returns Distance to nearest feature point (normalized)
+ */
+export function seededVoronoi2D(x: number, y: number, scale: number = 1.0, seed: number = 0): number {
+  const cellX = Math.floor(x * scale);
+  const cellY = Math.floor(y * scale);
+
+  let minDist = Infinity;
+
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const neighborX = cellX + dx;
+      const neighborY = cellY + dy;
+
+      // Use seeded hash to get feature point position within cell
+      const h = hash3D(neighborX, neighborY, seed);
+      const featureX = neighborX + (h % 1000) / 1000;
+      const featureY = neighborY + ((Math.floor(h / 1000)) % 1000) / 1000;
+
+      const distX = (x * scale) - featureX;
+      const distY = (y * scale) - featureY;
+      const dist = Math.sqrt(distX * distX + distY * distY);
+
+      minDist = Math.min(minDist, dist);
+    }
+  }
+
+  return minDist;
+}
+
+/**
+ * Seeded Fractional Brownian Motion (FBM).
+ * Layers multiple octaves of seeded Perlin 3D noise.
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param z - Z coordinate
+ * @param octaves - Number of noise octaves (default 6)
+ * @param lacunarity - Frequency multiplier per octave (default 2.0)
+ * @param gain - Amplitude multiplier per octave, aka persistence (default 0.5)
+ * @param seed - Seed for the permutation table (default 0)
+ * @returns FBM noise value in approximately [-1, 1]
+ */
+export function seededFbm(
+  x: number,
+  y: number,
+  z: number,
+  octaves: number = 6,
+  lacunarity: number = 2.0,
+  gain: number = 0.5,
+  seed: number = 0
+): number {
+  let value = 0;
+  let amplitude = 1;
+  let frequency = 1;
+  let maxValue = 0;
+
+  for (let i = 0; i < octaves; i++) {
+    value += amplitude * seededNoise3D(x * frequency, y * frequency, z * frequency, 1.0, seed);
+    maxValue += amplitude;
+    amplitude *= gain;
+    frequency *= lacunarity;
+  }
+
+  return value / maxValue;
+}
+
+/**
+ * Seeded Ridged Multifractal noise.
+ * Creates sharp, mountain-like features by inverting and combining noise octaves.
+ * Based on Ken Musgrave's ridged multifractal algorithm.
+ * Fully deterministic given the same seed.
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param z - Z coordinate
+ * @param octaves - Number of noise octaves (default 6)
+ * @param lacunarity - Frequency multiplier per octave (default 2.0)
+ * @param gain - Amplitude multiplier per octave (default 0.5)
+ * @param roughness - Overall roughness control 0-1 (default 0.5)
+ * @param seed - Seed for the permutation table (default 0)
+ * @returns Ridged multifractal noise value in [0, 1]
+ */
+export function seededRidgedMultifractal(
+  x: number,
+  y: number,
+  z: number,
+  octaves: number = 6,
+  lacunarity: number = 2.0,
+  gain: number = 0.5,
+  roughness: number = 0.5,
+  seed: number = 0
+): number {
+  let signal = 0;
+  let weight = 1.0;
+  let frequency = 1.0;
+  let amplitude = 1.0;
+
+  const offset = 1.0;
+
+  for (let i = 0; i < octaves; i++) {
+    let n = seededNoise3D(x * frequency, y * frequency, z * frequency, 1.0, seed);
+
+    // Create ridge by inverting and taking absolute value
+    n = offset - Math.abs(n);
+    n *= weight;
+
+    signal += n * amplitude;
+
+    // Update weight, clamp to prevent runaway feedback
+    weight = Math.min(Math.max(n * gain, 0), 1.0);
+
+    frequency *= lacunarity;
+    amplitude *= gain;
+  }
+
+  const maxSignal = 1.0 / (1.0 - gain);
+  return ThreeMathUtils.clamp(signal / maxSignal, 0, 1) * roughness;
+}
+
+// ============================================================================
+// Legacy Noise Functions (Deprecated — use seeded* variants instead)
+// ============================================================================
+
+/**
+ * @deprecated Use seededNoise3D() instead for deterministic results.
+ * Simple 3D noise function using gradient hashing.
+ * Now uses a fixed seed (0) instead of Math.random(), so results are deterministic.
+ */
+export function noise3D(x: number, y: number, z: number, scale: number = 1.0): number {
+  const X = Math.floor(x * scale) & 255;
+  const Y = Math.floor(y * scale) & 255;
+  const Z = Math.floor(z * scale) & 255;
+
+  const xf = x * scale - Math.floor(x * scale);
+  const yf = y * scale - Math.floor(y * scale);
+  const zf = z * scale - Math.floor(z * scale);
+
+  const u = fade(xf);
+  const v = fade(yf);
+  const w = fade(zf);
+
+  const A = p[X] + Y;
+  const AA = p[A] + Z;
+  const AB = p[A + 1] + Z;
+  const B = p[X + 1] + Y;
+  const BA = p[B] + Z;
+  const BB = p[B + 1] + Z;
+
+  return lerpNoise(
+    w,
+    lerpNoise(
+      v,
+      lerpNoise(u, grad3D(p[AA], xf, yf, zf), grad3D(p[BA], xf - 1, yf, zf)),
+      lerpNoise(u, grad3D(p[AB], xf, yf - 1, zf), grad3D(p[BB], xf - 1, yf - 1, zf))
+    ),
+    lerpNoise(
+      v,
+      lerpNoise(u, grad3D(p[AA + 1], xf, yf, zf - 1), grad3D(p[BA + 1], xf - 1, yf, zf - 1)),
+      lerpNoise(u, grad3D(p[AB + 1], xf, yf - 1, zf - 1), grad3D(p[BB + 1], xf - 1, yf - 1, zf - 1))
+    )
+  );
+}
+
+/**
+ * @deprecated Use seededNoise2D() instead for deterministic results.
+ * Simple 2D noise function using gradient hashing.
+ * Now uses a fixed seed (0) instead of Math.random(), so results are deterministic.
+ */
+export function noise2D(x: number, y: number, scale: number = 1.0): number {
+  const X = Math.floor(x * scale) & 255;
+  const Y = Math.floor(y * scale) & 255;
+
+  const xf = x * scale - Math.floor(x * scale);
+  const yf = y * scale - Math.floor(y * scale);
+
+  const u = fade(xf);
+  const v = fade(yf);
+
+  const A = p[X] + Y;
+  const B = p[X + 1] + Y;
+
+  return lerpNoise(
+    v,
+    lerpNoise(u, grad2D(p[A], xf, yf), grad2D(p[B], xf - 1, yf)),
+    lerpNoise(u, grad2D(p[A + 1], xf, yf - 1), grad2D(p[B + 1], xf - 1, yf - 1))
+  );
+}
+
+/**
+ * @deprecated Use seededNoise2D() instead.
+ * Alias for noise2D for backward compatibility.
+ */
+export function perlin2D(x: number, y: number, scale: number = 1.0): number {
+  return noise2D(x, y, scale);
+}
+
+/**
+ * @deprecated Use seededVoronoi2D() instead for deterministic results.
+ * 2D Voronoi noise function — now deterministic (seed 0).
+ */
+export function voronoi2D(x: number, y: number, scale: number = 1.0): number {
+  return seededVoronoi2D(x, y, scale, 0);
+}
+
+/**
+ * @deprecated Use seededRidgedMultifractal() instead for deterministic results.
+ * Ridged multifractal noise — now deterministic (seed 0).
+ */
+export function ridgedMultifractal(
+  x: number,
+  y: number,
+  z: number,
+  octaves: number = 6,
+  lacunarity: number = 2.0,
+  gain: number = 0.5,
+  roughness: number = 0.5
+): number {
+  return seededRidgedMultifractal(x, y, z, octaves, lacunarity, gain, roughness, 0);
 }
 
 // ============================================================================

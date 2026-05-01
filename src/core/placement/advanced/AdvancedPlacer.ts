@@ -12,6 +12,7 @@
 import { Vector3, Raycaster, Mesh, BufferGeometry, Matrix4 } from 'three';
 import { BBox } from '../../util/math/bbox';
 import type { Tag } from '../../tags';
+import { SeededRandom } from '../../util/MathUtils';
 
 /** Tag query type for semantic filtering in placement */
 export type TagQuery = Set<Tag> | string[];
@@ -74,8 +75,9 @@ export class PoissonDiskSampler {
   private grid: Map<string, number>;
   private samples: Vector3[];
   private activeList: number[];
+  private rng: SeededRandom;
 
-  constructor(width: number, height: number, depth: number, radius: number) {
+  constructor(width: number, height: number, depth: number, radius: number, seed?: number) {
     this.width = width;
     this.height = height;
     this.depth = depth;
@@ -84,6 +86,7 @@ export class PoissonDiskSampler {
     this.grid = new Map();
     this.samples = [];
     this.activeList = [];
+    this.rng = new SeededRandom(seed ?? 42);
   }
 
   /**
@@ -98,9 +101,9 @@ export class PoissonDiskSampler {
 
     // Start with a random point
     const firstPoint = new Vector3(
-      Math.random() * this.width,
-      Math.random() * this.height,
-      Math.random() * this.depth
+      this.rng.next() * this.width,
+      this.rng.next() * this.height,
+      this.rng.next() * this.depth
     );
     this.addSample(firstPoint);
 
@@ -111,23 +114,23 @@ export class PoissonDiskSampler {
       if (this.activeList.length === 0) {
         // Re-seed if no active points
         const seedPoint = new Vector3(
-          Math.random() * this.width,
-          Math.random() * this.height,
-          Math.random() * this.depth
+          this.rng.next() * this.width,
+          this.rng.next() * this.height,
+          this.rng.next() * this.depth
         );
         this.addSample(seedPoint);
       }
 
       // Pick a random active point
-      const activeIndex = Math.floor(Math.random() * this.activeList.length);
+      const activeIndex = this.rng.nextInt(0, this.activeList.length - 1);
       const point = this.samples[this.activeList[activeIndex]];
 
       // Try to generate k points around it
       let found = false;
       for (let i = 0; i < 30; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const zAngle = Math.random() * Math.PI;
-        const r = this.radius * (1 + Math.random());
+        const angle = this.rng.next() * Math.PI * 2;
+        const zAngle = this.rng.next() * Math.PI;
+        const r = this.radius * (1 + this.rng.next());
 
         const newX = point.x + r * Math.sin(zAngle) * Math.cos(angle);
         const newY = point.y + r * Math.sin(zAngle) * Math.sin(angle);
@@ -640,11 +643,13 @@ export class AdvancedPlacer {
   private collider: CollisionAvoidance;
   private filter: SemanticFilter;
   public targetCount: number;
+  private rng: SeededRandom;
 
   constructor(options: AdvancedPlacementOptions) {
     this.config = options.config;
     this.bounds = options.bounds;
     this.targetCount = options.targetCount;
+    this.rng = new SeededRandom(42);
     this.projector = new SurfaceProjector(options.meshes || []);
     this.collider = new CollisionAvoidance(this.config.collisionMargin);
     this.filter = new SemanticFilter();
@@ -806,8 +811,8 @@ export class AdvancedPlacer {
   }
 
   private getRandomOffset(base: Vector3, radius: number): Vector3 {
-    const angle = Math.random() * Math.PI * 2;
-    const r = Math.random() * radius;
+    const angle = this.rng.next() * Math.PI * 2;
+    const r = this.rng.next() * radius;
     return base.clone().add(new Vector3(
       Math.cos(angle) * r,
       0,

@@ -3,6 +3,7 @@
  * Compound eye for insects (faceted surface), iris/pupil for vertebrates
  */
 import * as THREE from 'three';
+import { SeededRandom } from '../../../../core/util/MathUtils';
 
 export type EyeType = 'compound' | 'camera';
 
@@ -19,9 +20,11 @@ export interface EyeConfig {
 
 export class EyeGenerator {
   private seed: number;
+  private rng: SeededRandom;
 
   constructor(seed?: number) {
     this.seed = seed ?? 42;
+    this.rng = new SeededRandom(this.seed);
   }
 
   generate(type: 'compound' | 'camera' | string, count: number, size: number): THREE.Group;
@@ -103,9 +106,9 @@ export class EyeGenerator {
       const actualFacetCount = facetCount ?? 50;
       for (let f = 0; f < actualFacetCount; f++) {
         // Distribute facets on the hemisphere
-        const phi = Math.acos(1 - Math.random() * 0.6); // upper hemisphere
-        const theta = Math.random() * Math.PI * 2;
-        const facetRadius = size * (0.06 + Math.random() * 0.04);
+        const phi = Math.acos(1 - this.rng.next() * 0.6); // upper hemisphere
+        const theta = this.rng.next() * Math.PI * 2;
+        const facetRadius = size * this.rng.nextFloat(0.06, 0.10);
 
         const facetGeo = new THREE.SphereGeometry(facetRadius, 6, 4);
         const facet = new THREE.Mesh(facetGeo, facetMat);

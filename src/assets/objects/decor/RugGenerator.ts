@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * RugGenerator - Procedural rug/carpet generation
  */
@@ -19,6 +20,7 @@ export interface RugConfig {
 }
 
 export class RugGenerator extends BaseObjectGenerator<RugConfig> {
+  private _rng = new SeededRandom(42);
   protected readonly defaultParams: RugConfig = {
     style: 'modern', shape: 'rectangular', width: 2.0, length: 3.0,
     pileHeight: 0.02, hasFringe: false, seed: undefined
@@ -41,7 +43,7 @@ export class RugGenerator extends BaseObjectGenerator<RugConfig> {
     
     // Add pile texture
     for (let i = 0; i < positions.length; i += 3) {
-      positions[i + 2] = (Math.random() - 0.5) * params.pileHeight;
+      positions[i + 2] = (this._rng.next() - 0.5) * params.pileHeight;
     }
     geom.computeVertexNormals();
     
@@ -86,13 +88,13 @@ export class RugGenerator extends BaseObjectGenerator<RugConfig> {
     const configs: RugConfig[] = [];
     for (let i = 0; i < count; i++) {
       configs.push({
-        style: styles[Math.floor(Math.random() * styles.length)],
-        shape: shapes[Math.floor(Math.random() * shapes.length)],
-        width: 1.5 + Math.random() * 2,
-        length: 2 + Math.random() * 3,
-        pileHeight: 0.01 + Math.random() * 0.05,
-        hasFringe: Math.random() > 0.5,
-        seed: Math.floor(Math.random() * 10000)
+        style: styles[Math.floor(this._rng.next() * styles.length)],
+        shape: shapes[Math.floor(this._rng.next() * shapes.length)],
+        width: 1.5 + this._rng.next() * 2,
+        length: 2 + this._rng.next() * 3,
+        pileHeight: 0.01 + this._rng.next() * 0.05,
+        hasFringe: this._rng.next() > 0.5,
+        seed: Math.floor(this._rng.next() * 10000)
       });
     }
 

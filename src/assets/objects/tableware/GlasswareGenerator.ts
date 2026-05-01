@@ -32,7 +32,7 @@ export class GlasswareGenerator extends BaseObjectGenerator<GlasswareParams> {
 
   generate(params: Partial<GlasswareParams> = {}): Group {
     const finalParams = { ...this.defaultParams, ...params };
-    const seed = finalParams.seed ?? Math.floor(Math.random() * 1000000);
+    const seed = finalParams.seed ?? 42;
     
     using ctx = new SeededRandom(seed);
     

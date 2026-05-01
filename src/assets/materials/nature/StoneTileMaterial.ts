@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -21,6 +22,7 @@ export interface StoneTileMaterialConfig {
  * Procedural stone tile material generator for floors, walls, and paths
  */
 export class StoneTileMaterial {
+  private static _rng = new SeededRandom(42);
   private static readonly DEFAULT_CONFIG: StoneTileMaterialConfig = {
     baseColor: new THREE.Color(0x808080), // Gray
     mortarColor: new THREE.Color(0x696969), // Dim gray
@@ -154,7 +156,7 @@ export class StoneTileMaterial {
         ctx.putImageData(imageData, Math.floor(x), Math.floor(y));
 
         // Add cracks
-        if (config.crackDensity > 0 && Math.random() < config.crackDensity) {
+        if (config.crackDensity > 0 && StoneTileMaterial._rng.next() < config.crackDensity) {
           this.addCrack(ctx, x, y, tileWidth, tileHeight, config);
         }
 
@@ -276,8 +278,8 @@ export class StoneTileMaterial {
     height: number,
     config: StoneTileMaterialConfig
   ): void {
-    const startX = x + Math.random() * width * 0.3;
-    const startY = y + Math.random() * height * 0.3;
+    const startX = x + StoneTileMaterial._rng.next() * width * 0.3;
+    const startY = y + StoneTileMaterial._rng.next() * height * 0.3;
     
     ctx.strokeStyle = 'rgba(50, 50, 50, 0.6)';
     ctx.lineWidth = 1;
@@ -286,11 +288,11 @@ export class StoneTileMaterial {
     
     let cx = startX;
     let cy = startY;
-    const segments = 5 + Math.floor(Math.random() * 5);
+    const segments = 5 + StoneTileMaterial._rng.nextInt(0, 5);
     
     for (let i = 0; i < segments; i++) {
-      cx += (Math.random() - 0.5) * width * 0.3;
-      cy += (Math.random() - 0.5) * height * 0.3;
+      cx += (StoneTileMaterial._rng.next() - 0.5) * width * 0.3;
+      cy += (StoneTileMaterial._rng.next() - 0.5) * height * 0.3;
       ctx.lineTo(cx, cy);
     }
     
@@ -311,9 +313,9 @@ export class StoneTileMaterial {
     const numPatches = Math.floor(config.mossCoverage * 10);
     
     for (let i = 0; i < numPatches; i++) {
-      const px = x + Math.random() * width;
-      const py = y + Math.random() * height;
-      const radius = Math.random() * width * 0.15 + 5;
+      const px = x + StoneTileMaterial._rng.next() * width;
+      const py = y + StoneTileMaterial._rng.next() * height;
+      const radius = StoneTileMaterial._rng.next() * width * 0.15 + 5;
       
       const gradient = ctx.createRadialGradient(px, py, 0, px, py, radius);
       // Use rgba color strings directly since Color doesn't have setAlpha

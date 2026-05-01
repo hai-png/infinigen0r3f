@@ -6,6 +6,7 @@
 
 import { Vector3, Quaternion } from 'three';
 import type { NodeBase, AttributeDomain } from '../core/types';
+import { SeededRandom } from '../../util/MathUtils';
 
 // ============================================================================
 // Type Definitions
@@ -316,9 +317,11 @@ export class ParticleSystemNode implements SimulationNodeBase {
   readonly outputs: ParticleSystemOutputs;
   readonly domain: AttributeDomain = 'point';
   readonly settings: Record<string, any> = {};
+  private rng: SeededRandom;
 
   constructor(inputs: ParticleSystemInputs = {}) {
     this.inputs = inputs;
+    this.rng = new SeededRandom(42);
     this.outputs = {
       particles: [],
       count: inputs.count ?? 1000,
@@ -338,15 +341,15 @@ export class ParticleSystemNode implements SimulationNodeBase {
     
     for (let i = 0; i < count; i++) {
       positions.push([
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2
+        (this.rng.next() - 0.5) * 2,
+        (this.rng.next() - 0.5) * 2,
+        (this.rng.next() - 0.5) * 2
       ]);
       
       velocities.push([
-        velocity[0] + (Math.random() - 0.5) * randomVel,
-        velocity[1] + (Math.random() - 0.5) * randomVel,
-        velocity[2] + (Math.random() - 0.5) * randomVel
+        velocity[0] + (this.rng.next() - 0.5) * randomVel,
+        velocity[1] + (this.rng.next() - 0.5) * randomVel,
+        velocity[2] + (this.rng.next() - 0.5) * randomVel
       ]);
     }
     

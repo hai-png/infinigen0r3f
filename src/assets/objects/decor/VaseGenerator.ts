@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * Vase Generator
  * 
@@ -28,6 +29,7 @@ export interface VaseConfig {
 }
 
 export class VaseGenerator extends BaseObjectGenerator<VaseConfig> {
+  private _rng = new SeededRandom(42);
   protected readonly defaultParams: VaseConfig = {
     shape: 'cylinder',
     material: 'ceramic',
@@ -510,16 +512,16 @@ export class VaseGenerator extends BaseObjectGenerator<VaseConfig> {
     for (let i = 0; i < count; i++) {
       configs.push({
         ...this.defaultParams,
-        shape: ['cylinder', 'amphora', 'bud', 'hourglass', 'flute'][Math.floor(Math.random() * 5)] as any,
-        material: ['ceramic', 'clay', 'glass', 'crystal', 'porcelain'][Math.floor(Math.random() * 5)] as any,
-        color: '#' + Math.floor(Math.random()*16777215).toString(16),
-        hasHandles: Math.random() > 0.5,
-        handleCount: (Math.floor(Math.random() * 3) + 1) as 0 | 1 | 2 | 3 | 4,
-        surfaceFinish: ['glossy', 'matte', 'textured'][Math.floor(Math.random() * 3)] as any,
-        rimStyle: ['straight', 'flared', 'rolled'][Math.floor(Math.random() * 3)] as any,
-        pattern: ['none', 'stripes', 'floral'][Math.floor(Math.random() * 3)] as any,
-        patternColor: '#' + Math.floor(Math.random()*16777215).toString(16),
-        seed: Math.floor(Math.random() * 10000)
+        shape: ['cylinder', 'amphora', 'bud', 'hourglass', 'flute'][Math.floor(this._rng.next() * 5)] as any,
+        material: ['ceramic', 'clay', 'glass', 'crystal', 'porcelain'][Math.floor(this._rng.next() * 5)] as any,
+        color: '#' + Math.floor(this._rng.next()*16777215).toString(16),
+        hasHandles: this._rng.next() > 0.5,
+        handleCount: (Math.floor(this._rng.next() * 3) + 1) as 0 | 1 | 2 | 3 | 4,
+        surfaceFinish: ['glossy', 'matte', 'textured'][Math.floor(this._rng.next() * 3)] as any,
+        rimStyle: ['straight', 'flared', 'rolled'][Math.floor(this._rng.next() * 3)] as any,
+        pattern: ['none', 'stripes', 'floral'][Math.floor(this._rng.next() * 3)] as any,
+        patternColor: '#' + Math.floor(this._rng.next()*16777215).toString(16),
+        seed: Math.floor(this._rng.next() * 10000)
       });
     }
 

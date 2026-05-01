@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * BedGenerator - Procedural generation of beds and bedding
  * 
@@ -573,7 +574,7 @@ export class BedGenerator extends BaseObjectGenerator<BedParams> {
 
   private getBeddingMaterial(): any {
     const colors = [0xffffff, 0xf0f0f0, 0xe8e8ff, 0xfff0f0, 0xf0fff0];
-    const color = colors[Math.floor(Math.random() * colors.length)];
+    const color = colors[Math.floor(this.rng.next() * colors.length)];
     
     return this.createPBRMaterial({
       color,
@@ -604,18 +605,18 @@ export class BedGenerator extends BaseObjectGenerator<BedParams> {
     const materials = ['wood', 'metal', 'upholstered', 'leather'] as const;
     const beddingStyles = ['duvet', 'comforter', 'quilt', 'sheets-only'] as const;
     
-    const style = styles[Math.floor(Math.random() * styles.length)];
+    const style = styles[Math.floor(this.rng.next() * styles.length)];
     
     return {
-      size: sizes[Math.floor(Math.random() * sizes.length)],
+      size: sizes[Math.floor(this.rng.next() * sizes.length)],
       style,
-      frameMaterial: materials[Math.floor(Math.random() * materials.length)],
-      hasHeadboard: Math.random() > 0.2,
-      hasFootboard: style === 'traditional' && Math.random() > 0.5,
-      hasStorage: style === 'storage' || (Math.random() > 0.7),
-      mattressThickness: 0.2 + Math.random() * 0.15,
-      pillowCount: 2 + Math.floor(Math.random() * 3),
-      beddingStyle: beddingStyles[Math.floor(Math.random() * beddingStyles.length)],
+      frameMaterial: materials[Math.floor(this.rng.next() * materials.length)],
+      hasHeadboard: this.rng.next() > 0.2,
+      hasFootboard: style === 'traditional' && this.rng.next() > 0.5,
+      hasStorage: style === 'storage' || (this.rng.next() > 0.7),
+      mattressThickness: 0.2 + this.rng.next() * 0.15,
+      pillowCount: 2 + Math.floor(this.rng.next() * 3),
+      beddingStyle: beddingStyles[Math.floor(this.rng.next() * beddingStyles.length)],
     };
   }
 }

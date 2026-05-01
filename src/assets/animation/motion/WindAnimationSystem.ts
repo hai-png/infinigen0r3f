@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * WindAnimationSystem - Procedural wind animation for vegetation and objects
  * 
@@ -82,6 +83,7 @@ const DEFAULT_ANIMATION_CONFIG: AnimationConfig = {
 };
 
 export class WindAnimationSystem {
+  private _rng = new SeededRandom(42);
   private noise: NoiseFunction3D;
   private windParams: WindParams;
   private time: number = 0;
@@ -102,7 +104,7 @@ export class WindAnimationSystem {
     this.time += deltaTime * this.windParams.timeScale;
     
     // Generate random gusts
-    if (Math.random() < this.windParams.gustFrequency * deltaTime) {
+    if (this._rng.next() < this.windParams.gustFrequency * deltaTime) {
       this.generateGust();
     }
     
@@ -114,11 +116,11 @@ export class WindAnimationSystem {
    * Generate a wind gust
    */
   private generateGust(): void {
-    const strength = this.windParams.gustStrength * (0.5 + Math.random());
+    const strength = this.windParams.gustStrength * (0.5 + this._rng.next());
     const direction = new THREE.Vector3(
-      Math.random() - 0.5,
-      Math.random() * 0.3,
-      Math.random() - 0.5
+      this._rng.next() - 0.5,
+      this._rng.next() * 0.3,
+      this._rng.next() - 0.5
     ).normalize();
     
     this.activeGusts.push({

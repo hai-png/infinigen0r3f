@@ -81,7 +81,7 @@ export class SurfaceGenerator {
 
   constructor(config: Partial<SurfaceConfig> = {}) {
     this.config = {
-      seed: Math.floor(Math.random() * 10000),
+      seed: 42,
       resolution: 128,
       displacementScale: 0.1,
       displacementDetail: 1.0,

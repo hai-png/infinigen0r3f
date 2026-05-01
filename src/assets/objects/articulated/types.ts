@@ -6,6 +6,7 @@
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 // ============================================================================
 // Joint Types
@@ -188,23 +189,17 @@ export type ArticulatedStyle = 'modern' | 'traditional' | 'industrial' | 'minima
 
 export abstract class ArticulatedObjectBase {
   protected seed: number;
-  protected rng: () => number;
+  protected rng: SeededRandom;
   protected style: ArticulatedStyle;
   protected scale: number;
   protected category: string;
 
   constructor(config: ArticulatedObjectConfig = {}) {
-    this.seed = config.seed ?? Math.floor(Math.random() * 100000);
+    this.seed = config.seed ?? 42;
     this.style = config.style ?? 'modern';
     this.scale = config.scale ?? 1;
     this.category = 'unknown';
-
-    // Simple seeded RNG (LCG)
-    let s = this.seed;
-    this.rng = () => {
-      s = (s * 1664525 + 1013904223) & 0xFFFFFFFF;
-      return (s >>> 0) / 0xFFFFFFFF;
-    };
+    this.rng = new SeededRandom(this.seed);
   }
 
   /**

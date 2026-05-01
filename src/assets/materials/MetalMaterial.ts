@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 /**
  * Configuration for metal material generation
@@ -73,6 +74,8 @@ export class MetalMaterialGenerator {
     }
   };
 
+  private _rng = new SeededRandom(42);
+
   /**
    * Generate metal material with custom or preset configuration
    */
@@ -134,12 +137,12 @@ export class MetalMaterialGenerator {
     ctx.strokeStyle = '#404040';
     ctx.lineWidth = 1;
 
-    const scratchCount = 30 + Math.random() * 20;
+    const scratchCount = 30 + this._rng.next() * 20;
     for (let i = 0; i < scratchCount; i++) {
-      const x = Math.random() * 512;
-      const y = Math.random() * 512;
-      const length = 20 + Math.random() * 100;
-      const angle = Math.random() * Math.PI;
+      const x = this._rng.next() * 512;
+      const y = this._rng.next() * 512;
+      const length = 20 + this._rng.next() * 100;
+      const angle = this._rng.next() * Math.PI;
 
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -147,7 +150,7 @@ export class MetalMaterialGenerator {
         x + Math.cos(angle) * length,
         y + Math.sin(angle) * length
       );
-      ctx.globalAlpha = 0.3 + Math.random() * 0.4;
+      ctx.globalAlpha = 0.3 + this._rng.next() * 0.4;
       ctx.stroke();
     }
 
@@ -181,7 +184,7 @@ export class MetalMaterialGenerator {
 
     for (let y = 0; y < 512; y += 2) {
       for (let x = 0; x < 512; x += 2) {
-        const noise = Math.random();
+        const noise = this._rng.next();
         const rustIntensity = noise > 0.7 ? (noise - 0.7) / 0.3 : 0;
         
         const r = Math.floor(baseColor.r * (1 - rustIntensity) + rustColor.r * rustIntensity);
@@ -228,7 +231,7 @@ export class MetalMaterialGenerator {
       ctx.lineWidth = 1;
       
       for (let y = 0; y < 512; y += 2) {
-        ctx.globalAlpha = 0.2 + Math.random() * 0.2;
+        ctx.globalAlpha = 0.2 + this._rng.next() * 0.2;
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(512, y);

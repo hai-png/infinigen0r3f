@@ -40,3 +40,11 @@ export * from './ShaderGraphBuilder';
 
 // Serializer
 export * from './NodeSerializer';
+
+// Node definition registry
+export * from './node-definition-registry';
+
+// Per-vertex streaming
+export { AttributeStream, AttributeDataType, AttributeDomain as StreamAttributeDomain } from './attribute-stream';
+export { GeometryContext } from './geometry-context';
+export { PerVertexEvaluator, perVertexExecutors, EvaluationContext } from './per-vertex-evaluator';

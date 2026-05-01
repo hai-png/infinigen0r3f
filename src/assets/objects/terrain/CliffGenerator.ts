@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * CliffGenerator - Procedural cliff and rock wall generation
  * 
@@ -59,6 +60,7 @@ export interface CliffLayer {
 // ============================================================================
 
 export class CliffGenerator {
+  private _rng = new SeededRandom(42);
   private config: CliffConfig;
   private noise: NoiseUtils;
   private rockGenerator: RockGenerator;
@@ -80,7 +82,7 @@ export class CliffGenerator {
       rockType: 'sandstone',
       layerColorVariation: true,
       useLOD: true,
-      seed: Math.random() * 10000,
+      seed: this._rng.nextInt(0, 9999),
       ...config
     };
     
@@ -288,9 +290,9 @@ export class CliffGenerator {
     
     // Add subtle color variation
     const variation = new THREE.Color(0.08, 0.07, 0.06);
-    baseColor.r += (Math.random() - 0.5) * variation.r;
-    baseColor.g += (Math.random() - 0.5) * variation.g;
-    baseColor.b += (Math.random() - 0.5) * variation.b;
+    baseColor.r += (this._rng.next() - 0.5) * variation.r;
+    baseColor.g += (this._rng.next() - 0.5) * variation.g;
+    baseColor.b += (this._rng.next() - 0.5) * variation.b;
     
     return new THREE.MeshStandardMaterial({
       color: baseColor,

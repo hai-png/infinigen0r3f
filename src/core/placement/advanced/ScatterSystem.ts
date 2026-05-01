@@ -12,6 +12,7 @@
 import { Vector3, Mesh, BufferGeometry, Material } from 'three';
 import { BBox } from '../../util/math/bbox';
 import { AdvancedPlacer, PlacementConfig, createDefaultConfig } from './AdvancedPlacer';
+import { SeededRandom } from '../../util/MathUtils';
 
 // ============================================================================
 // Configuration Types
@@ -212,10 +213,12 @@ class Vector2 {
 export class ClumpingSystem {
   private config: ClumpingConfig;
   private clumpCenters: Vector3[];
+  private rng: SeededRandom;
 
   constructor(config: ClumpingConfig) {
     this.config = config;
     this.clumpCenters = config.clumpCenters || [];
+    this.rng = new SeededRandom(42);
     
     // Generate clump centers if not provided
     if (this.clumpCenters.length === 0) {
@@ -228,8 +231,8 @@ export class ClumpingSystem {
     
     for (let i = 0; i < this.config.numClumps; i++) {
       // Random position within a reasonable area
-      const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * 50; // Adjust based on scene size
+      const angle = this.rng.next() * Math.PI * 2;
+      const radius = this.rng.next() * 50; // Adjust based on scene size
       
       this.clumpCenters.push(new Vector3(
         Math.cos(angle) * radius,
@@ -249,8 +252,8 @@ export class ClumpingSystem {
     for (const center of this.clumpCenters) {
       for (let i = 0; i < instancesPerClump; i++) {
         // Random position within clump radius
-        const angle = Math.random() * Math.PI * 2;
-        const r = Math.sqrt(Math.random()) * this.config.clumpRadius; // Uniform distribution in circle
+        const angle = this.rng.next() * Math.PI * 2;
+        const r = Math.sqrt(this.rng.next()) * this.config.clumpRadius; // Uniform distribution in circle
         
         const pos = new Vector3(
           center.x + Math.cos(angle) * r,
@@ -283,18 +286,20 @@ export class VariationEngine {
   private scaleRange: [number, number];
   private rotationVariation: number;
   private meshVariants: Mesh[];
+  private rng: SeededRandom;
 
   constructor(scaleRange: [number, number], rotationVariation: number, meshVariants: Mesh[] = []) {
     this.scaleRange = scaleRange;
     this.rotationVariation = rotationVariation;
     this.meshVariants = meshVariants;
+    this.rng = new SeededRandom(42);
   }
 
   /**
    * Generate random scale
    */
   generateScale(seed?: number): Vector3 {
-    const t = seed !== undefined ? (Math.sin(seed) + 1) / 2 : Math.random();
+    const t = seed !== undefined ? (Math.sin(seed) + 1) / 2 : this.rng.next();
     const scale = this.scaleRange[0] + t * (this.scaleRange[1] - this.scaleRange[0]);
     return new Vector3(scale, scale, scale);
   }
@@ -303,7 +308,7 @@ export class VariationEngine {
    * Generate random rotation (primarily around Y axis)
    */
   generateRotation(alignToSurface: boolean, normal?: Vector3, seed?: number): Vector3 {
-    const t = seed !== undefined ? (Math.sin(seed + 1) + 1) / 2 : Math.random();
+    const t = seed !== undefined ? (Math.sin(seed + 1) + 1) / 2 : this.rng.next();
     const yaw = (t - 0.5) * 2 * this.rotationVariation;
 
     if (alignToSurface && normal) {
@@ -324,7 +329,7 @@ export class VariationEngine {
       return 0;
     }
 
-    const t = seed !== undefined ? (Math.sin(seed + 2) + 1) / 2 : Math.random();
+    const t = seed !== undefined ? (Math.sin(seed + 2) + 1) / 2 : this.rng.next();
     return Math.floor(t * this.meshVariants.length);
   }
 
@@ -405,12 +410,14 @@ export class ScatterSystem {
   private clumpingSystem: ClumpingSystem | null;
   private variationEngine: VariationEngine;
   private lodManager: LODManager;
+  private rng: SeededRandom;
 
   constructor(options: ScatterOptions) {
     this.config = options.config;
     this.bounds = options.bounds;
     this.placer = null;
     this.clumpingSystem = null;
+    this.rng = new SeededRandom(42);
     this.variationEngine = new VariationEngine(
       this.config.scaleRange,
       this.config.rotationVariation,
@@ -463,7 +470,7 @@ export class ScatterSystem {
                     (this.config.distributionMap!.resolution[1] - 1)) * 
           this.config.distributionMap!.resolution[0]
         ];
-        return Math.random() < density;
+        return this.rng.next() < density;
       });
     }
 

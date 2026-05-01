@@ -14,6 +14,7 @@ import { RoomGraph, RoomNode, NeighborType } from './base';
 import { FloorPlanGenerator, FloorPlanConfig } from './floor-plan';
 import { ContourOperations } from './contour';
 import { Vector2 } from 'three';
+import { SeededRandom } from '../../util/MathUtils';
 
 export interface RoomConstraint {
   roomA: string;
@@ -48,6 +49,7 @@ export interface RoomSolverConfig {
   coolingRate: number;
   maxIterations: number;
   minTemperature: number;
+  seed?: number;
 }
 
 export interface RoomLayout {
@@ -60,6 +62,7 @@ export class RoomSolver {
   private config: RoomSolverConfig;
   private floorPlanGen: FloorPlanGenerator;
   private contourOps: ContourOperations;
+  private rng: SeededRandom;
 
   constructor(config: Partial<RoomSolverConfig> = {}) {
     this.config = {
@@ -80,8 +83,10 @@ export class RoomSolver {
       coolingRate: config.coolingRate ?? 0.95,
       maxIterations: config.maxIterations ?? 10000,
       minTemperature: config.minTemperature ?? 0.1,
+      seed: config.seed,
     };
 
+    this.rng = new SeededRandom(this.config.seed ?? 42);
     this.floorPlanGen = new FloorPlanGenerator(this.config.floorPlan);
     this.contourOps = new ContourOperations();
   }
@@ -125,7 +130,7 @@ export class RoomSolver {
       const deltaE = neighborEnergy - currentEnergy;
       const acceptanceProb = deltaE < 0 ? 1.0 : Math.exp(-deltaE / temperature);
 
-      if (Math.random() < acceptanceProb) {
+      if (this.rng.next() < acceptanceProb) {
         currentGraph = neighborGraph;
         currentLayout = neighborLayout;
         currentEnergy = neighborEnergy;
@@ -160,7 +165,7 @@ export class RoomSolver {
     for (const node of graph.rooms) {
       // Start with simple rectangular contour
       const area = node.metadata?.targetArea ?? 12.0;
-      const aspectRatio = 1.0 + Math.random() * 0.5;
+      const aspectRatio = 1.0 + this.rng.next() * 0.5;
       
       const width = Math.sqrt(area * aspectRatio);
       const height = area / width;
@@ -253,14 +258,14 @@ export class RoomSolver {
    */
   private generateNeighbor(graph: RoomGraph): RoomGraph {
     const neighbor = graph.clone();
-    const moveType = Math.random();
+    const moveType = this.rng.next();
 
     if (moveType < 0.3) {
       // Swap two room positions
       const roomIds = neighbor.rooms.map(r => r.id);
       if (roomIds.length >= 2) {
-        const i = Math.floor(Math.random() * roomIds.length);
-        const j = Math.floor(Math.random() * roomIds.length);
+        const i = this.rng.nextInt(0, roomIds.length - 1);
+        const j = this.rng.nextInt(0, roomIds.length - 1);
         if (i !== j) {
           // Swap metadata that affects positioning
           const nodeI = neighbor.get(roomIds[i]);
@@ -276,8 +281,8 @@ export class RoomSolver {
       // Add/remove adjacency edge
       const roomIds = neighbor.rooms.map(r => r.id);
       if (roomIds.length >= 2) {
-        const i = Math.floor(Math.random() * roomIds.length);
-        const j = Math.floor(Math.random() * roomIds.length);
+        const i = this.rng.nextInt(0, roomIds.length - 1);
+        const j = this.rng.nextInt(0, roomIds.length - 1);
         if (i !== j) {
           const hasEdge = neighbor.areNeighbors(roomIds[i], roomIds[j]);
           if (hasEdge) {
@@ -290,11 +295,11 @@ export class RoomSolver {
     } else {
       // Modify room properties
       const roomIds = neighbor.rooms.map(r => r.id);
-      const roomId = roomIds[Math.floor(Math.random() * roomIds.length)];
+      const roomId = roomIds[this.rng.nextInt(0, roomIds.length - 1)];
       const node = neighbor.get(roomId)!;
       
       if (node.metadata) {
-        node.metadata.targetArea = (node.metadata.targetArea ?? 12.0) * (0.9 + Math.random() * 0.2);
+        node.metadata.targetArea = (node.metadata.targetArea ?? 12.0) * (0.9 + this.rng.next() * 0.2);
       }
     }
 

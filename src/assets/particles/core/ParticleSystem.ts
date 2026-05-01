@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * InfiniGen R3F Port - Particle System Core
  * 
@@ -168,6 +169,7 @@ export interface ParticleCollider {
 // ============================================================================
 
 export class Particle {
+  private _rng = new SeededRandom(42);
   data: ParticleData;
   private _pool: ParticlePool | null = null;
   
@@ -382,6 +384,7 @@ export class ParticleEmitter {
   private burstTimer: number;
   private wavePhase: number;
   private lastEmitTime: number;
+  private _rng = new SeededRandom(42);
 
   constructor(config: EmitterConfig, maxParticles?: number) {
     this.config = { ...config };
@@ -418,19 +421,19 @@ export class ParticleEmitter {
     particle.data.velocity.copy(velocity);
 
     // Lifetime
-    const lifetime = config.particleLifetime * (1 + (Math.random() - 0.5) * config.lifetimeVariation);
+    const lifetime = config.particleLifetime * (1 + (this._rng.next() - 0.5) * config.lifetimeVariation);
     particle.data.lifetime = Math.max(0.001, lifetime);
 
     // Size
-    const size = config.particleSize * (1 + (Math.random() - 0.5) * config.sizeVariation);
+    const size = config.particleSize * (1 + (this._rng.next() - 0.5) * config.sizeVariation);
     particle.data.size = size;
 
     // Color
     particle.data.color.copy(config.particleColor);
     if (config.colorVariation) {
-      particle.data.color.r += (Math.random() - 0.5) * config.colorVariation.r;
-      particle.data.color.g += (Math.random() - 0.5) * config.colorVariation.g;
-      particle.data.color.b += (Math.random() - 0.5) * config.colorVariation.b;
+      particle.data.color.r += (this._rng.next() - 0.5) * config.colorVariation.r;
+      particle.data.color.g += (this._rng.next() - 0.5) * config.colorVariation.g;
+      particle.data.color.b += (this._rng.next() - 0.5) * config.colorVariation.b;
     }
     // Clamp color values to 0-1 range
     particle.data.color.r = Math.max(0, Math.min(1, particle.data.color.r));
@@ -444,8 +447,8 @@ export class ParticleEmitter {
     particle.data.mass = config.particleMass;
 
     // Rotation
-    particle.data.rotation = Math.random() * Math.PI * 2;
-    particle.data.rotationSpeed = (Math.random() - 0.5) * 2;
+    particle.data.rotation = this._rng.next() * Math.PI * 2;
+    particle.data.rotationSpeed = (this._rng.next() - 0.5) * 2;
 
     // Scale
     particle.data.scale.set(1, 1, 1);
@@ -454,7 +457,7 @@ export class ParticleEmitter {
     if (config.textures.length > 0) {
       if (config.randomizeFrame) {
         const totalFrames = config.textureSheetColumns * config.textureSheetRows;
-        particle.data.textureIndex = Math.floor(Math.random() * totalFrames);
+        particle.data.textureIndex = Math.floor(this._rng.next() * totalFrames);
       } else {
         particle.data.textureIndex = config.startFrame || 0;
       }
@@ -475,11 +478,11 @@ export class ParticleEmitter {
 
       case 'sphere':
         {
-          const u = Math.random();
-          const v = Math.random();
+          const u = this._rng.next();
+          const v = this._rng.next();
           const theta = 2 * Math.PI * u;
           const phi = Math.acos(2 * v - 1);
-          const r = config.radius * Math.cbrt(Math.random());
+          const r = config.radius * Math.cbrt(this._rng.next());
           pos.set(
             r * Math.sin(phi) * Math.cos(theta),
             r * Math.sin(phi) * Math.sin(theta),
@@ -490,55 +493,55 @@ export class ParticleEmitter {
 
       case 'box':
         pos.set(
-          (Math.random() - 0.5) * config.width,
-          (Math.random() - 0.5) * config.height,
-          (Math.random() - 0.5) * config.depth
+          (this._rng.next() - 0.5) * config.width,
+          (this._rng.next() - 0.5) * config.height,
+          (this._rng.next() - 0.5) * config.depth
         );
         break;
 
       case 'cone':
         {
-          const height = (Math.random() - 0.5) * config.height;
+          const height = (this._rng.next() - 0.5) * config.height;
           const radiusAtHeight = (config.radius * (1 - Math.abs(height) / (config.height / 2)));
-          const angle = Math.random() * Math.PI * 2;
-          const r = Math.sqrt(Math.random()) * radiusAtHeight;
+          const angle = this._rng.next() * Math.PI * 2;
+          const r = Math.sqrt(this._rng.next()) * radiusAtHeight;
           pos.set(r * Math.cos(angle), height, r * Math.sin(angle));
         }
         break;
 
       case 'cylinder':
         {
-          const angle = Math.random() * Math.PI * 2;
-          const r = Math.sqrt(Math.random()) * config.radius;
-          const height = (Math.random() - 0.5) * config.height;
+          const angle = this._rng.next() * Math.PI * 2;
+          const r = Math.sqrt(this._rng.next()) * config.radius;
+          const height = (this._rng.next() - 0.5) * config.height;
           pos.set(r * Math.cos(angle), height, r * Math.sin(angle));
         }
         break;
 
       case 'plane':
         pos.set(
-          (Math.random() - 0.5) * config.width,
+          (this._rng.next() - 0.5) * config.width,
           0,
-          (Math.random() - 0.5) * config.height
+          (this._rng.next() - 0.5) * config.height
         );
         break;
 
       case 'ring':
         {
-          const angle = Math.random() * Math.PI * 2;
+          const angle = this._rng.next() * Math.PI * 2;
           const innerR = config.radiusInner || 0;
-          const r = innerR + Math.random() * (config.radius - innerR);
+          const r = innerR + this._rng.next() * (config.radius - innerR);
           pos.set(r * Math.cos(angle), 0, r * Math.sin(angle));
         }
         break;
 
       case 'hemisphere':
         {
-          const u = Math.random();
-          const v = Math.random();
+          const u = this._rng.next();
+          const v = this._rng.next();
           const theta = 2 * Math.PI * u;
-          const phi = Math.acos(Math.random()); // Only upper hemisphere
-          const r = config.radius * Math.cbrt(Math.random());
+          const phi = Math.acos(this._rng.next()); // Only upper hemisphere
+          const r = config.radius * Math.cbrt(this._rng.next());
           pos.set(
             r * Math.sin(phi) * Math.cos(theta),
             r * Math.cos(phi),
@@ -559,12 +562,12 @@ export class ParticleEmitter {
     const velocity = config.initialVelocity.clone();
 
     // Add speed variation
-    const speed = config.velocityMin + Math.random() * (config.velocityMax - config.velocityMin);
+    const speed = config.velocityMin + this._rng.next() * (config.velocityMax - config.velocityMin);
     const spread = config.velocitySpread;
 
     // Random direction within spread cone
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(1 - Math.random() * (1 - Math.cos(spread)));
+    const theta = this._rng.next() * Math.PI * 2;
+    const phi = Math.acos(1 - this._rng.next() * (1 - Math.cos(spread)));
 
     const dirX = Math.sin(phi) * Math.cos(theta);
     const dirY = Math.cos(phi);

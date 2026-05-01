@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * FloorGenerator - Procedural flooring generation
  * FIX: All patterns (herringbone, parquet, basketweave, carpet) now produce distinct geometry
@@ -368,8 +369,8 @@ export class FloorGenerator extends BaseObjectGenerator<FloorParams> {
         for (let x = 0; x < size; x++) {
           const idx = (y * size + x) * 4;
           // Small random perturbation for fiber look
-          const nx = (Math.random() - 0.5) * 15;
-          const ny = (Math.random() - 0.5) * 15;
+          const nx = (this.rng.next() - 0.5) * 15;
+          const ny = (this.rng.next() - 0.5) * 15;
           imgData.data[idx] = Math.max(0, Math.min(255, 128 + nx));     // R = X normal
           imgData.data[idx + 1] = Math.max(0, Math.min(255, 128 + ny)); // G = Y normal
           // B stays 255 (pointing up)

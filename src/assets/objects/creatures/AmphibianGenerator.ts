@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * AmphibianGenerator - Procedural amphibian generation
  * Generates amphibians with smooth body, wide head with large eyes, 4 legs (hind larger), webbed feet
@@ -14,8 +15,9 @@ export interface AmphibianParameters extends CreatureParams {
 }
 
 export class AmphibianGenerator extends CreatureBase {
+  private _rng = new SeededRandom(42);
   constructor(params: Partial<AmphibianParameters> = {}) {
-    super({ ...params, seed: params.seed || Math.random() * 10000 });
+    super({ ...params, seed: params.seed || 42 });
   }
 
   getDefaultConfig(): AmphibianParameters {

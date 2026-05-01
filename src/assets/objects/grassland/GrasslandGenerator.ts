@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';
 
@@ -36,6 +37,7 @@ export interface GrasslandConfig {
  * Generator for grassland ecosystems with mixed grass species and wildflowers
  */
 export class GrasslandGenerator {
+  private _rng = new SeededRandom(42);
   private readonly defaultConfig: GrasslandConfig = {
     areaSize: 10,
     density: 0.7,
@@ -121,17 +123,17 @@ export class GrasslandGenerator {
 
     for (let i = 0; i < count; i++) {
       // Position using noise for natural distribution
-      const x = (Math.random() - 0.5) * config.areaSize;
-      const z = (Math.random() - 0.5) * config.areaSize;
+      const x = (this._rng.next() - 0.5) * config.areaSize;
+      const z = (this._rng.next() - 0.5) * config.areaSize;
       const noiseValue = NoiseUtils.perlin2D(x * noiseScale, z * noiseScale);
       
       // Skip if noise indicates sparse area
-      if (noiseValue < -0.3 && Math.random() > 0.5) continue;
+      if (noiseValue < -0.3 && this._rng.next() > 0.5) continue;
 
       const y = 0;
-      const scale = 0.8 + Math.random() * 0.4 + config.heightVariation * noiseValue;
-      const rotation = Math.random() * Math.PI * 2;
-      const tilt = (Math.random() - 0.5) * 0.3;
+      const scale = 0.8 + this._rng.next() * 0.4 + config.heightVariation * noiseValue;
+      const rotation = this._rng.next() * Math.PI * 2;
+      const tilt = (this._rng.next() - 0.5) * 0.3;
 
       dummy.position.set(x, y, z);
       dummy.scale.set(scale, scale, scale);
@@ -161,10 +163,10 @@ export class GrasslandGenerator {
     const dummy = new THREE.Object3D();
 
     for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * config.areaSize;
-      const z = (Math.random() - 0.5) * config.areaSize;
-      const scale = 0.6 + Math.random() * 0.3;
-      const rotation = Math.random() * Math.PI * 2;
+      const x = (this._rng.next() - 0.5) * config.areaSize;
+      const z = (this._rng.next() - 0.5) * config.areaSize;
+      const scale = 0.6 + this._rng.next() * 0.3;
+      const rotation = this._rng.next() * Math.PI * 2;
 
       dummy.position.set(x, 0, z);
       dummy.scale.set(scale, scale, scale);
@@ -194,10 +196,10 @@ export class GrasslandGenerator {
     const dummy = new THREE.Object3D();
 
     for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * config.areaSize;
-      const z = (Math.random() - 0.5) * config.areaSize;
-      const scale = 0.7 + Math.random() * 0.4;
-      const rotation = Math.random() * Math.PI * 2;
+      const x = (this._rng.next() - 0.5) * config.areaSize;
+      const z = (this._rng.next() - 0.5) * config.areaSize;
+      const scale = 0.7 + this._rng.next() * 0.4;
+      const rotation = this._rng.next() * Math.PI * 2;
 
       dummy.position.set(x, 0, z);
       dummy.scale.set(scale, scale, scale);
@@ -235,11 +237,11 @@ export class GrasslandGenerator {
       const dummy = new THREE.Object3D();
 
       for (let i = 0; i < typeCount; i++) {
-        const x = (Math.random() - 0.5) * config.areaSize;
-        const z = (Math.random() - 0.5) * config.areaSize;
-        const scale = 0.5 + Math.random() * 0.3;
-        const rotation = Math.random() * Math.PI * 2;
-        const stemHeight = 0.05 + Math.random() * 0.05;
+        const x = (this._rng.next() - 0.5) * config.areaSize;
+        const z = (this._rng.next() - 0.5) * config.areaSize;
+        const scale = 0.5 + this._rng.next() * 0.3;
+        const rotation = this._rng.next() * Math.PI * 2;
+        const stemHeight = 0.05 + this._rng.next() * 0.05;
 
         dummy.position.set(x, stemHeight, z);
         dummy.scale.set(scale, scale, scale);
@@ -270,7 +272,7 @@ export class GrasslandGenerator {
         const t = y / height;
         // Add curve to the blade
         positions[i] += Math.sin(t * Math.PI) * width * 0.3;
-        positions[i + 2] += (Math.random() - 0.5) * width * 0.1;
+        positions[i + 2] += (this._rng.next() - 0.5) * width * 0.1;
       }
       geometry.attributes.position.needsUpdate = true;
     }
@@ -403,7 +405,7 @@ export class GrasslandGenerator {
     }
 
     // Add variation
-    const variation = (Math.random() - 0.5) * 0.1;
+    const variation = (this._rng.next() - 0.5) * 0.1;
     color.r += variation;
     color.g += variation;
     color.b += variation;

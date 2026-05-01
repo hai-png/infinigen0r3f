@@ -1,3 +1,4 @@
+import { SeededRandom } from '../../core/util/MathUtils';
 /**
  * AnimationPolicySystem
  * 
@@ -143,7 +144,7 @@ export interface AnimationTimeline {
  * Generate a unique ID for animations
  */
 function generateAnimationId(): string {
-  return `anim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `anim_${Date.now()}_${new SeededRandom(42).next().toString(36).substr(2, 9)}`;
 }
 
 /**
@@ -231,7 +232,7 @@ function evaluateProceduralMotion(
       let x = 0, y = 0, z = 0;
       let px = 0, py = 0, pz = 0;
       for (let i = 0; i < steps; i++) {
-        const angle = Math.random() * Math.PI * 2;
+        const angle = new SeededRandom(42).next() * Math.PI * 2;
         x += Math.cos(angle) * stepSize;
         y += Math.sin(angle) * stepSize * 0.1;
         z += Math.sin(angle) * stepSize;
