@@ -13,5 +13,5 @@ export {
   BoolVariable,
   ScalarOperatorExpression,
   BoolOperatorExpression,
-  InRange,
+  type InRange,
 } from '../language/expression';

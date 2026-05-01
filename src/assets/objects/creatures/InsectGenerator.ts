@@ -1,9 +1,9 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * InsectGenerator - Procedural insect generation
  * Generates insects with 3 body segments, 6 legs, antennae, and optional wings
  */
-import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
+import { Object3D, Group, Mesh, Material, MeshStandardMaterial, DoubleSide } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
 
 export interface InsectParameters extends CreatureParams {
@@ -73,28 +73,28 @@ export class InsectGenerator extends CreatureBase {
     return insect;
   }
 
-  generateBodyCore(): Mesh {
+  generateBodyCore(): Object3D {
     const params = this.getDefaultConfig();
     const mat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.5 });
     return this.generateBodySegments(params, mat)[1]; // Thorax
   }
 
-  generateHead(): Mesh {
+  generateHead(): Object3D {
     const params = this.getDefaultConfig();
     const mat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.5 });
     return this.generateBodySegments(params, mat)[0];
   }
 
-  generateLimbs(): Mesh[] {
+  generateLimbs(): Object3D[] {
     const params = this.getDefaultConfig();
     const mat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.5 });
     return this.generateLegs(params, mat);
   }
 
-  generateAppendages(): Mesh[] {
+  generateAppendages(): Object3D[] {
     const params = this.getDefaultConfig();
     const mat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.5 });
-    const app: Mesh[] = [];
+    const app: Object3D[] = [];
     app.push(...this.generateAntennae(params, mat));
     if (params.hasWings) {
       app.push(...this.generateWings(params));
@@ -151,9 +151,9 @@ export class InsectGenerator extends CreatureBase {
     return segments;
   }
 
-  private generateLegs(params: InsectParameters, mat: MeshStandardMaterial): Mesh[] {
+  private generateLegs(params: InsectParameters, mat: MeshStandardMaterial): Group[] {
     const s = params.size;
-    const legs: Mesh[] = [];
+    const legs: Group[] = [];
     const numPairs = Math.floor(params.legCount / 2);
 
     for (let pair = 0; pair < numPairs; pair++) {
@@ -178,16 +178,16 @@ export class InsectGenerator extends CreatureBase {
         lower.position.set(side * s * 0.2, -s * 0.2, zOffset);
         legGroup.add(lower);
 
-        legs.push(legGroup as unknown as Mesh);
+        legs.push(legGroup);
       }
     }
 
     return legs;
   }
 
-  private generateAntennae(params: InsectParameters, mat: MeshStandardMaterial): Mesh[] {
+  private generateAntennae(params: InsectParameters, mat: MeshStandardMaterial): Group[] {
     const s = params.size;
-    const antennae: Mesh[] = [];
+    const antennae: Group[] = [];
 
     for (const side of [-1, 1]) {
       const group = new Group();
@@ -207,7 +207,7 @@ export class InsectGenerator extends CreatureBase {
       tip.position.set(side * s * 0.18, s * 0.38, s * 0.4);
       group.add(tip);
 
-      antennae.push(group as unknown as Mesh);
+      antennae.push(group);
     }
 
     return antennae;
@@ -220,7 +220,7 @@ export class InsectGenerator extends CreatureBase {
       transparent: true,
       opacity: 0.6,
       roughness: 0.3,
-      side: 2,
+      side: DoubleSide,
     });
     const wings: Mesh[] = [];
 

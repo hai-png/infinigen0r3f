@@ -3,7 +3,7 @@
  * Generates fish with tapered body, head with eyes/mouth, tail fin, dorsal fin, pectoral fins
  */
 import * as THREE from 'three';
-import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
+import { Object3D, Group, Mesh, Material, MeshStandardMaterial } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
 import { SeededRandom } from '../../../core/util/MathUtils';
 
@@ -67,14 +67,14 @@ export class FishGenerator extends CreatureBase {
     return fish;
   }
 
-  generateBodyCore(): Mesh {
+  generateBodyCore(): Object3D {
     return this.generateBody(this.getDefaultConfig());
   }
 
   /**
    * Generate the head of the fish: a tapered front section with eyes and mouth
    */
-  generateHead(): Mesh {
+  generateHead(): Object3D {
     const params = this.getDefaultConfig();
     const s = params.size;
     const headGroup = new Group();
@@ -114,14 +114,14 @@ export class FishGenerator extends CreatureBase {
       headGroup.add(eye);
     }
 
-    return headGroup as unknown as Mesh;
+    return headGroup;
   }
 
-  generateLimbs(): Mesh[] {
+  generateLimbs(): Object3D[] {
     return this.generatePectoralFins(this.getDefaultConfig());
   }
 
-  generateAppendages(): Mesh[] {
+  generateAppendages(): Object3D[] {
     const params = this.getDefaultConfig();
     return [this.generateTailFin(params), this.generateDorsalFin(params), ...this.generatePectoralFins(params)];
   }
@@ -155,7 +155,7 @@ export class FishGenerator extends CreatureBase {
     return mesh;
   }
 
-  private generateTailFin(params: FishParameters): Mesh {
+  private generateTailFin(params: FishParameters): Group {
     const s = params.size;
     const finMat = new MeshStandardMaterial({
       color: params.secondaryColor,
@@ -189,7 +189,7 @@ export class FishGenerator extends CreatureBase {
       finGroup.add(fin);
     }
 
-    return finGroup as unknown as Mesh;
+    return finGroup;
   }
 
   private generateDorsalFin(params: FishParameters): Mesh {

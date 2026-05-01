@@ -1,4 +1,4 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * InfiniGen R3F Port - Particle System Core
  * 

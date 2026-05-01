@@ -13,7 +13,7 @@ export {
   EXRExporter,
   EXRCompression,
   EXRPixelType,
-  EXRChannel,
-  EXRMetadata,
-  EXRExportConfig,
+  type EXRChannel,
+  type EXRMetadata,
+  type EXRExportConfig,
 } from './exr-exporter';

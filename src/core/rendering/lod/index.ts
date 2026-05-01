@@ -25,7 +25,7 @@ import LODSystem, {
 } from './LODSystem';
 
 export {
-  LODLevel,
+  type LODLevel,
   DEFAULT_LOD_CONFIG,
   generateLODLevels,
   selectLODByDistance,

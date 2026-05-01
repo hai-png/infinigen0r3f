@@ -27,7 +27,7 @@ export {
   isConstant,
   evaluateConstant,
   simplifyConstant,
-  Bound,
+  type Bound,
   createBoundFromComparison,
   mapBound,
   expressionMapBoundBinop,

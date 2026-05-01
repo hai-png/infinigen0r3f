@@ -80,7 +80,7 @@ export { NoiseCache, defaultNoiseCache } from './noise-cache';
 
 // Export from ./vector with aliases to avoid conflicts with MathUtils re-exports
 export {
-  Vector3 as MathVec3,
+  type Vector3 as MathVec3,
   vec3,
   add as vec3Add,
   sub as vec3Sub,

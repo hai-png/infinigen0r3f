@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three';
-import { SeededRandom } from './MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 export { Quaternion } from 'three';
 

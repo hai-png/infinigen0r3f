@@ -32,7 +32,7 @@ export {
   State,
   ObjectState,
   RelationState,
-  BVHCacheEntry,
+  type BVHCacheEntry,
   poseAffectsScore
 } from './state';
 

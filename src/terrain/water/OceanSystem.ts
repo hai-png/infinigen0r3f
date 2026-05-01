@@ -1,8 +1,9 @@
 /**
- * OceanSystem - Full ocean rendering system with Gerstner waves
+ * OceanSystem - Full ocean rendering system with Gerstner waves and FFT spectrum
  *
  * Provides a large-scale ocean surface with:
- * - Multiple Gerstner wave components for realistic ocean motion
+ * - Multiple Gerstner wave components for realistic ocean motion (default)
+ * - Optional FFT-based ocean spectrum (Phillips spectrum + Cooley-Tukey FFT)
  * - Depth-based water coloring (deep blue → shallow turquoise)
  * - Fresnel effect for reflection/refraction blending
  * - Foam at wave crests
@@ -14,6 +15,7 @@
  */
 
 import * as THREE from 'three';
+import { FFTOceanSpectrum, FFTOceanConfig } from './FFTOceanSpectrum';
 
 // ============================================================================
 // Interfaces
@@ -42,6 +44,10 @@ export interface OceanConfig {
   foamThreshold: number;
   /** Animation time, updated each frame (default 0) */
   time: number;
+  /** Use FFT-based ocean spectrum instead of Gerstner waves (default false) */
+  useFFT: boolean;
+  /** FFT spectrum configuration — only used when useFFT is true */
+  fftConfig: Partial<FFTOceanConfig>;
 }
 
 export interface GerstnerWave {
@@ -107,6 +113,8 @@ export class OceanSurface {
       shallowColor: new THREE.Color(0x40c0b0),
       foamColor: new THREE.Color(0xffffff),
       foamThreshold: 0.8,
+      useFFT: false,
+      fftConfig: {},
     };
     return { ...defaults, ...partial };
   }
@@ -565,6 +573,8 @@ export class OceanSystem {
   private group: THREE.Group;
   private time: number = 0;
   private underwaterFog: THREE.FogExp2 | null = null;
+  private fftSpectrum: FFTOceanSpectrum | null = null;
+  private useFFT: boolean = false;
 
   constructor(config: Partial<OceanConfig> = {}) {
     this.surface = new OceanSurface(config);
@@ -575,6 +585,38 @@ export class OceanSystem {
     if (config.deepColor) {
       this.underwaterFog = new THREE.FogExp2(config.deepColor.getHex(), 0.015);
     }
+
+    // Initialize FFT spectrum if requested
+    this.useFFT = config.useFFT ?? false;
+    if (this.useFFT) {
+      this.initFFTSpectrum(config.fftConfig, config.windSpeed, config.windDirection);
+    }
+  }
+
+  /**
+   * Initialize the FFT ocean spectrum with configuration derived from
+   * the ocean system's wind parameters.
+   */
+  private initFFTSpectrum(
+    fftConfig: Partial<FFTOceanConfig> = {},
+    windSpeed?: number,
+    windDirection?: [number, number]
+  ): void {
+    // Derive FFT wind parameters from the ocean config if not explicitly set
+    const derivedConfig: Partial<FFTOceanConfig> = {
+      windSpeed: fftConfig.windSpeed ?? windSpeed ?? 10,
+      windDirection: fftConfig.windDirection ?? (
+        windDirection
+          ? Math.atan2(windDirection[1], windDirection[0])
+          : 0
+      ),
+      patchSize: fftConfig.patchSize ?? 128,
+      resolution: fftConfig.resolution ?? 64,
+      depth: fftConfig.depth ?? 50,
+      seed: fftConfig.seed ?? 42,
+    };
+
+    this.fftSpectrum = new FFTOceanSpectrum(derivedConfig);
   }
 
   /**
@@ -596,15 +638,23 @@ export class OceanSystem {
 
   /**
    * Returns the wave height at world position (x, z).
+   * When useFFT is enabled, queries the FFT spectrum; otherwise uses Gerstner waves.
    */
   getHeightAt(x: number, z: number): number {
+    if (this.useFFT && this.fftSpectrum) {
+      return this.fftSpectrum.getHeightAt(x, z, this.time);
+    }
     return this.surface.getHeightAt(x, z);
   }
 
   /**
    * Returns the surface normal at world position (x, z).
+   * When useFFT is enabled, queries the FFT spectrum; otherwise uses Gerstner waves.
    */
   getNormalAt(x: number, z: number): THREE.Vector3 {
+    if (this.useFFT && this.fftSpectrum) {
+      return this.fftSpectrum.getNormalAt(x, z, this.time);
+    }
     return this.surface.getNormalAt(x, z);
   }
 
@@ -620,6 +670,37 @@ export class OceanSystem {
    */
   getSurface(): OceanSurface {
     return this.surface;
+  }
+
+  /**
+   * Get the FFT ocean spectrum instance (null if useFFT is false).
+   */
+  getFFTSpectrum(): FFTOceanSpectrum | null {
+    return this.fftSpectrum;
+  }
+
+  /**
+   * Check whether FFT-based ocean spectrum is being used.
+   */
+  isUsingFFT(): boolean {
+    return this.useFFT;
+  }
+
+  /**
+   * Enable or disable FFT-based ocean spectrum at runtime.
+   * When enabling, the FFT spectrum is initialized with the current
+   * ocean system's wind parameters.
+   */
+  setUseFFT(enabled: boolean, fftConfig?: Partial<FFTOceanConfig>): void {
+    if (enabled && !this.fftSpectrum) {
+      const config = this.surface.getConfig();
+      this.initFFTSpectrum(
+        fftConfig ?? config.fftConfig,
+        config.windSpeed,
+        config.windDirection
+      );
+    }
+    this.useFFT = enabled;
   }
 
   /**
@@ -642,6 +723,16 @@ export class OceanSystem {
    * Update ocean configuration at runtime.
    */
   updateConfig(config: Partial<OceanConfig>): void {
+    // Handle FFT mode change
+    if (config.useFFT !== undefined && config.useFFT !== this.useFFT) {
+      this.setUseFFT(config.useFFT, config.fftConfig);
+    }
+
+    // Update FFT spectrum config if FFT is active
+    if (this.useFFT && this.fftSpectrum && config.fftConfig) {
+      this.fftSpectrum.updateConfig(config.fftConfig);
+    }
+
     this.surface.updateConfig(config);
   }
 
@@ -654,5 +745,8 @@ export class OceanSystem {
 
   dispose(): void {
     this.surface.dispose();
+    if (this.fftSpectrum) {
+      this.fftSpectrum.dispose();
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * BedGenerator - Procedural generation of beds and bedding
  * 

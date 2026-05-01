@@ -15,11 +15,11 @@ export { ConfigParser, type SceneConfig } from './SceneConfigSystem';
 export {
   TaskRegistry,
   taskRegistry,
-  TaskFunction,
-  TaskResult,
-  TaskConfig,
-  TaskMetadata,
-  TaskParamType,
+  type TaskFunction,
+  type TaskResult,
+  type TaskConfig,
+  type TaskMetadata,
+  type TaskParamType,
 } from './TaskRegistry';
 
 export {

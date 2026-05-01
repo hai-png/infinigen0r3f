@@ -16,6 +16,7 @@
 
 import * as THREE from 'three';
 import { GroundTruthGenerator, DepthData, SegmentationData } from './GroundTruthGenerator';
+import { OcclusionDetector, OcclusionResult } from '../occlusion/OcclusionDetector';
 
 // ============================================================================
 // Type Definitions
@@ -502,16 +503,45 @@ export class AnnotationGenerator {
   }
 
   /**
-   * Compute occlusion information for an object
+   * Compute occlusion information for an object using raycasting-based detection.
+   *
+   * Replaces the previous stub that always returned `visible: 1.0`.
+   * Uses OcclusionDetector to cast rays from the camera through the object's
+   * bounding box and determine what fraction are occluded.
    */
   private computeOcclusion(mesh: THREE.Mesh): BoundingBox2D['occlusion'] {
-    // Simplified occlusion detection
-    // Full implementation would use depth buffer comparison
-    
+    const detector = new OcclusionDetector(this.camera, {
+      sampleCount: 10,
+      includeEdgeSamples: true,
+      seed: 42,
+    });
+
+    // Walk up to find the root scene, or use the mesh's parent scene
+    const scene = this.findRootScene(mesh);
+
+    const results = detector.detectOcclusion(scene, [mesh]);
+
+    const result = results.get(mesh.uuid);
+    const visibilityFraction = result?.visibilityFraction ?? 1.0;
+
     return {
-      visible: 1.0,
-      truncated: false,
+      visible: visibilityFraction,
+      truncated: visibilityFraction < 1.0 && visibilityFraction > 0.0,
     };
+  }
+
+  /**
+   * Walk up the parent chain to find the root Scene.
+   */
+  private findRootScene(object: THREE.Object3D): THREE.Scene {
+    let current: THREE.Object3D | null = object;
+    while (current) {
+      if ((current as any).isScene) {
+        return current as THREE.Scene;
+      }
+      current = current.parent;
+    }
+    return new THREE.Scene();
   }
 
   /**

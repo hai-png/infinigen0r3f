@@ -2,7 +2,7 @@
  * Room Solver Module - Indoor Scene Layout Generation
  */
 
-export { RoomGraph, RoomNode, RoomEdge } from './base';
-export { FloorPlanGenerator, FloorPlanParams, RoomContour } from './floor-plan';
-export { ContourOperations, Contour } from './contour';
-export { SegmentDivider, Segment, RoomSegment } from './segment';
+export { RoomGraph, type RoomNode, type RoomEdge } from './base';
+export { FloorPlanGenerator, type FloorPlanParams, type RoomContour } from './floor-plan';
+export { ContourOperations, type Contour } from './contour';
+export { SegmentDivider, type Segment, type RoomSegment } from './segment';

@@ -1,4 +1,4 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * MirrorGenerator - Procedural mirror generation with various frame styles
  * Generates wall mirrors, standing mirrors, decorative mirrors

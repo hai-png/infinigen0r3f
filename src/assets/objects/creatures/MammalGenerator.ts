@@ -1,12 +1,30 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * MammalGenerator - Procedural mammal generation
  * Generates various mammals with fur, body proportions, and limb structures
  * Now includes 4 legs with upper/lower segments and paws
+ * Now supports shell-texture fur rendering for realistic fur appearance
  */
 
-import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
+import { Object3D, Group, Mesh, Material, MeshStandardMaterial, Color, Vector3 } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
+import {
+  ShellTextureFurRenderer,
+  createFurConfig,
+  ShellTextureFurConfig,
+} from '../../materials/categories/Fur/ShellTextureFur';
+
+/** Configuration for shell-texture fur on mammals */
+export interface FurConfig {
+  /** Number of shell layers (default 16) */
+  shellCount?: number;
+  /** Fur length in world units (overrides MammalParameters.furLength if set) */
+  furLength?: number;
+  /** Hair density 0-1 (default 0.8) */
+  furDensity?: number;
+  /** Fur color (overrides MammalParameters.primaryColor if set) */
+  furColor?: string;
+}
 
 export interface MammalParameters extends CreatureParams {
   furLength: number;
@@ -16,6 +34,8 @@ export interface MammalParameters extends CreatureParams {
   legType: 'digitigrade' | 'plantigrade' | 'unguligrade';
   primaryColor: string;
   secondaryColor: string;
+  /** When provided, enables shell-texture fur rendering */
+  furConfig?: FurConfig;
 }
 
 export type MammalSpecies = 'dog' | 'cat' | 'deer' | 'bear' | 'rabbit' | 'fox' | 'elephant' | 'giraffe';
@@ -23,6 +43,7 @@ export type MammalSpecies = 'dog' | 'cat' | 'deer' | 'bear' | 'rabbit' | 'fox' |
 export class MammalGenerator extends CreatureBase {
   private _rng = new SeededRandom(42);
   private _seed: number = 0;
+  private _furRenderers: ShellTextureFurRenderer[] = [];
 
   constructor(seed?: number) {
     super({ seed: seed || 42 });
@@ -44,6 +65,9 @@ export class MammalGenerator extends CreatureBase {
   }
 
   generate(species: MammalSpecies = 'dog', params: Partial<MammalParameters> = {}): Group {
+    // Clean up previous fur renderers
+    this.disposeFurRenderers();
+
     const parameters = this.mergeParameters(this.getDefaultConfig(), params);
     this.applySpeciesDefaults(species, parameters);
 
@@ -54,12 +78,15 @@ export class MammalGenerator extends CreatureBase {
 
     // Body
     const body = this.generateBody(parameters);
-    mammal.add(body);
+    const bodyFur = this.applyFurToMesh(body, parameters);
+    mammal.add(bodyFur);
 
     // Head
     const head = this.generateHeadMesh(parameters);
     head.position.set(0, s * 0.25, s * 0.45);
     head.name = 'head';
+    // Apply fur to head meshes inside the head group
+    this.applyFurToGroup(head, parameters);
     mammal.add(head);
 
     // Eyes
@@ -93,24 +120,27 @@ export class MammalGenerator extends CreatureBase {
     const ears = this.generateEars(parameters);
     ears.forEach(ear => mammal.add(ear));
 
+    // Store fur renderers reference in userData for animation updates
+    mammal.userData.furRenderers = this._furRenderers;
+
     return mammal;
   }
 
-  generateBodyCore(): Mesh {
+  generateBodyCore(): Object3D {
     return this.generateBody(this.getDefaultConfig());
   }
 
-  generateHead(): Mesh {
+  generateHead(): Object3D {
     return this.generateHeadMesh(this.getDefaultConfig());
   }
 
-  generateLimbs(): Mesh[] {
+  generateLimbs(): Object3D[] {
     return this.generateLegs(this.getDefaultConfig());
   }
 
-  generateAppendages(): Mesh[] {
+  generateAppendages(): Object3D[] {
     const params = this.getDefaultConfig();
-    const appendages: Mesh[] = [];
+    const appendages: Object3D[] = [];
     // Ears
     appendages.push(...this.generateEars(params));
     // Tail
@@ -124,6 +154,134 @@ export class MammalGenerator extends CreatureBase {
 
   applySkin(materials: Material[]): Material[] {
     return materials;
+  }
+
+  /**
+   * Update all fur renderers (call each frame for wind animation).
+   * @param dt - Delta time in seconds
+   */
+  updateFur(dt: number): void {
+    for (const renderer of this._furRenderers) {
+      renderer.update(dt);
+    }
+  }
+
+  /**
+   * Set wind parameters on all fur renderers.
+   */
+  setFurWind(amplitude: number, frequency: number): void {
+    for (const renderer of this._furRenderers) {
+      renderer.setWind(amplitude, frequency);
+    }
+  }
+
+  /**
+   * Clean up all fur renderer resources.
+   */
+  disposeFurRenderers(): void {
+    for (const renderer of this._furRenderers) {
+      renderer.dispose();
+    }
+    this._furRenderers = [];
+  }
+
+  // ── Shell-Texture Fur Integration ──────────────────────────────
+
+  /**
+   * Apply shell-texture fur to a mesh if furConfig is enabled.
+   * Returns either the fur group (with shells) or the original mesh.
+   */
+  private applyFurToMesh(mesh: Mesh, params: MammalParameters): Object3D {
+    if (!params.furConfig) {
+      // No shell fur configured — use the original MeshStandardMaterial approach
+      return mesh;
+    }
+
+    const furConfig = this.buildShellFurConfig(params, mesh.name);
+    const renderer = new ShellTextureFurRenderer(furConfig);
+    const furGroup = renderer.generate(mesh);
+    this._furRenderers.push(renderer);
+
+    // Preserve the mesh's transform on the group
+    furGroup.position.copy(mesh.position);
+    furGroup.rotation.copy(mesh.rotation);
+    furGroup.scale.copy(mesh.scale);
+    // Reset mesh local transform since group now owns it
+    mesh.position.set(0, 0, 0);
+    mesh.rotation.set(0, 0, 0);
+    mesh.scale.set(1, 1, 1);
+
+    furGroup.name = `${mesh.name}_fur`;
+    return furGroup;
+  }
+
+  /**
+   * Apply shell-texture fur to all Mesh children in a Group.
+   */
+  private applyFurToGroup(group: Group, params: MammalParameters): void {
+    if (!params.furConfig) return;
+
+    const meshesToReplace: { mesh: Mesh; parent: Object3D; index: number }[] = [];
+
+    group.children.forEach((child, index) => {
+      if (child instanceof Mesh) {
+        meshesToReplace.push({ mesh: child, parent: group, index });
+      }
+    });
+
+    for (const entry of meshesToReplace) {
+      const { mesh, parent } = entry;
+
+      // Store mesh's local transform
+      const savedPos = mesh.position.clone();
+      const savedRot = mesh.rotation.clone();
+      const savedScale = mesh.scale.clone();
+
+      const furConfig = this.buildShellFurConfig(params, mesh.name);
+      const renderer = new ShellTextureFurRenderer(furConfig);
+      const furGroup = renderer.generate(mesh);
+      this._furRenderers.push(renderer);
+
+      // Apply the original mesh's transform to the fur group
+      furGroup.position.copy(savedPos);
+      furGroup.rotation.copy(savedRot);
+      furGroup.scale.copy(savedScale);
+
+      furGroup.name = `${mesh.name}_fur`;
+
+      // Replace mesh with fur group in the parent
+      parent.remove(mesh);
+      parent.add(furGroup);
+    }
+  }
+
+  /**
+   * Build a ShellTextureFurConfig from MammalParameters and the furConfig overrides.
+   */
+  private buildShellFurConfig(params: MammalParameters, partName: string): ShellTextureFurConfig {
+    const fc = params.furConfig!;
+    const primaryColor = new Color(params.primaryColor);
+    const secondaryColor = new Color(params.secondaryColor);
+
+    // Compute a deterministic seed from the part name
+    let partSeed = 0;
+    for (let i = 0; i < partName.length; i++) {
+      partSeed = ((partSeed << 5) - partSeed + partName.charCodeAt(i)) | 0;
+    }
+    partSeed = Math.abs(partSeed) + this._seed;
+
+    return createFurConfig({
+      shellCount: fc.shellCount,
+      furLength: fc.furLength ?? params.furLength,
+      furDensity: fc.furDensity,
+      furColor: fc.furColor ?? params.primaryColor,
+      // Tip color: slightly lighter version of primary
+      tipColor: primaryColor.clone().lerp(new Color(0xffffff), 0.2),
+      // Undercoat: slightly darker, towards secondary color
+      undercoatColor: primaryColor.clone().lerp(secondaryColor, 0.3),
+      hairDirection: new Vector3(0, 1, 0),
+      seed: partSeed,
+    });
   }
 
   private applySpeciesDefaults(species: MammalSpecies, params: MammalParameters): void {
@@ -172,7 +330,7 @@ export class MammalGenerator extends CreatureBase {
     return mesh;
   }
 
-  private generateHeadMesh(params: MammalParameters): Mesh {
+  private generateHeadMesh(params: MammalParameters): Group {
     const s = params.size;
     // Snout - elongated ellipsoid attached to head
     const headGroup = new Group();
@@ -189,14 +347,14 @@ export class MammalGenerator extends CreatureBase {
     snout.position.set(0, -s * 0.04, s * 0.14);
     headGroup.add(snout);
 
-    return headGroup as unknown as Mesh;
+    return headGroup;
   }
 
-  private generateLegs(params: MammalParameters): Mesh[] {
+  private generateLegs(params: MammalParameters): Group[] {
     const s = params.size;
     const legMat = this.createFurMaterial(params.primaryColor, params.furLength * 0.7, 'solid');
     const pawMat = new MeshStandardMaterial({ color: params.secondaryColor, roughness: 0.6 });
-    const legs: Mesh[] = [];
+    const legs: Group[] = [];
 
     const legPositions = [
       { x: -s * 0.15, z: s * 0.2, name: 'frontLeft' },
@@ -236,13 +394,13 @@ export class MammalGenerator extends CreatureBase {
       paw.name = 'paw';
       legGroup.add(paw);
 
-      legs.push(legGroup as unknown as Mesh);
+      legs.push(legGroup);
     }
 
     return legs;
   }
 
-  private generateTail(params: MammalParameters): Mesh {
+  private generateTail(params: MammalParameters): Group {
     const s = params.size;
     const tailGroup = new Group();
     tailGroup.name = 'tail';
@@ -268,14 +426,14 @@ export class MammalGenerator extends CreatureBase {
       tailGroup.add(tail);
     }
 
-    return tailGroup as unknown as Mesh;
+    return tailGroup;
   }
 
-  private generateEars(params: MammalParameters): Mesh[] {
+  private generateEars(params: MammalParameters): Group[] {
     const s = params.size;
     const earMat = this.createFurMaterial(params.secondaryColor, params.furLength * 0.5, 'solid');
     const innerMat = new MeshStandardMaterial({ color: 0xffcccc, roughness: 0.7 });
-    const ears: Mesh[] = [];
+    const ears: Group[] = [];
 
     const earHeight = s * 0.12;
     const earWidth = s * 0.06;
@@ -298,7 +456,7 @@ export class MammalGenerator extends CreatureBase {
       if (params.earShape === 'floppy') {
         earGroup.rotation.z = side * 0.5;
       }
-      ears.push(earGroup as unknown as Mesh);
+      ears.push(earGroup);
     }
 
     return ears;

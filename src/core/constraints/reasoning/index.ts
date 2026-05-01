@@ -6,7 +6,7 @@
 
 export {
   Domain,
-  DomainType,
+  type DomainType,
   ObjectSetDomain,
   NumericDomain,
   PoseDomain,
@@ -42,7 +42,7 @@ export {
 
 // Bounding computations
 export {
-  Bound,
+  type Bound,
   createBoundFromComparison,
   mapBound,
   expressionMapBoundBinop,

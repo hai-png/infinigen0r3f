@@ -27,9 +27,9 @@ export class TailGenerator {
     this.rng = new SeededRandom(this.seed);
   }
 
-  generate(type: string | TailType, length: number): THREE.Mesh;
-  generate(config: Partial<TailConfig>): THREE.Mesh;
-  generate(typeOrConfig: string | Partial<TailConfig>, length?: number): THREE.Mesh {
+  generate(type: string | TailType, length: number): THREE.Group;
+  generate(config: Partial<TailConfig>): THREE.Group;
+  generate(typeOrConfig: string | Partial<TailConfig>, length?: number): THREE.Group {
     let config: TailConfig;
 
     if (typeof typeOrConfig === 'string') {
@@ -84,7 +84,7 @@ export class TailGenerator {
         this.buildStraightTail(group, config);
     }
 
-    return group as unknown as THREE.Mesh;
+    return group;
   }
 
   /**

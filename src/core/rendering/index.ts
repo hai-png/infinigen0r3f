@@ -11,5 +11,12 @@ export * from './postprocessing';
 export * as io from './io';
 export * as shaders from './shaders';
 
+// Screen-space post-processing passes
+export { SSGIPass, type SSGIConfig } from './postprocess/SSGIPass';
+export { SSAOPass, type SSAOConfig } from './postprocess/SSAOPass';
+
+// Shadow system
+export { PCSSShadow, type PCSSConfig } from './shadows/PCSSShadow';
+
 // Re-export Three.js postprocessing for convenience
 export { EffectComposer } from '@react-three/postprocessing';

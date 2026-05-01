@@ -347,7 +347,7 @@ export class GeometryContext {
 
     // Copy custom float attributes (skip built-in ones)
     const builtinNames = new Set(['position', 'normal', 'uv', 'uv1', 'uv2', 'color', 'tangent']);
-    const attributeNames = geometry.getAttributeNames ? geometry.getAttributeNames() : Object.keys((geometry as any).attributes || {});
+    const attributeNames = Object.keys((geometry as any).attributes || {});
     for (const attrName of attributeNames) {
       if (builtinNames.has(attrName)) continue;
       const attr = geometry.getAttribute(attrName);

@@ -1,4 +1,4 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 import { BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
 import * as THREE from 'three';
 import { NoiseUtils } from '../../utils/NoiseUtils';

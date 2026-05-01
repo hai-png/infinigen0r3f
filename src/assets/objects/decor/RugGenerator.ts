@@ -1,4 +1,4 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * RugGenerator - Procedural rug/carpet generation
  */

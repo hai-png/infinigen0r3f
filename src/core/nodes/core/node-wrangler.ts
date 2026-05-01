@@ -823,7 +823,7 @@ export class NodeWrangler {
 }
 
 /** Re-export NodeSocket from socket-types for convenience */
-export { NodeSocket } from './socket-types';
+export type { NodeSocket } from './socket-types';
 
 /** Create a new NodeWrangler pre-configured for geometry node trees */
 export function createGeometryNodeTree(name?: string): NodeWrangler {

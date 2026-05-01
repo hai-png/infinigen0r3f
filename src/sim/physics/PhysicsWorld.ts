@@ -293,6 +293,16 @@ export class PhysicsWorld {
 
   /**
    * Perform a single fixed-timestep physics step
+   *
+   * Pipeline:
+   * 1. Integrate velocities and positions (semi-implicit Euler)
+   * 2. Update collider AABBs
+   * 3. Broad phase — find potentially colliding pairs
+   * 4. CCD — check fast-moving bodies for tunneling, roll back to TOI
+   * 5. Re-update AABBs for any CCD-adjusted bodies
+   * 6. Narrow phase — find actual contacts
+   * 7. Resolve collisions
+   * 8. Solve joints
    */
   private fixedStep(dt: number): void {
     // 1. Integrate velocities and positions (semi-implicit Euler)
@@ -313,32 +323,62 @@ export class PhysicsWorld {
     this.broadPhase.update(colliderList);
     const broadPairs = this.broadPhase.findPairs();
 
-    // 4. Narrow phase - find actual contacts (with manifold persistence)
+    // 4. Continuous Collision Detection — runs after broad phase but before
+    //    collision response. Fast-moving bodies with ccdEnabled are checked
+    //    for tunneling; if found, they are rolled back to the time of impact.
+    if (this.enableCCD) {
+      this.runCCD(dt);
+    }
+
+    // 5. Re-update AABBs for any CCD-adjusted bodies
+    for (const collider of this.colliders.values()) {
+      const body = collider.bodyId ? this.bodies.get(collider.bodyId) : null;
+      if (body) {
+        collider.updateAABB(body.position, body.getTransform());
+      }
+    }
+
+    // 6. Narrow phase - find actual contacts (with manifold persistence)
     const collisionPairs = this.narrowPhase.useManifolds
       ? this.narrowPhase.detectWithManifolds(broadPairs, this.bodies)
       : this.narrowPhase.detect(broadPairs);
 
-    // 5. Resolve collisions
+    // 7. Resolve collisions
     this.resolveCollisions(collisionPairs, dt);
 
-    // 6. Solve joints
+    // 8. Solve joints
     this.solveJoints(dt);
-
-    // 7. Continuous Collision Detection for fast-moving bodies
-    if (this.enableCCD) {
-      this.runCCD(dt);
-    }
   }
 
   /**
-   * Run CCD for fast-moving bodies
+   * Run CCD for fast-moving bodies.
+   *
+   * A body uses CCD when: body.ccdEnabled === true AND
+   * body.linearVelocity.length() > body.ccdMotionThreshold.
+   *
+   * For each eligible body:
+   * 1. Compute the swept path from current position to predicted next position
+   * 2. Find the time of first impact (TOI) via binary search
+   * 3. Roll back the body to the TOI position
+   * 4. Apply collision response at the TOI position
    */
   private runCCD(dt: number): void {
     const ccdEvents = this.ccd.detect(this.bodies, this.colliders, dt);
 
-    // Process CCD events in order of increasing TOI
+    // Process CCD events in order of increasing TOI (earliest impacts first)
     for (const event of ccdEvents) {
+      // 1. Roll back the CCD body to the TOI position
+      // 2. Apply impulse-based collision response
       this.ccd.applyCCDResponse(event, dt);
+
+      // Re-update AABB for the adjusted body so narrow phase sees correct state
+      const colliderId = event.body.colliderId;
+      if (colliderId) {
+        const collider = this.colliders.get(colliderId);
+        if (collider) {
+          collider.updateAABB(event.body.position, event.body.getTransform());
+        }
+      }
     }
   }
 

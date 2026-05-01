@@ -15,8 +15,10 @@ Requirements:
 import asyncio
 import json
 import argparse
+import struct
+import os
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
 
 try:
@@ -48,28 +50,115 @@ class InfinigenBridgeServer:
         self.clients.discard(websocket)
         print(f"[Bridge] Client disconnected. Total clients: {len(self.clients)}")
         
-    async def handle_message(self, websocket: WebSocketServerProtocol, message: str):
-        """Handle incoming messages from clients"""
+    # ------------------------------------------------------------------
+    # Binary frame protocol
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def decode_binary_frame(data: bytes) -> Tuple[Dict[str, Any], bytes]:
+        """
+        Decode a binary WebSocket frame:
+          [4 bytes LE: header length N][N bytes: JSON header][rest: binary payload]
+
+        Returns:
+            (header_dict, payload_bytes)
+        """
+        if len(data) < 4:
+            raise ValueError("Binary frame too short to contain header length")
+
+        header_length = struct.unpack('<I', data[:4])[0]
+
+        if header_length > len(data) - 4:
+            raise ValueError(
+                f"Header length {header_length} exceeds remaining buffer "
+                f"({len(data) - 4} bytes)"
+            )
+
+        header_json = data[4:4 + header_length].decode('utf-8')
+        header = json.loads(header_json)
+
+        payload = data[4 + header_length:]
+        return header, payload
+
+    @staticmethod
+    def encode_binary_frame(header: Dict[str, Any], payload: bytes = b'') -> bytes:
+        """
+        Encode a binary WebSocket frame:
+          [4 bytes LE: header length N][N bytes: JSON header][payload bytes]
+        """
+        header_json = json.dumps(header).encode('utf-8')
+        header_length = len(header_json)
+        return struct.pack('<I', header_length) + header_json + payload
+
+    async def handle_message(self, websocket: WebSocketServerProtocol, message):
+        """Handle incoming messages from clients (text or binary frames)"""
+
+        # ---- Binary frame ------------------------------------------------
+        if isinstance(message, bytes):
+            await self.handle_binary_frame(websocket, message)
+            return
+
+        # ---- Text (JSON) frame -------------------------------------------
         try:
             data = json.loads(message)
             # Support both old 'type' and new 'method' formats
             msg_type = data.get('type', 'TASK')
             method = data.get('method', None)
-            
+
             if msg_type == 'SYNC_STATE':
                 await self.handle_sync_state(websocket, data.get('payload', {}))
-            elif method in ['mesh_boolean', 'mesh_subdivide', 'export_mjcf', 'generate_procedural', 'raycast_batch']:
-                # New RPC-style method calls
+            elif method in [
+                'mesh_boolean', 'mesh_subdivide', 'export_mjcf',
+                'generate_procedural', 'raycast_batch',
+                'optimize_decoration', 'optimize_trajectories',
+                'transfer_image', 'transfer_geometry', 'transfer_heightmap',
+            ]:
                 await self.handle_rpc_method(websocket, data)
             elif msg_type in ['GENERATE_GEOMETRY', 'RUN_SIMULATION', 'RENDER_IMAGE', 'BAKE_PHYSICS']:
                 await self.handle_task(websocket, data)
             else:
                 await self.send_error(websocket, f"Unknown message type: {msg_type}")
-                
+
         except json.JSONDecodeError as e:
             await self.send_error(websocket, f"Invalid JSON: {str(e)}")
         except Exception as e:
             await self.send_error(websocket, f"Internal error: {str(e)}")
+
+    async def handle_binary_frame(self, websocket: WebSocketServerProtocol, data: bytes):
+        """Handle a binary WebSocket frame from the R3F frontend."""
+        try:
+            header, payload = self.decode_binary_frame(data)
+            method = header.get('method', '')
+            request_id = header.get('id', 'unknown')
+            content_type = header.get('contentType', 'application/octet-stream')
+
+            print(f"[Bridge] Binary frame — method={method}, "
+                  f"payload={len(payload)} bytes, contentType={content_type}")
+
+            if method == 'transfer_image':
+                result = await self.handle_transfer_image(payload, header)
+            elif method == 'transfer_geometry':
+                result = await self.handle_transfer_geometry(payload, header)
+            elif method == 'transfer_heightmap':
+                result = await self.handle_transfer_heightmap(payload, header)
+            else:
+                raise ValueError(f"Unknown binary method: {method}")
+
+            # Send JSON success response (correlated by request id)
+            await websocket.send(json.dumps({
+                'id': request_id,
+                'success': True,
+                'result': result,
+            }))
+
+        except Exception as e:
+            print(f"[Bridge] Binary frame handling failed: {e}")
+            request_id = header.get('id', 'unknown') if 'header' in dir() else 'unknown'
+            await websocket.send(json.dumps({
+                'id': request_id,
+                'success': False,
+                'error': str(e),
+            }))
             
     async def handle_sync_state(self, websocket: WebSocketServerProtocol, state: Dict[str, Any]):
         """Handle state synchronization from frontend"""
@@ -97,12 +186,12 @@ class InfinigenBridgeServer:
         method = request.get('method')
         params = request.get('params', {})
         request_id = request.get('id', 'unknown')
-        
+
         print(f"[Bridge] RPC call: {method}")
-        
+
         try:
             result = None
-            
+
             if method == 'mesh_boolean':
                 result = await self.mesh_boolean(
                     params.get('operation', 'union'),
@@ -126,16 +215,23 @@ class InfinigenBridgeServer:
                 result = await self.raycast_batch(
                     params.get('rays', [])
                 )
+            elif method == 'transfer_image':
+                # Binary-only; text-frame dispatch returns a hint
+                result = {'hint': 'transfer_image requires a binary frame'}
+            elif method == 'transfer_geometry':
+                result = {'hint': 'transfer_geometry requires a binary frame'}
+            elif method == 'transfer_heightmap':
+                result = {'hint': 'transfer_heightmap requires a binary frame'}
             else:
                 raise ValueError(f"Unknown method: {method}")
-            
+
             # Send success response
             await websocket.send(json.dumps({
                 'id': request_id,
                 'success': True,
                 'result': result
             }))
-            
+
         except Exception as e:
             print(f"[Bridge] RPC {method} failed: {str(e)}")
             await websocket.send(json.dumps({
@@ -928,6 +1024,158 @@ class InfinigenBridgeServer:
         
         return results
         
+    # ------------------------------------------------------------------
+    # Binary transfer handlers
+    # ------------------------------------------------------------------
+
+    async def handle_transfer_image(self, payload: bytes, header: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Handle a rendered image transferred from the R3F frontend.
+
+        The payload contains raw pixel data. The header carries metadata:
+          - width, height, format, contentType
+
+        Saves the image to /tmp/infinigen_renders/ and returns the path.
+        """
+        import numpy as np
+
+        width = header.get('width', 0)
+        height = header.get('height', 0)
+        fmt = header.get('format', 'rgba8')
+        content_type = header.get('contentType', 'image/raw')
+
+        print(f"[Bridge] transfer_image: {width}×{height} {fmt}, "
+              f"{len(payload)} bytes, contentType={content_type}")
+
+        output_dir = '/tmp/infinigen_renders'
+        os.makedirs(output_dir, exist_ok=True)
+
+        try:
+            # Try to save as PNG via PIL/numpy
+            try:
+                from PIL import Image as PILImage
+
+                if fmt == 'rgba8':
+                    img = PILImage.frombytes('RGBA', (width, height), payload)
+                elif fmt == 'rgb8':
+                    img = PILImage.frombytes('RGB', (width, height), payload)
+                elif fmt == 'float16':
+                    arr = np.frombuffer(payload, dtype=np.float16)
+                    arr = arr.reshape(height, width, -1)
+                    arr = (np.clip(arr, 0, 1) * 255).astype(np.uint8)
+                    img = PILImage.fromarray(arr)
+                else:
+                    img = PILImage.frombytes('RGBA', (width, height), payload)
+
+                output_path = os.path.join(
+                    output_dir,
+                    f'transfer_{header.get("id", "img")}.png'
+                )
+                img.save(output_path)
+                return {'saved': True, 'path': output_path}
+
+            except ImportError:
+                # No PIL — save raw bytes
+                output_path = os.path.join(
+                    output_dir,
+                    f'transfer_{header.get("id", "img")}.raw'
+                )
+                with open(output_path, 'wb') as f:
+                    f.write(payload)
+                return {'saved': True, 'path': output_path}
+
+        except Exception as e:
+            print(f"[Bridge] Image save failed: {e}")
+            return {'saved': False, 'error': str(e)}
+
+    async def handle_transfer_geometry(self, payload: bytes, header: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Handle serialised geometry (e.g. GLB / OBJ) transferred from R3F.
+
+        Saves the payload to disk and, if trimesh is available, inspects it.
+        """
+        content_type = header.get('contentType', 'application/octet-stream')
+        print(f"[Bridge] transfer_geometry: {len(payload)} bytes, "
+              f"contentType={content_type}")
+
+        output_dir = '/tmp/infinigen_exports'
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Determine file extension
+        ext = 'glb'
+        if 'obj' in content_type:
+            ext = 'obj'
+        elif 'stl' in content_type:
+            ext = 'stl'
+        elif 'ply' in content_type:
+            ext = 'ply'
+
+        output_path = os.path.join(
+            output_dir,
+            f'geometry_{header.get("id", "mesh")}.{ext}'
+        )
+
+        with open(output_path, 'wb') as f:
+            f.write(payload)
+
+        vertex_count = 0
+        try:
+            import trimesh
+            mesh = trimesh.load(output_path, force='mesh')
+            vertex_count = len(mesh.vertices)
+        except Exception:
+            pass
+
+        return {'received': True, 'vertexCount': vertex_count, 'path': output_path}
+
+    async def handle_transfer_heightmap(self, payload: bytes, header: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Handle terrain heightmap data transferred as Float32.
+
+        The payload is a flat Float32 array of shape (height, width).
+        """
+        import numpy as np
+
+        width = header.get('width', 0)
+        height = header.get('height', 0)
+        content_type = header.get('contentType', 'application/x-heightmap-float32')
+
+        print(f"[Bridge] transfer_heightmap: {width}×{height}, "
+              f"{len(payload)} bytes, contentType={content_type}")
+
+        if width == 0 or height == 0:
+            return {'received': False, 'error': 'Invalid dimensions'}
+
+        try:
+            data = np.frombuffer(payload, dtype=np.float32)
+            data = data.reshape(height, width)
+
+            h_min = float(np.min(data))
+            h_max = float(np.max(data))
+
+            # Save as .npy for later consumption
+            output_dir = '/tmp/infinigen_terrain'
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(
+                output_dir,
+                f'heightmap_{header.get("id", "terrain")}.npy'
+            )
+            np.save(output_path, data)
+
+            return {
+                'received': True,
+                'min': h_min,
+                'max': h_max,
+                'path': output_path,
+            }
+        except Exception as e:
+            print(f"[Bridge] Heightmap processing failed: {e}")
+            return {'received': False, 'error': str(e)}
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
     async def send_error(self, websocket: WebSocketServerProtocol, error_msg: str):
         """Send error response to client"""
         await websocket.send(json.dumps({

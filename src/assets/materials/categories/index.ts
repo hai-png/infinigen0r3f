@@ -28,3 +28,7 @@ export type { WaterMaterial, WaterParams, WaterPreset } from './Fluid/WaterMater
 // Tile materials (Sprint 1.5)
 export { CeramicTileMaterial } from './Tile/CeramicTileMaterial';
 export type { CeramicTileMaterialConfig as CeramicTileParams, CeramicTileMaterialConfig as CeramicTilePreset } from './Tile/CeramicTileMaterial';
+
+// Fur materials (Shell-texture fur)
+export { ShellTextureFurMaterial, ShellTextureFurRenderer, createFurConfig, DEFAULT_FUR_CONFIG } from './Fur/ShellTextureFur';
+export type { ShellTextureFurConfig } from './Fur/ShellTextureFur';

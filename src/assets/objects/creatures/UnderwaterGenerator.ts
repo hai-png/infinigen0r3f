@@ -1,9 +1,9 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * UnderwaterGenerator - Procedural underwater creature generation
  * Generates jellyfish, octopus, crab, starfish, whale, dolphin shapes
  */
-import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
+import { Object3D, Group, Mesh, Material, MeshStandardMaterial, DoubleSide } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
 
 export interface MarineParameters extends CreatureParams {
@@ -63,13 +63,13 @@ export class UnderwaterGenerator extends CreatureBase {
     return marine;
   }
 
-  generateBodyCore(): Mesh {
+  generateBodyCore(): Object3D {
     const params = this.getDefaultConfig();
     const mat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.5 });
     return new Mesh(this.createEllipsoidGeometry(0.15, 0.1, 0.2), mat);
   }
 
-  generateHead(): Mesh {
+  generateHead(): Object3D {
     // Generate a distinct head mesh (tapered front), not the body
     const params = this.getDefaultConfig();
     const s = params.size;
@@ -80,11 +80,11 @@ export class UnderwaterGenerator extends CreatureBase {
     return head;
   }
 
-  generateLimbs(): Mesh[] {
+  generateLimbs(): Object3D[] {
     return [];
   }
 
-  generateAppendages(): Mesh[] {
+  generateAppendages(): Object3D[] {
     return [];
   }
 
@@ -122,7 +122,7 @@ export class UnderwaterGenerator extends CreatureBase {
       transparent: true,
       opacity: 0.7,
       roughness: 0.3,
-      side: 2,
+      side: DoubleSide,
     });
 
     // Bell - hemisphere dome
@@ -137,7 +137,7 @@ export class UnderwaterGenerator extends CreatureBase {
       transparent: true,
       opacity: 0.4,
       roughness: 0.2,
-      side: 2,
+      side: DoubleSide,
     });
     const innerGeo = this.createShellGeometry(s * 0.15, s * 0.1);
     const inner = new Mesh(innerGeo, innerMat);

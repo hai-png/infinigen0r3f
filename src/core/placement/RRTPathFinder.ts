@@ -23,7 +23,7 @@ import {
   Object3D,
   MathUtils
 } from 'three';
-import { SeededRandom } from '../../util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 // ============================================================================
 // Type Definitions

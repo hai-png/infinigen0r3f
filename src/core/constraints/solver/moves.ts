@@ -266,6 +266,7 @@ export class SwapMove extends Move {
  */
 export class DeletionMove extends Move {
   readonly names: string[];
+  private deletedObjectState: ObjectState | null = null;
   constructor(
     readonly objectName: string,
     scoreBefore: number
@@ -275,6 +276,9 @@ export class DeletionMove extends Move {
   }
   
   apply(state: State): State {
+    // Store the deleted object state before removing so reverse() can restore it
+    this.deletedObjectState = state.objects.get(this.objectName) ?? null;
+
     const newObjects = new Map(state.objects);
     newObjects.delete(this.objectName);
     
@@ -282,9 +286,14 @@ export class DeletionMove extends Move {
   }
   
   reverse(state: State): State {
-    // Cannot reverse deletion without storing the deleted object state
-    // This should be handled by storing the deleted state before applying
-    throw new Error('DeletionMove.reverse() requires stored object state');
+    if (!this.deletedObjectState) {
+      return state;
+    }
+
+    const newObjects = new Map(state.objects);
+    newObjects.set(this.objectName, this.deletedObjectState);
+    
+    return new State(newObjects, state.problem, new Map(state.bvhCache));
   }
   
   isValid(state: State): boolean {
@@ -301,6 +310,7 @@ export class DeletionMove extends Move {
  */
 export class ReassignmentMove extends Move {
   readonly names: string[];
+  private previousTags: TagSet | null = null;
   constructor(
     readonly objectName: string,
     readonly newTags: Set<Tag>,
@@ -313,6 +323,9 @@ export class ReassignmentMove extends Move {
   apply(state: State): State {
     const objState = state.objects.get(this.objectName);
     if (!objState) return state;
+
+    // Store the previous tags so reverse() can restore them
+    this.previousTags = objState.tags;
     
     const newObjState = new ObjectState(
       this.objectName,
@@ -327,8 +340,23 @@ export class ReassignmentMove extends Move {
   }
   
   reverse(state: State): State {
-    // Cannot reverse without storing old tags
-    throw new Error('ReassignmentMove.reverse() requires stored tag state');
+    if (!this.previousTags) {
+      return state;
+    }
+
+    const objState = state.objects.get(this.objectName);
+    if (!objState) return state;
+
+    const newObjState = new ObjectState(
+      this.objectName,
+      this.previousTags,
+      { ...objState.pose }
+    );
+    
+    const newObjects = new Map(state.objects);
+    newObjects.set(this.objectName, newObjState);
+    
+    return new State(newObjects, state.problem, new Map(state.bvhCache));
   }
   
   isValid(state: State): boolean {

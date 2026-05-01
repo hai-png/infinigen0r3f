@@ -22,7 +22,8 @@
 
 import * as THREE from 'three';
 import { BaseObjectGenerator, BaseGeneratorConfig } from '../../utils/BaseObjectGenerator';
-import { SeededRandom } from '../../../../core/util/math/index';
+import { SeededRandom } from '@/core/util/MathUtils';
+import { LeafCluster, LeafType, ClusterConfig } from './LeafGeometry';
 
 // ============================================================================
 // Interfaces
@@ -56,6 +57,8 @@ export interface LSystemConfig extends BaseGeneratorConfig {
   thicknessDecay: number;
   /** Random seed for stochastic rule application */
   seed: number;
+  /** Leaf type used for terminal branch foliage */
+  leafType: LeafType;
 }
 
 export interface TurtleState {
@@ -91,6 +94,7 @@ export class LSystemTreeGenerator extends BaseObjectGenerator<LSystemConfig> {
       thickness: 0.3,
       thicknessDecay: 0.65,
       seed: 42,
+      leafType: 'broad',
     };
   }
 
@@ -430,7 +434,8 @@ export class LSystemTreeGenerator extends BaseObjectGenerator<LSystemConfig> {
 
   /**
    * Add leaf clusters at terminal branch endpoints.
-   * Uses small sphere clusters for a full canopy look.
+   * Uses LeafCluster for species-appropriate leaf geometry instead
+   * of sphere approximations, matching Princeton Infinigen's approach.
    */
   private buildLeaves(
     segments: BranchSegment[],
@@ -450,34 +455,31 @@ export class LSystemTreeGenerator extends BaseObjectGenerator<LSystemConfig> {
     const terminalSegments = segments.filter(s => s.isTerminal);
 
     for (const seg of terminalSegments) {
-      // Create a small cluster of leaves at the branch tip
-      const clusterSize = rng.nextInt(3, 6);
-      const leafRadius = Math.max(seg.endThickness * 3, 0.15);
+      // Create a LeafCluster at each terminal branch tip
+      const clusterRadius = Math.max(seg.endThickness * 3, 0.15);
+      const leafCount = rng.nextInt(3, 6);
+      const clusterSeed = rng.nextInt(0, 100000);
 
-      for (let i = 0; i < clusterSize; i++) {
-        // Spherical cluster with random offsets
-        const theta = rng.uniform(0, Math.PI * 2);
-        const phi = Math.acos(2 * rng.next() - 1);
-        const r = rng.uniform(0.1, leafRadius);
+      const clusterConfig: Partial<ClusterConfig> = {
+        radius: clusterRadius,
+        density: 1.0,
+        seed: clusterSeed,
+        orientationBias: 'outward',
+      };
 
-        const leafGeom = new THREE.SphereGeometry(
-          Math.max(rng.uniform(0.08, 0.2), 0.05),
-          4,
-          4
-        );
+      const clusterGeometry = LeafCluster.createMergedCluster(
+        config.leafType,
+        leafCount,
+        clusterConfig
+      );
 
-        // Position at branch tip with offset
-        leafGeom.translate(
-          seg.end.x + r * Math.sin(phi) * Math.cos(theta),
-          seg.end.y + r * Math.sin(phi) * Math.sin(theta),
-          seg.end.z + r * Math.cos(phi)
-        );
+      // Translate the cluster to the branch tip position
+      clusterGeometry.translate(seg.end.x, seg.end.y, seg.end.z);
 
-        leafGeometries.push(leafGeom);
-      }
+      leafGeometries.push(clusterGeometry);
     }
 
-    // Merge all leaf geometries
+    // Merge all leaf cluster geometries
     if (leafGeometries.length > 0) {
       const merged = this.mergeGeometries(leafGeometries);
       const mesh = new THREE.Mesh(merged, leafMaterial);
@@ -574,7 +576,7 @@ function degToRad(deg: number): number {
 }
 
 export const LSystemTreePresets: Record<string, LSystemConfig> = {
-  /** Oak: broad, spreading canopy */
+  /** Oak: broad, spreading canopy with lobed oak leaves */
   oak: {
     axiom: 'F',
     rules: [
@@ -587,9 +589,10 @@ export const LSystemTreePresets: Record<string, LSystemConfig> = {
     thickness: 0.35,
     thicknessDecay: 0.65,
     seed: 42,
+    leafType: 'oak',
   },
 
-  /** Pine: conical shape with layered branches */
+  /** Pine: conical shape with layered branches and needle leaves */
   pine: {
     axiom: 'FF',
     rules: [
@@ -602,9 +605,10 @@ export const LSystemTreePresets: Record<string, LSystemConfig> = {
     thickness: 0.25,
     thicknessDecay: 0.6,
     seed: 42,
+    leafType: 'needle',
   },
 
-  /** Birch: slender, multiple thin branches */
+  /** Birch: slender, multiple thin branches with small birch leaves */
   birch: {
     axiom: 'F',
     rules: [
@@ -617,9 +621,10 @@ export const LSystemTreePresets: Record<string, LSystemConfig> = {
     thickness: 0.2,
     thicknessDecay: 0.6,
     seed: 42,
+    leafType: 'birch',
   },
 
-  /** Willow: drooping branches with stochastic variation */
+  /** Willow: drooping branches with long narrow willow leaves */
   willow: {
     axiom: 'F',
     rules: [
@@ -633,9 +638,10 @@ export const LSystemTreePresets: Record<string, LSystemConfig> = {
     thickness: 0.3,
     thicknessDecay: 0.62,
     seed: 42,
+    leafType: 'willow',
   },
 
-  /** Palm: tall trunk with canopy at top */
+  /** Palm: tall trunk with fan-shaped palm leaves at top */
   palm: {
     axiom: 'F',
     rules: [
@@ -648,6 +654,7 @@ export const LSystemTreePresets: Record<string, LSystemConfig> = {
     thickness: 0.3,
     thicknessDecay: 0.9,
     seed: 42,
+    leafType: 'palm',
   },
 };
 
@@ -677,7 +684,7 @@ export function generateTreeFromPreset(
 
 /**
  * Palm-specific generation: tall trunk with radiating frond canopy at the top.
- * Uses the L-system for the trunk, then adds palm fronds.
+ * Uses LeafCluster with palm leaf type for realistic frond geometry.
  */
 function generatePalmTree(
   generator: LSystemTreeGenerator,
@@ -685,12 +692,11 @@ function generatePalmTree(
 ): THREE.Group {
   const group = generator.generate(config);
 
-  // Add palm fronds at the top of the trunk
+  // Add palm fronds at the top of the trunk using LeafCluster
   const rng = new SeededRandom(config.seed + 1000);
   const frondGroup = new THREE.Group();
 
   // Estimate trunk height from the L-system output
-  // The palm L-system produces a tall vertical trunk
   const trunkHeight = config.length * Math.pow(2, config.iterations) * 0.5;
 
   const frondCount = rng.nextInt(8, 14);
@@ -701,43 +707,27 @@ function generatePalmTree(
     side: THREE.DoubleSide,
   });
 
-  const frondGeometries: THREE.BufferGeometry[] = [];
+  // Create a single large cluster of palm leaves at the trunk top
+  const palmClusterConfig: Partial<ClusterConfig> = {
+    radius: 1.5,
+    density: 1.0,
+    seed: config.seed + 2000,
+    orientationBias: 'outward',
+  };
 
-  for (let i = 0; i < frondCount; i++) {
-    const angle = (i / frondCount) * Math.PI * 2 + rng.uniform(-0.1, 0.1);
-    const frondLength = rng.uniform(1.5, 3.0);
-    const frondWidth = 0.4 + rng.uniform(0, 0.2);
+  const clusterGeometry = LeafCluster.createMergedCluster(
+    'palm',
+    frondCount,
+    palmClusterConfig
+  );
 
-    // Create frond as a tapered plane
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    shape.lineTo(frondWidth / 2, frondLength * 0.2);
-    shape.lineTo(frondWidth * 0.3, frondLength * 0.6);
-    shape.lineTo(0, frondLength);
-    shape.lineTo(-frondWidth * 0.3, frondLength * 0.6);
-    shape.lineTo(-frondWidth / 2, frondLength * 0.2);
-    shape.closePath();
+  // Position the cluster at the top of the trunk
+  clusterGeometry.translate(0, trunkHeight, 0);
 
-    const frondGeometry = new THREE.ShapeGeometry(shape, 3);
-
-    // Rotate frond to point outward and droop
-    const droopAngle = -0.3 - rng.uniform(0, 0.4);
-    frondGeometry.rotateX(droopAngle);
-    frondGeometry.rotateY(angle);
-
-    // Position at trunk top
-    frondGeometry.translate(0, trunkHeight, 0);
-
-    frondGeometries.push(frondGeometry);
-  }
-
-  if (frondGeometries.length > 0) {
-    const merged = mergeGeometriesStatic(frondGeometries);
-    const frondMesh = new THREE.Mesh(merged, frondMaterial);
-    frondMesh.castShadow = true;
-    frondMesh.receiveShadow = true;
-    frondGroup.add(frondMesh);
-  }
+  const frondMesh = new THREE.Mesh(clusterGeometry, frondMaterial);
+  frondMesh.castShadow = true;
+  frondMesh.receiveShadow = true;
+  frondGroup.add(frondMesh);
 
   group.add(frondGroup);
   group.userData.tags = ['vegetation', 'tree', 'lsystem', 'palm'];

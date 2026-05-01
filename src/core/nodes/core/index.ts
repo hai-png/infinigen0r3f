@@ -8,16 +8,16 @@
 
 // Types - export everything except SocketType and NodeSocket (which come from socket-types)
 export {
-  NodeBase,
-  AttributeDomain,
+  type NodeBase,
+  type AttributeDomain,
   NodeCategory,
   NodeType,
-  NodeDefinition,
-  NodeInstance,
-  NodeLink,
-  NodeGroupInterface,
-  NodeGroup,
-  NodeTree,
+  type NodeDefinition,
+  type NodeInstance,
+  type NodeLink,
+  type NodeGroupInterface,
+  type NodeGroup,
+  type NodeTree,
   areSocketsCompatible,
   getDefaultValueForType,
 } from './types';
@@ -45,6 +45,6 @@ export * from './NodeSerializer';
 export * from './node-definition-registry';
 
 // Per-vertex streaming
-export { AttributeStream, AttributeDataType, AttributeDomain as StreamAttributeDomain } from './attribute-stream';
+export { AttributeStream, type AttributeDataType, type AttributeDomain as StreamAttributeDomain } from './attribute-stream';
 export { GeometryContext } from './geometry-context';
-export { PerVertexEvaluator, perVertexExecutors, EvaluationContext } from './per-vertex-evaluator';
+export { PerVertexEvaluator, perVertexExecutors, type EvaluationContext } from './per-vertex-evaluator';

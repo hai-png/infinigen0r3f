@@ -1,4 +1,4 @@
-import { SeededRandom } from '../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * Plant Factory - Procedural plant geometry generation
  * 

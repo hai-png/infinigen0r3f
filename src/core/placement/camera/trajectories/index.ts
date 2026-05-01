@@ -6,21 +6,21 @@
 
 export {
   TrajectoryType,
-  OrbitConfig,
-  SplineConfig,
-  FPSConfig,
-  CinematicConfig,
-  TrajectorySample,
-  TrajectoryData,
+  type OrbitConfig,
+  type SplineConfig,
+  type FPSConfig,
+  type CinematicConfig,
+  type TrajectorySample,
+  type TrajectoryData,
   EasingFunctions,
   CameraTrajectoryGenerator,
 } from './CameraTrajectoryGenerator';
 
 export {
-  Keyframe,
-  TrajectorySample as LegacyTrajectorySample,
+  type Keyframe,
+  type TrajectorySample as LegacyTrajectorySample,
   InterpolationMode,
-  TrajectoryConfig,
+  type TrajectoryConfig,
   catmullRomSpline,
   interpolatePosition,
   bezierInterpolate,

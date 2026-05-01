@@ -378,7 +378,7 @@ export abstract class LampBase extends BaseObjectGenerator<LampParams> {
           color: style === 'traditional' ? 0xf5f5dc : style === 'modern' ? 0x333333 : 0xffffff,
           metalness: 0.0,
           roughness: 1.0,
-          side: 2, // DoubleSide
+          side: DoubleSide,
         });
       case 'paper':
         return this.createPBRMaterial({
@@ -387,7 +387,7 @@ export abstract class LampBase extends BaseObjectGenerator<LampParams> {
           roughness: 0.9,
           transparent: true,
           opacity: 0.85,
-          side: 2,
+          side: DoubleSide,
         });
       case 'glass':
         return this.createPBRMaterial({
@@ -396,7 +396,7 @@ export abstract class LampBase extends BaseObjectGenerator<LampParams> {
           roughness: 0.1,
           transparent: true,
           opacity: 0.4,
-          side: 2,
+          side: DoubleSide,
         });
       case 'metal':
         return this.getMetalMaterial(style === 'industrial' ? 'painted-steel' : 'aluminum');
@@ -406,7 +406,7 @@ export abstract class LampBase extends BaseObjectGenerator<LampParams> {
           color: 0xffffff,
           metalness: 0.0,
           roughness: 0.6,
-          side: 2,
+          side: DoubleSide,
         });
     }
   }

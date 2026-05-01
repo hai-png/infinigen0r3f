@@ -24,9 +24,9 @@ export class MouthGenerator {
     this.seed = seed ?? 42;
   }
 
-  generate(type: string, size: number): THREE.Mesh;
-  generate(config: Partial<MouthConfig>): THREE.Mesh;
-  generate(typeOrConfig: string | Partial<MouthConfig>, size?: number): THREE.Mesh {
+  generate(type: string, size: number): THREE.Group;
+  generate(config: Partial<MouthConfig>): THREE.Group;
+  generate(typeOrConfig: string | Partial<MouthConfig>, size?: number): THREE.Group {
     let config: MouthConfig;
 
     if (typeof typeOrConfig === 'string') {
@@ -80,7 +80,7 @@ export class MouthGenerator {
         this.buildJaw(group, config);
     }
 
-    return group as unknown as THREE.Mesh;
+    return group;
   }
 
   /**

@@ -8,3 +8,7 @@ export const DATAGEN_VERSION = '0.1.0';
 
 // Re-export all pipeline components
 export * from './pipeline';
+
+// Re-export segmentation and occlusion modules
+export * from './segmentation';
+export * from './occlusion';

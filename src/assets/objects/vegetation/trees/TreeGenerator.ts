@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
 import { SeededRandom } from '../../../../core/util/math/index';
+import { LeafGeometry, LeafCluster, LeafType, ClusterConfig } from './LeafGeometry';
 
 /**
  * Tree species configuration with biological parameters
@@ -24,6 +25,10 @@ export interface TreeSpeciesConfig {
   };
   shapeType: 'cone' | 'sphere' | 'cylinder' | 'irregular' | 'palm';
   hasSnowCap?: boolean;
+  /** Leaf geometry type — maps tree species to specific leaf shapes */
+  leafType?: LeafType;
+  /** Number of individual leaves per cluster (default varies by species) */
+  leafCount?: number;
 }
 
 /**
@@ -49,6 +54,8 @@ export const TreeSpeciesPresets: Record<string, TreeSpeciesConfig> = {
     },
     shapeType: 'irregular',
     hasSnowCap: true,
+    leafType: 'oak',
+    leafCount: 300,
   },
   pine: {
     name: 'Pine',
@@ -63,6 +70,8 @@ export const TreeSpeciesPresets: Record<string, TreeSpeciesConfig> = {
     leafColor: new THREE.Color(0x1b5e20),
     shapeType: 'cone',
     hasSnowCap: true,
+    leafType: 'needle',
+    leafCount: 500,
   },
   birch: {
     name: 'Birch',
@@ -83,6 +92,8 @@ export const TreeSpeciesPresets: Record<string, TreeSpeciesConfig> = {
     },
     shapeType: 'sphere',
     hasSnowCap: false,
+    leafType: 'birch',
+    leafCount: 250,
   },
   palm: {
     name: 'Palm',
@@ -97,6 +108,8 @@ export const TreeSpeciesPresets: Record<string, TreeSpeciesConfig> = {
     leafColor: new THREE.Color(0x4caf50),
     shapeType: 'palm',
     hasSnowCap: false,
+    leafType: 'palm',
+    leafCount: 100,
   },
   willow: {
     name: 'Willow',
@@ -111,6 +124,8 @@ export const TreeSpeciesPresets: Record<string, TreeSpeciesConfig> = {
     leafColor: new THREE.Color(0x8bc34a),
     shapeType: 'irregular',
     hasSnowCap: false,
+    leafType: 'willow',
+    leafCount: 400,
   },
 };
 
@@ -155,6 +170,8 @@ export class TreeGenerator {
       season?: 'spring' | 'summer' | 'autumn' | 'winter';
       lod?: number;
       includeColliders?: boolean;
+      /** Force per-leaf geometry instead of primitive approximations (default: true) */
+      usePerLeafGeometry?: boolean;
     } = {}
   ): THREE.Group {
     const config = typeof species === 'string'
@@ -163,6 +180,7 @@ export class TreeGenerator {
 
     const season = options.season || 'summer';
     const lod = options.lod || 0;
+    const usePerLeafGeometry = options.usePerLeafGeometry !== false; // default true
     const treeRng = new SeededRandom(seed);
 
     const treeGroup = new THREE.Group();
@@ -177,7 +195,7 @@ export class TreeGenerator {
     treeGroup.add(branchesMesh);
 
     // Generate foliage/crown — positioned at actual trunk top
-    const foliageMesh = this.generateFoliage(config, season, seed, lod, actualTrunkHeight);
+    const foliageMesh = this.generateFoliage(config, season, seed, lod, actualTrunkHeight, usePerLeafGeometry);
     treeGroup.add(foliageMesh);
 
     // Add snow cap if applicable
@@ -258,14 +276,17 @@ export class TreeGenerator {
   }
 
   /**
-   * Generate foliage/crown positioned at actual trunk top
+   * Generate foliage/crown positioned at actual trunk top.
+   * When usePerLeafGeometry is true (default), uses individual leaf geometry
+   * from LeafGeometry/LeafCluster instead of sphere/cone approximations.
    */
   private generateFoliage(
     config: TreeSpeciesConfig,
     season: string,
     seed: number,
     lod: number,
-    trunkHeight: number
+    trunkHeight: number,
+    usePerLeafGeometry: boolean = true
   ): THREE.Mesh {
     const foliageRng = new SeededRandom(seed + 5000);
     const crownRadius = foliageRng.uniform(config.crownRadius.min, config.crownRadius.max);
@@ -273,21 +294,27 @@ export class TreeGenerator {
 
     let geometry: THREE.BufferGeometry;
 
-    switch (config.shapeType) {
-      case 'cone':
-        geometry = new THREE.ConeGeometry(crownRadius, crownHeight, Math.max(6, 12 - lod));
-        break;
-      case 'sphere':
-        geometry = new THREE.SphereGeometry(crownRadius, Math.max(6, 12 - lod), Math.max(4, 8 - lod));
-        break;
-      case 'cylinder':
-        geometry = new THREE.CylinderGeometry(crownRadius * 0.8, crownRadius, crownHeight, Math.max(6, 12 - lod));
-        break;
-      case 'palm':
-        geometry = this.createPalmFronds(crownRadius, crownHeight, seed, lod);
-        break;
-      default: // irregular
-        geometry = this.createIrregularCrown(crownRadius, crownHeight, seed, lod);
+    if (usePerLeafGeometry && config.leafType) {
+      // Use per-leaf geometry for realistic foliage
+      geometry = this.createPerLeafFoliage(config, crownRadius, crownHeight, seed, lod);
+    } else {
+      // Fallback to primitive approximations
+      switch (config.shapeType) {
+        case 'cone':
+          geometry = new THREE.ConeGeometry(crownRadius, crownHeight, Math.max(6, 12 - lod));
+          break;
+        case 'sphere':
+          geometry = new THREE.SphereGeometry(crownRadius, Math.max(6, 12 - lod), Math.max(4, 8 - lod));
+          break;
+        case 'cylinder':
+          geometry = new THREE.CylinderGeometry(crownRadius * 0.8, crownRadius, crownHeight, Math.max(6, 12 - lod));
+          break;
+        case 'palm':
+          geometry = this.createPalmFronds(crownRadius, crownHeight, seed, lod);
+          break;
+        default: // irregular
+          geometry = this.createIrregularCrown(crownRadius, crownHeight, seed, lod);
+      }
     }
 
     const leafColor = this.getSeasonalColor(config, season);
@@ -300,6 +327,86 @@ export class TreeGenerator {
     mesh.receiveShadow = true;
 
     return mesh;
+  }
+
+  /**
+   * Create foliage using per-leaf geometry from LeafCluster.
+   * Generates multiple clusters of individual leaves distributed across the
+   * crown volume, giving a much more realistic appearance than sphere/cone shapes.
+   */
+  private createPerLeafFoliage(
+    config: TreeSpeciesConfig,
+    crownRadius: number,
+    crownHeight: number,
+    seed: number,
+    lod: number
+  ): THREE.BufferGeometry {
+    const leafType = config.leafType || 'broad';
+    const leafCount = config.leafCount || 200;
+    const adjustedCount = Math.max(50, Math.round(leafCount / (1 + lod * 0.5)));
+
+    // Scale leaf size based on tree size and LOD
+    const leafSize = 0.08 + crownRadius * 0.01;
+    const leafWidth = 0.04 + crownRadius * 0.005;
+
+    // Create multiple clusters distributed in the crown volume
+    const clusterCount = Math.max(3, Math.round(crownRadius * 1.5));
+    const clusterRng = new SeededRandom(seed + 7000);
+    const geometries: THREE.BufferGeometry[] = [];
+
+    for (let c = 0; c < clusterCount; c++) {
+      // Position each cluster within the crown volume
+      const theta = clusterRng.uniform(0, Math.PI * 2);
+      const phi = Math.acos(2 * clusterRng.next() - 1);
+      const r = clusterRng.uniform(0, crownRadius * 0.6);
+
+      const cx = r * Math.sin(phi) * Math.cos(theta);
+      const cy = r * Math.sin(phi) * Math.sin(theta) + crownHeight * 0.3;
+      const cz = r * Math.cos(phi);
+
+      // Determine orientation bias based on leaf type
+      let orientationBias: 'up' | 'outward' | 'random' = 'outward';
+      if (leafType === 'willow') orientationBias = 'random';
+      if (leafType === 'needle') orientationBias = 'up';
+      if (leafType === 'palm') orientationBias = 'outward';
+
+      const leavesPerCluster = Math.max(10, Math.round(adjustedCount / clusterCount));
+
+      const clusterGeometry = LeafCluster.createMergedCluster(
+        leafType,
+        leavesPerCluster,
+        {
+          radius: crownRadius * 0.3,
+          density: config.leafDensity,
+          seed: seed + c * 1000,
+          orientationBias,
+        }
+      );
+
+      // Apply leaf size configuration
+      const leafGeo = LeafGeometry.createLeaf(leafType, {
+        size: leafSize,
+        width: leafWidth,
+        curvature: 0.1,
+        stemLength: 0.02,
+      });
+      // Use the cluster geometry but scale by the leaf config
+      // The cluster already placed leaves; now offset to cluster position
+      const clusterTransform = new THREE.Matrix4();
+      clusterTransform.makeTranslation(cx, cy, cz);
+      clusterGeometry.applyMatrix4(clusterTransform);
+
+      geometries.push(clusterGeometry);
+    }
+
+    // Merge all clusters into a single geometry
+    if (geometries.length === 0) {
+      return new THREE.BufferGeometry();
+    }
+    if (geometries.length === 1) {
+      return geometries[0];
+    }
+    return this.mergeGeometries(geometries);
   }
 
   /**

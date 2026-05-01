@@ -1,4 +1,4 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * CaveDecorations - Stalactites, stalagmites, crystals, and cave features
  * 

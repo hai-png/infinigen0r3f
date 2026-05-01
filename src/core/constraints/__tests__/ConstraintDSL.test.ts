@@ -12,6 +12,10 @@ import {
   ASTNodeType 
 } from '../dsl/ConstraintDSL';
 
+function fail(message: string): never {
+  throw new Error(message);
+}
+
 describe('ConstraintLexer', () => {
   describe('tokenization', () => {
     it('should tokenize simple constraint declaration', () => {

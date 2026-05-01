@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three';
-import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
+import { Object3D, Group, Mesh, Material, MeshStandardMaterial } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
 import { SeededRandom } from '../../../core/util/MathUtils';
 
@@ -72,19 +72,19 @@ export class BirdGenerator extends CreatureBase {
     return bird;
   }
 
-  generateBodyCore(): Mesh {
+  generateBodyCore(): Object3D {
     return this.generateBody(this.getDefaultConfig());
   }
 
-  generateHead(): Mesh {
+  generateHead(): Object3D {
     return this.generateHeadGroup(this.getDefaultConfig());
   }
 
-  generateLimbs(): Mesh[] {
+  generateLimbs(): Object3D[] {
     return this.generateLegs(this.getDefaultConfig());
   }
 
-  generateAppendages(): Mesh[] {
+  generateAppendages(): Object3D[] {
     const params = this.getDefaultConfig();
     return [...this.generateWings(params), this.generateTail(params)];
   }
@@ -131,7 +131,7 @@ export class BirdGenerator extends CreatureBase {
     return mesh;
   }
 
-  private generateHeadGroup(params: BirdParameters): Mesh {
+  private generateHeadGroup(params: BirdParameters): Group {
     const s = params.size;
     const group = new Group();
     group.name = 'headGroup';
@@ -163,10 +163,10 @@ export class BirdGenerator extends CreatureBase {
     rightEye.position.set(s * 0.04, s * 0.02, s * 0.06);
     group.add(rightEye);
 
-    return group as unknown as Mesh;
+    return group;
   }
 
-  private generateWings(params: BirdParameters): Mesh[] {
+  private generateWings(params: BirdParameters): Group[] {
     const s = params.size;
     const wingLen = params.wingSpan / 2;
     const wingMat = new MeshStandardMaterial({
@@ -174,7 +174,7 @@ export class BirdGenerator extends CreatureBase {
       roughness: 0.8,
       side: THREE.DoubleSide,
     });
-    const wings: Mesh[] = [];
+    const wings: Group[] = [];
 
     for (const side of [-1, 1]) {
       const wingGroup = new Group();
@@ -187,16 +187,16 @@ export class BirdGenerator extends CreatureBase {
       wing.rotation.z = side * -0.15; // Slight angle
       wingGroup.add(wing);
 
-      wings.push(wingGroup as unknown as Mesh);
+      wings.push(wingGroup);
     }
 
     return wings;
   }
 
-  private generateLegs(params: BirdParameters): Mesh[] {
+  private generateLegs(params: BirdParameters): Group[] {
     const s = params.size;
     const legMat = new MeshStandardMaterial({ color: 0xcc8833, roughness: 0.5 });
-    const legs: Mesh[] = [];
+    const legs: Group[] = [];
 
     for (const side of [-1, 1]) {
       const legGroup = new Group();
@@ -228,13 +228,13 @@ export class BirdGenerator extends CreatureBase {
       backToe.position.set(side * s * 0.04, -s * 0.34, -s * 0.01);
       legGroup.add(backToe);
 
-      legs.push(legGroup as unknown as Mesh);
+      legs.push(legGroup);
     }
 
     return legs;
   }
 
-  private generateTail(params: BirdParameters): Mesh {
+  private generateTail(params: BirdParameters): Group {
     const s = params.size;
     const tailGroup = new Group();
     tailGroup.name = 'tail';
@@ -251,6 +251,6 @@ export class BirdGenerator extends CreatureBase {
       tailGroup.add(feather);
     }
 
-    return tailGroup as unknown as Mesh;
+    return tailGroup;
   }
 }

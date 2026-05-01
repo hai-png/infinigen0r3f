@@ -3,8 +3,8 @@
  * Light source definitions and properties
  */
 
-export {
-  // Node Classes
+export type {
+  // Node Classes (interfaces)
   PointLightNode,
   SpotLightNode,
   AreaLightNode,
@@ -13,10 +13,10 @@ export {
   LightAttenuationNode,
   
   // Type Definitions
-  type PointLightDefinition,
-  type SpotLightDefinition,
-  type AreaLightDefinition,
-  type SunLightDefinition,
-  type LightFalloffDefinition,
-  type LightAttenuationDefinition,
+  PointLightDefinition,
+  SpotLightDefinition,
+  AreaLightDefinition,
+  SunLightDefinition,
+  LightFalloffDefinition,
+  LightAttenuationDefinition,
 } from './LightNodes';

@@ -18,11 +18,11 @@ export {
   DeletionMove,
   ReassignmentMove,
   AdditionMove,
-  PoseMoveConfig,
-  SolverState,
+  type PoseMoveConfig,
+  type SolverState,
   Solver,
   GreedySolver,
-  GreedyConfig
+  type GreedyConfig
 } from './moves';
 
 // Full MCMC Solver Loop

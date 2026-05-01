@@ -77,3 +77,102 @@ Work Log:
 Files Modified:
 - src/assets/objects/architectural/WindowGenerator.ts (Bug 14: awning + picture types, removed skylight + arched)
 - src/core/constraints/solver/full-solver-loop.ts (Bug 23: evaluateAll method, evaluatorState, fixed evaluateProposal)
+
+---
+Task ID: 12-d
+Agent: leaf-ccd-engineer
+Task: Implement per-leaf geometry for trees and enable CCD in physics pipeline
+
+Work Log:
+- Analyzed existing TreeGenerator.ts: foliage generated using sphere/cone/cylinder primitives and irregular noise-displaced spheres
+- Analyzed existing CCD.ts: CCD system existed but used hardcoded CCD_VELOCITY_THRESHOLD instead of per-body threshold
+- Analyzed existing PhysicsWorld.ts: CCD was called AFTER collision resolution (step 7), not before
+- Analyzed existing RigidBody.ts: had ccdEnabled but no ccdMotionThreshold
+- Created LeafGeometry.ts with two classes:
+  - LeafGeometry: static createLeaf(type, config) method supporting 9 leaf types (broad, narrow, needle, palm, oak, maple, birch, willow, fern)
+  - LeafCluster: createCluster() and createMergedCluster() methods for deterministic leaf placement using SeededRandom
+- Updated TreeGenerator.ts:
+  - Added leafType and leafCount fields to TreeSpeciesConfig
+  - Added usePerLeafGeometry option to generateTree()
+  - All 5 species presets now have leafType mapping (oak→oak, pine→needle, birch→birch, palm→palm, willow→willow)
+  - New createPerLeafFoliage() method distributes LeafCluster instances across crown volume
+  - Fallback to primitive shapes when leafType not specified
+- Updated RigidBody.ts:
+  - Added ccdMotionThreshold field to RigidBodyConfig (default 1.0)
+  - Added ccdMotionThreshold public property on RigidBody class
+- Updated CCD.ts:
+  - Changed CCD eligibility check from `speed * dt > CCD_VELOCITY_THRESHOLD` to `speed > body.ccdMotionThreshold`
+  - Each body now uses its own threshold for CCD activation
+- Updated PhysicsWorld.ts:
+  - Reorganized fixedStep() pipeline: CCD now runs after broad phase (step 4) but before narrow phase (step 6)
+  - Added AABB re-update step (step 5) after CCD adjustments so narrow phase sees correct state
+  - runCCD() now also updates AABBs for CCD-adjusted bodies immediately after response
+  - Pipeline: integrate → updateAABB → broadPhase → CCD → re-updateAABB → narrowPhase → resolveCollisions → solveJoints
+- TypeScript compilation verified: no new errors in modified files
+
+Files Created:
+- src/assets/objects/vegetation/trees/LeafGeometry.ts (LeafGeometry + LeafCluster classes, 580 lines)
+
+Files Modified:
+- src/assets/objects/vegetation/trees/TreeGenerator.ts (added leafType/leafCount to config, createPerLeafFoliage, usePerLeafGeometry option)
+- src/sim/physics/RigidBody.ts (added ccdMotionThreshold to config and class)
+- src/sim/physics/CCD.ts (per-body ccdMotionThreshold instead of global constant)
+- src/sim/physics/PhysicsWorld.ts (CCD moved to after broad phase, AABB re-update, detailed runCCD)
+
+Stage Summary:
+- Per-leaf geometry: 9 leaf types implemented with proper shapes, UV mapping, midrib curvature, and stem geometry. LeafCluster supports deterministic placement with orientation bias (up/outward/random). Tree species now map to specific leaf types instead of using sphere approximations.
+- CCD integration: CCD now runs at the correct point in the physics pipeline (after broad phase, before collision response). Per-body ccdMotionThreshold replaces the global constant. AABBs are properly updated after CCD adjustments so downstream narrow phase sees correct state.
+
+---
+Task ID: 13-b
+Agent: caustics-fft-engineer
+Task: Implement caustics rendering and FFT ocean spectrum
+
+Work Log:
+- Read existing OceanSystem.ts to understand Gerstner wave structure (6 wave components, GPU shader, CPU queries)
+- Read existing CausticsPass.ts (screen-space post-processing caustics) — understood it's a different approach (2D screen-space vs our 3D water floor projection)
+- Read MathUtils.ts for SeededRandom import path
+- Created CausticsRenderer.ts (510 lines):
+  - CausticsConfig with resolution (256), intensity (1.0), blurRadius (2), speed (0.5), depth (10)
+  - CausticsRenderer class with orthographic camera, custom shader, render-to-texture pipeline
+  - Custom GLSL shader using FBM noise (6-octave gradient noise) with animated noise offsets
+  - Caustic pattern computed from gradient magnitude of layered noise fields (creates bright lines where light converges)
+  - Two-layer interference pattern for realistic refraction simulation
+  - Depth attenuation factor: stronger caustics near surface, fading with depth
+  - Separable Gaussian blur pass for smoothing the output texture
+  - API: update(time), getCausticsTexture(), applyToMaterial(), removeFromMaterial(), dispose()
+- Created FFTOceanSpectrum.ts (702 lines):
+  - FFTOceanConfig with windSpeed, windDirection, fetch, resolution (power of 2), patchSize, depth, damping, seed
+  - Cooley-Tukey radix-2 FFT implementation (in-place, decimation-in-time with bit-reversal permutation)
+  - 2D inverse FFT using row-column decomposition
+  - Phillips spectrum function: P(k) = A * exp(-1/(kL)^2) / k^4 * |k·w|^2 * damping
+  - Fetch-limited length scale for realistic wind-wave generation
+  - Deep-water dispersion relation: ω = sqrt(g*k) with shallow-water variant: ω = sqrt(g*k*tanh(k*depth))
+  - Time-dependent frequency-domain field: h(k,t) = h0(k)*exp(iωt) + conj(h0~(-k))*exp(-iωt)
+  - Horizontal displacement for choppiness effect: dx = -i*(kx/k)*h, dz = -i*(kz/k)*h
+  - Bilinear interpolation for smooth height/normal queries at arbitrary world positions
+  - getHeightAt(x, z, time), getNormalAt(x, z, time), getDisplacementAt(x, z, time)
+  - Uses SeededRandom from @/core/util/MathUtils for deterministic wave generation
+- Updated OceanSystem.ts:
+  - Added useFFT (boolean, default false) and fftConfig (Partial<FFTOceanConfig>) to OceanConfig
+  - Added FFTOceanSpectrum integration in OceanSystem class
+  - initFFTSpectrum() derives FFT wind params from ocean config if not explicitly provided
+  - getHeightAt() and getNormalAt() now dispatch to FFT spectrum when useFFT is true
+  - Added getFFTSpectrum(), isUsingFFT(), setUseFFT() methods
+  - updateConfig() handles FFT mode switching and FFT config updates
+  - dispose() cleans up FFT spectrum
+- Updated water/index.ts to export CausticsRenderer, CausticsConfig, FFTOceanSpectrum, FFTOceanConfig
+- TypeScript compilation verified: no new errors in modified files
+
+Files Created:
+- src/terrain/water/CausticsRenderer.ts (510 lines)
+- src/terrain/water/FFTOceanSpectrum.ts (702 lines)
+
+Files Modified:
+- src/terrain/water/OceanSystem.ts (added useFFT config, FFTOceanSpectrum integration, +95 lines)
+- src/terrain/water/index.ts (added exports for CausticsRenderer, FFTOceanSpectrum and types)
+
+Stage Summary:
+- CausticsRenderer: Full render-to-texture caustics system with FBM noise shader, orthographic camera projection, depth attenuation, and separable Gaussian blur. Produces a caustics light map texture that can be applied to underwater geometry materials.
+- FFT Ocean Spectrum: Statistically-based ocean wave simulation using Phillips spectrum + Cooley-Tukey FFT. Supports resolution 64/128/256, deep and shallow water dispersion, horizontal displacement for choppiness, and deterministic seeded generation. CPU-side queries via bilinear interpolation.
+- OceanSystem integration: useFFT config option (default false) seamlessly switches between Gerstner waves and FFT spectrum for height/normal queries, with runtime toggle support.

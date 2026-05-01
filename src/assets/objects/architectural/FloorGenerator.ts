@@ -1,4 +1,4 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * FloorGenerator - Procedural flooring generation
  * FIX: All patterns (herringbone, parquet, basketweave, carpet) now produce distinct geometry

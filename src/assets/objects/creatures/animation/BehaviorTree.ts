@@ -551,4 +551,4 @@ export class BehaviorTree {
 }
 
 // Legacy compatibility - keep old type and class signatures
-export { BehaviorState as BehaviorStateType };
+export type { BehaviorState as BehaviorStateType };

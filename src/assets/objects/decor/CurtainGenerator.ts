@@ -1,4 +1,4 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * CurtainGenerator - Procedural curtain generation with various styles
  * Generates drapes, sheers, valances, and different curtain types
@@ -333,7 +333,7 @@ export class CurtainGenerator extends BaseObjectGenerator<CurtainConfig> {
       metalness,
       transparent,
       opacity,
-      side: 2 // DoubleSide
+      side: THREE.DoubleSide // DoubleSide
     });
   }
 

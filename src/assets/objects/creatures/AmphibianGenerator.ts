@@ -1,9 +1,9 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * AmphibianGenerator - Procedural amphibian generation
  * Generates amphibians with smooth body, wide head with large eyes, 4 legs (hind larger), webbed feet
  */
-import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
+import { Object3D, Group, Mesh, Material, MeshStandardMaterial } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
 
 export type AmphibianSpecies = 'frog' | 'salamander' | 'newt' | 'toad';
@@ -79,19 +79,19 @@ export class AmphibianGenerator extends CreatureBase {
     return amphibian;
   }
 
-  generateBodyCore(): Mesh {
+  generateBodyCore(): Object3D {
     return this.generateBody(this.getDefaultConfig(), this.createSkinMaterial(this.getDefaultConfig()));
   }
 
-  generateHead(): Mesh {
+  generateHead(): Object3D {
     return this.buildHead(this.getDefaultConfig(), this.createSkinMaterial(this.getDefaultConfig()));
   }
 
-  generateLimbs(): Mesh[] {
+  generateLimbs(): Object3D[] {
     return this.generateLegs(this.getDefaultConfig(), this.createSkinMaterial(this.getDefaultConfig()));
   }
 
-  generateAppendages(): Mesh[] {
+  generateAppendages(): Object3D[] {
     const params = this.getDefaultConfig();
     const mat = this.createSkinMaterial(params);
     if (params.hasTail) return [this.generateTail(params, mat)];
@@ -129,7 +129,7 @@ export class AmphibianGenerator extends CreatureBase {
     return mesh;
   }
 
-  private buildHead(params: AmphibianParameters, mat: MeshStandardMaterial): Mesh {
+  private buildHead(params: AmphibianParameters, mat: MeshStandardMaterial): Group {
     const s = params.size;
     const headGroup = new Group();
     headGroup.name = 'headGroup';
@@ -147,12 +147,12 @@ export class AmphibianGenerator extends CreatureBase {
     mouth.position.set(0, -s * 0.04, s * 0.08);
     headGroup.add(mouth);
 
-    return headGroup as unknown as Mesh;
+    return headGroup;
   }
 
-  private generateLegs(params: AmphibianParameters, mat: MeshStandardMaterial): Mesh[] {
+  private generateLegs(params: AmphibianParameters, mat: MeshStandardMaterial): Group[] {
     const s = params.size;
-    const legs: Mesh[] = [];
+    const legs: Group[] = [];
     const footMat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.6 });
 
     // Front legs (smaller)
@@ -179,7 +179,7 @@ export class AmphibianGenerator extends CreatureBase {
       foot.position.y = -s * 0.12;
       legGroup.add(foot);
 
-      legs.push(legGroup as unknown as Mesh);
+      legs.push(legGroup);
     }
 
     // Hind legs (larger)
@@ -207,13 +207,13 @@ export class AmphibianGenerator extends CreatureBase {
       foot.position.y = -s * 0.18;
       legGroup.add(foot);
 
-      legs.push(legGroup as unknown as Mesh);
+      legs.push(legGroup);
     }
 
     return legs;
   }
 
-  private createWebbedFoot(size: number, webbed: boolean, mat: MeshStandardMaterial): Mesh {
+  private createWebbedFoot(size: number, webbed: boolean, mat: MeshStandardMaterial): Group {
     const group = new Group();
     group.name = 'foot';
 
@@ -242,10 +242,10 @@ export class AmphibianGenerator extends CreatureBase {
       }
     }
 
-    return group as unknown as Mesh;
+    return group;
   }
 
-  private generateTail(params: AmphibianParameters, mat: MeshStandardMaterial): Mesh {
+  private generateTail(params: AmphibianParameters, mat: MeshStandardMaterial): Group {
     const s = params.size;
     const tailGroup = new Group();
     tailGroup.name = 'tail';
@@ -257,6 +257,6 @@ export class AmphibianGenerator extends CreatureBase {
     tail.position.set(0, -s * 0.02, -s * 0.3);
     tailGroup.add(tail);
 
-    return tailGroup as unknown as Mesh;
+    return tailGroup;
   }
 }

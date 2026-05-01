@@ -353,36 +353,126 @@ export class LakeGenerator {
   }
   
   /**
-   * Triangulate polygon for water surface
+   * Triangulate polygon using ear-clipping algorithm.
+   * Handles both convex and concave polygons correctly.
    */
   private triangulatePolygon(
     points: THREE.Vector3[],
     yLevel: number
   ): THREE.BufferGeometry {
-    // Simple ear clipping triangulation for convex-ish polygons
-    const vertices: number[] = [];
-    const indices: number[] = [];
-    
-    // Fan triangulation from first point
-    for (let i = 1; i < points.length - 1; i++) {
-      const v1 = points[0];
-      const v2 = points[i];
-      const v3 = points[i + 1];
-      
-      vertices.push(v1.x, yLevel, v1.z);
-      vertices.push(v2.x, yLevel, v2.z);
-      vertices.push(v3.x, yLevel, v3.z);
-      
-      const baseIdx = (i - 1) * 3;
-      indices.push(baseIdx, baseIdx + 1, baseIdx + 2);
+    if (points.length < 3) {
+      return new THREE.PlaneGeometry(1, 1);
     }
-    
+
+    // Work with 2D projections (x, z) since the polygon lies on a plane at yLevel
+    type Point2D = { x: number; z: number };
+    const pts2D: Point2D[] = points.map(p => ({ x: p.x, z: p.z }));
+
+    // Build index list (we clip ears from this list)
+    const indices: number[] = [];
+    for (let i = 0; i < pts2D.length; i++) indices.push(i);
+
+    const triangles: [number, number, number][] = [];
+
+    // Ear clipping
+    let safety = pts2D.length * 3; // prevent infinite loop
+    while (indices.length > 3 && safety-- > 0) {
+      let earFound = false;
+
+      for (let i = 0; i < indices.length; i++) {
+        const prevIdx = indices[(i - 1 + indices.length) % indices.length];
+        const currIdx = indices[i];
+        const nextIdx = indices[(i + 1) % indices.length];
+
+        const prev = pts2D[prevIdx];
+        const curr = pts2D[currIdx];
+        const next = pts2D[nextIdx];
+
+        // Check if this vertex is convex (cross product > 0 for CCW winding)
+        const cross = (curr.x - prev.x) * (next.z - curr.z) -
+                      (curr.z - prev.z) * (next.x - curr.x);
+        if (cross <= 0) continue; // reflex vertex, skip
+
+        // Check if the ear triangle contains any other remaining vertex
+        let isEar = true;
+        for (let j = 0; j < indices.length; j++) {
+          const testIdx = indices[j];
+          if (testIdx === prevIdx || testIdx === currIdx || testIdx === nextIdx) continue;
+
+          if (this.pointInTriangle2D(pts2D[testIdx], prev, curr, next)) {
+            isEar = false;
+            break;
+          }
+        }
+
+        if (isEar) {
+          triangles.push([prevIdx, currIdx, nextIdx]);
+          indices.splice(i, 1);
+          earFound = true;
+          break;
+        }
+      }
+
+      if (!earFound) break; // degenerate polygon
+    }
+
+    // Add the last remaining triangle
+    if (indices.length === 3) {
+      triangles.push([indices[0], indices[1], indices[2]]);
+    }
+
+    // Build geometry
+    const vertices: number[] = [];
+    const indexArray: number[] = [];
+    let vertexOffset = 0;
+
+    for (const [a, b, c] of triangles) {
+      vertices.push(
+        points[a].x, yLevel, points[a].z,
+        points[b].x, yLevel, points[b].z,
+        points[c].x, yLevel, points[c].z
+      );
+      indexArray.push(vertexOffset, vertexOffset + 1, vertexOffset + 2);
+      vertexOffset += 3;
+    }
+
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    geometry.setIndex(indices);
+    geometry.setIndex(indexArray);
     geometry.computeVertexNormals();
-    
+
     return geometry;
+  }
+
+  /**
+   * Test if a 2D point lies inside a triangle defined by three 2D points.
+   * Uses barycentric coordinate method.
+   */
+  private pointInTriangle2D(
+    p: { x: number; z: number },
+    a: { x: number; z: number },
+    b: { x: number; z: number },
+    c: { x: number; z: number }
+  ): boolean {
+    const d1 = this.sign2D(p, a, b);
+    const d2 = this.sign2D(p, b, c);
+    const d3 = this.sign2D(p, c, a);
+
+    const hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    const hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+    return !(hasNeg && hasPos);
+  }
+
+  /**
+   * Signed area / cross product helper for point-in-triangle test
+   */
+  private sign2D(
+    p1: { x: number; z: number },
+    p2: { x: number; z: number },
+    p3: { x: number; z: number }
+  ): number {
+    return (p1.x - p3.x) * (p2.z - p3.z) - (p2.x - p3.x) * (p1.z - p3.z);
   }
   
   /**

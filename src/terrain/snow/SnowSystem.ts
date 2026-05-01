@@ -142,7 +142,7 @@ export class SnowSystem {
   }
 
   /**
-   * Apply snow to geometry by displacing vertices
+   * Apply snow to geometry by displacing vertices using bilinear interpolation
    */
   applyToGeometry(geometry: THREE.BufferGeometry, heightMap: Float32Array): THREE.BufferGeometry {
     const positions = geometry.attributes.position.array as Float32Array;
@@ -153,16 +153,10 @@ export class SnowSystem {
       const y = positions[i + 2]; // Z is Y in terrain space
       const z = positions[i + 1];
       
-      // Sample snow depth from the depth map
+      // Sample snow depth from the depth map using bilinear interpolation
       let snowDepth = this.params.baseDepth;
       if (this.snowDepthMap && this.width > 0 && this.height > 0) {
-        // Map world coordinates to depth map indices
-        const mapX = Math.floor(x);
-        const mapY = Math.floor(y);
-        if (mapX >= 0 && mapX < this.width && mapY >= 0 && mapY < this.height) {
-          const depthIdx = mapY * this.width + mapX;
-          snowDepth = this.snowDepthMap[depthIdx];
-        }
+        snowDepth = this.sampleDepthBilinear(x, y);
       }
       
       newPositions[i] = x;
@@ -174,6 +168,44 @@ export class SnowSystem {
     geometry.computeVertexNormals();
     
     return geometry;
+  }
+
+  /**
+   * Sample snow depth using bilinear interpolation between the 4 nearest texels
+   */
+  private sampleDepthBilinear(x: number, y: number): number {
+    if (!this.snowDepthMap || this.width <= 0 || this.height <= 0) {
+      return this.params.baseDepth;
+    }
+
+    // Clamp to valid range
+    if (x < 0 || x >= this.width - 1 || y < 0 || y >= this.height - 1) {
+      // Fall back to nearest for boundary pixels
+      const mapX = Math.min(Math.max(Math.round(x), 0), this.width - 1);
+      const mapY = Math.min(Math.max(Math.round(y), 0), this.height - 1);
+      return this.snowDepthMap[mapY * this.width + mapX];
+    }
+
+    // Integer part (top-left corner of the interpolation cell)
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const x1 = x0 + 1;
+    const y1 = y0 + 1;
+
+    // Fractional parts
+    const fx = x - x0;
+    const fy = y - y0;
+
+    // Fetch the 4 surrounding texels
+    const v00 = this.snowDepthMap[y0 * this.width + x0];
+    const v10 = this.snowDepthMap[y0 * this.width + x1];
+    const v01 = this.snowDepthMap[y1 * this.width + x0];
+    const v11 = this.snowDepthMap[y1 * this.width + x1];
+
+    // Bilinear interpolation
+    const top = v00 * (1 - fx) + v10 * fx;
+    const bottom = v01 * (1 - fx) + v11 * fx;
+    return top * (1 - fy) + bottom * fy;
   }
 
   /**

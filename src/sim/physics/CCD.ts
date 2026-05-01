@@ -75,7 +75,7 @@ export class ContinuousCollisionDetector {
   ): CCDEvent[] {
     const events: CCDEvent[] = [];
 
-    // Find all CCD-eligible bodies
+    // Find all CCD-eligible bodies — uses per-body ccdMotionThreshold
     const ccdBodies: RigidBody[] = [];
     for (const body of bodies.values()) {
       if (!body.ccdEnabled) continue;
@@ -83,7 +83,7 @@ export class ContinuousCollisionDetector {
       if (!body.awake) continue;
 
       const speed = body.linearVelocity.length();
-      if (speed * dt > CCD_VELOCITY_THRESHOLD) {
+      if (speed > body.ccdMotionThreshold) {
         ccdBodies.push(body);
       }
     }

@@ -18,6 +18,7 @@ import { GroundTruthGenerator, GroundTruthMetadata } from './GroundTruthGenerato
 import { AnnotationGenerator, AnnotationResult } from './AnnotationGenerator';
 import { JobManager, JobStatus, GenerationJob } from './JobManager';
 import { BatchProcessor, BatchConfig, BatchResult } from './BatchProcessor';
+import { RLEEncoder, RLESegmentation } from '../segmentation/RLEEncoder';
 
 // ============================================================================
 // Type Definitions
@@ -85,6 +86,9 @@ export interface GeneratedView {
   bbox3D?: any[];
   bbox2D?: any[];
   masks?: any[];
+  
+  // RLE-encoded segmentation (populated by encodeSegmentationRLE)
+  rleEncoding?: RLESegmentation;
   
   // Metadata
   timestamp: string;
@@ -197,6 +201,7 @@ export class DataPipeline {
   private annotationGen: AnnotationGenerator;
   private jobManager: JobManager;
   private batchProcessor: BatchProcessor;
+  private rleEncoder: RLEEncoder;
   private onProgress?: ProgressCallback;
 
   constructor(scene: THREE.Scene, config: Partial<PipelineConfig> = {}) {
@@ -243,6 +248,7 @@ export class DataPipeline {
     });
     
     this.batchProcessor = new BatchProcessor(this.jobManager);
+    this.rleEncoder = new RLEEncoder();
   }
 
   setConfig(config: Partial<PipelineConfig>): void {
@@ -398,6 +404,17 @@ export class DataPipeline {
         albedoImage = await this.renderAlbedoImage(threeCamera);
       }
 
+      // RLE-encode segmentation mask if enabled
+      let rleEncoding: RLESegmentation | undefined;
+      if (this.config.generateSegmentation) {
+        const segMask = await this.groundTruthGen.generateSegmentation({
+          width: imageWidth,
+          height: imageHeight,
+          camera: threeCamera,
+        });
+        rleEncoding = this.encodeSegmentationRLE(segMask);
+      }
+
       const renderTime = performance.now() - startTime;
 
       views.push({
@@ -408,6 +425,7 @@ export class DataPipeline {
         normalImage,
         segmentationImage,
         albedoImage,
+        rleEncoding,
         timestamp: new Date().toISOString(),
         renderTime,
       });
@@ -725,6 +743,43 @@ export class DataPipeline {
   dispose(): void {
     this.jobManager.dispose();
     this.batchProcessor.dispose();
+  }
+
+  /**
+   * Encode a segmentation mask using RLE compression.
+   * Integrates RLEEncoder into the data pipeline so that the
+   * `rleEncoding` field on GeneratedView is populated.
+   *
+   * @param segmentationMask - Flat Uint8Array mask where each pixel is an object ID
+   * @returns RLESegmentation compressed representation
+   */
+  encodeSegmentationRLE(segmentationMask: Uint8Array): RLESegmentation {
+    return this.rleEncoder.encode(
+      segmentationMask,
+      this.config.imageWidth,
+      this.config.imageHeight
+    );
+  }
+
+  /**
+   * Decode an RLE segmentation back to a pixel mask.
+   *
+   * @param rle - RLE-compressed segmentation
+   * @returns Flat Uint8Array mask in row-major order
+   */
+  decodeSegmentationRLE(rle: RLESegmentation): Uint8Array {
+    return this.rleEncoder.decode(rle);
+  }
+
+  /**
+   * Convert an RLESegmentation to COCO format for export.
+   *
+   * @param rle - RLE-compressed segmentation
+   * @param segmentId - Optional target segment ID; if omitted, all non-zero pixels are foreground
+   * @returns COCO-format RLE object
+   */
+  segmentationToCOCO(rle: RLESegmentation, segmentId?: number): object {
+    return this.rleEncoder.toCOCO(rle, segmentId);
   }
 }
 

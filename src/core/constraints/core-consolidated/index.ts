@@ -271,7 +271,7 @@ export {
 } from '../../constraints/reasoning/constraint-constancy';
 
 export {
-  Bound,
+  type Bound,
   createBoundFromComparison,
   mapBound,
   expressionMapBoundBinop,
@@ -325,14 +325,14 @@ export {
 
 export {
   RoomGraph,
-  RoomNode,
-  RoomEdge
+  type RoomNode,
+  type RoomEdge
 } from '../../constraints/room-solver/base';
 
 export {
   FloorPlanGenerator,
-  FloorPlanParams,
-  RoomContour
+  type FloorPlanParams,
+  type RoomContour
 } from '../../constraints/room-solver/floor-plan';
 
 export {
@@ -374,18 +374,18 @@ export {
 // ============================================================================
 
 export {
-  ConstraintStatus,
-  EvaluationResult,
-  ScoreTermResult,
-  Solution,
-  SolverResult,
+  type ConstraintStatus,
+  type EvaluationResult,
+  type ScoreTermResult,
+  type Solution,
+  type SolverResult,
   SolveStatus,
-  SolverStatistics,
-  ViolationReport,
-  ViolationDetail,
-  FixSuggestion,
+  type SolverStatistics,
+  type ViolationReport,
+  type ViolationDetail,
+  type FixSuggestion,
   FixType,
-  ViolationSummary,
+  type ViolationSummary,
   createEmptyEvaluationResult,
   createEmptySolution,
   createSuccessResult,

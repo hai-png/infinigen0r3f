@@ -1,9 +1,9 @@
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 /**
  * ReptileGenerator - Procedural reptile generation
  * Generates reptiles with flat body, triangular head with jaw, 4 splayed legs, tapered tail, scale material
  */
-import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
+import { Object3D, Group, Mesh, Material, MeshStandardMaterial } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
 
 export interface ReptileParameters extends CreatureParams {
@@ -11,6 +11,7 @@ export interface ReptileParameters extends CreatureParams {
   limbCount: number;
   hasShell: boolean;
   primaryColor: string;
+  species: ReptileSpecies;
 }
 
 export type ReptileSpecies = 'lizard' | 'snake' | 'turtle' | 'crocodile' | 'gecko';
@@ -48,7 +49,11 @@ export class ReptileGenerator extends CreatureBase {
 
     // Triangular head with jaw
     const head = this.buildHead(parameters, scaleMat);
-    head.position.set(0, s * 0.05, s * 0.4);
+    if (parameters.species === 'snake') {
+      head.position.set(0, s * 0.03, s * 0.44);
+    } else {
+      head.position.set(0, s * 0.05, s * 0.4);
+    }
     reptile.add(head);
 
     // Eyes
@@ -80,22 +85,22 @@ export class ReptileGenerator extends CreatureBase {
     return reptile;
   }
 
-  generateBodyCore(): Mesh {
+  generateBodyCore(): Object3D {
     return this.generateBody(this.getDefaultConfig(), this.createScaleMaterial(this.getDefaultConfig()));
   }
 
-  generateHead(): Mesh {
+  generateHead(): Object3D {
     return this.buildHead(this.getDefaultConfig(), this.createScaleMaterial(this.getDefaultConfig()));
   }
 
-  generateLimbs(): Mesh[] {
+  generateLimbs(): Object3D[] {
     return this.generateLegs(this.getDefaultConfig(), this.createScaleMaterial(this.getDefaultConfig()));
   }
 
-  generateAppendages(): Mesh[] {
+  generateAppendages(): Object3D[] {
     const params = this.getDefaultConfig();
     const mat = this.createScaleMaterial(params);
-    const app: Mesh[] = [this.generateTail(params, mat)];
+    const app: Object3D[] = [this.generateTail(params, mat)];
     if (params.hasShell) app.push(this.generateShell(params));
     return app;
   }
@@ -105,6 +110,7 @@ export class ReptileGenerator extends CreatureBase {
   }
 
   private applySpeciesDefaults(species: ReptileSpecies, params: ReptileParameters): void {
+    params.species = species;
     switch (species) {
       case 'lizard':
         params.size = 0.3; params.scalePattern = 'smooth'; params.limbCount = 4;
@@ -133,16 +139,49 @@ export class ReptileGenerator extends CreatureBase {
     });
   }
 
-  private generateBody(params: ReptileParameters, mat: MeshStandardMaterial): Mesh {
+  private generateBody(params: ReptileParameters, mat: MeshStandardMaterial): Object3D {
     const s = params.size;
-    // Flat body - wider and flatter than mammal
+
+    // Snake: elongated serpentine body with S-curve segments
+    if (params.species === 'snake') {
+      const bodyGroup = new Group();
+      bodyGroup.name = 'snakeBody';
+
+      const segmentCount = 12;
+      const bodyLength = s * 0.8;   // ~0.8 long
+      const bodyWidth = s * 0.05;   // ~0.05 wide
+      const segLen = bodyLength / segmentCount;
+
+      for (let i = 0; i < segmentCount; i++) {
+        const t = i / (segmentCount - 1); // 0..1 along the body
+
+        // Taper: thicker in the middle, thinner at head and tail ends
+        const taperFactor = Math.sin(t * Math.PI); // 0 at ends, 1 in middle
+        const radius = bodyWidth * (0.6 + 0.4 * taperFactor);
+        const height = bodyWidth * (0.5 + 0.3 * taperFactor);
+
+        const segGeo = this.createEllipsoidGeometry(radius, height, segLen * 0.55);
+        const seg = new Mesh(segGeo, mat);
+        seg.name = `bodySeg_${i}`;
+
+        // S-curve: sinusoidal lateral offset
+        const lateralOffset = Math.sin(t * Math.PI * 2) * bodyWidth * 2.5;
+        seg.position.set(lateralOffset, 0, -t * bodyLength + bodyLength * 0.5);
+
+        bodyGroup.add(seg);
+      }
+
+      return bodyGroup;
+    }
+
+    // Default: flat body - wider and flatter than mammal
     const geo = this.createEllipsoidGeometry(s * 0.2, s * 0.08, s * 0.35);
     const mesh = new Mesh(geo, mat);
     mesh.name = 'body';
     return mesh;
   }
 
-  private buildHead(params: ReptileParameters, mat: MeshStandardMaterial): Mesh {
+  private buildHead(params: ReptileParameters, mat: MeshStandardMaterial): Group {
     const s = params.size;
     const headGroup = new Group();
     headGroup.name = 'headGroup';
@@ -161,12 +200,12 @@ export class ReptileGenerator extends CreatureBase {
     jaw.name = 'jaw';
     headGroup.add(jaw);
 
-    return headGroup as unknown as Mesh;
+    return headGroup;
   }
 
-  private generateLegs(params: ReptileParameters, mat: MeshStandardMaterial): Mesh[] {
+  private generateLegs(params: ReptileParameters, mat: MeshStandardMaterial): Group[] {
     const s = params.size;
-    const legs: Mesh[] = [];
+    const legs: Group[] = [];
     const footMat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.8 });
 
     const legPositions = [
@@ -201,18 +240,40 @@ export class ReptileGenerator extends CreatureBase {
       foot.position.set(Math.sign(pos.x) * s * 0.09, -s * 0.14, 0);
       legGroup.add(foot);
 
-      legs.push(legGroup as unknown as Mesh);
+      legs.push(legGroup);
     }
 
     return legs;
   }
 
-  private generateTail(params: ReptileParameters, mat: MeshStandardMaterial): Mesh {
+  private generateTail(params: ReptileParameters, mat: MeshStandardMaterial): Group {
     const s = params.size;
     const tailGroup = new Group();
     tailGroup.name = 'tail';
 
-    // Tapered tail - series of segments getting smaller
+    // Snake: much longer tapering tail
+    if (params.species === 'snake') {
+      const segments = 16;
+      const tailLength = s * 0.6;
+      const segLen = tailLength / segments;
+      const baseRadius = s * 0.04;
+
+      for (let i = 0; i < segments; i++) {
+        const t = i / segments;
+        const radius = baseRadius * (1 - t * 0.95);
+        const segGeo = this.createCylinderGeometry(radius, radius * 0.85, segLen);
+        const seg = new Mesh(segGeo, mat);
+        // Continue the S-curve from the body
+        const lateralOffset = Math.sin((t * 0.5 + 1.0) * Math.PI * 2) * s * 0.04;
+        seg.position.set(lateralOffset, -s * 0.01 * t, -s * 0.4 - t * tailLength);
+        seg.rotation.x = 0.05 * t;
+        tailGroup.add(seg);
+      }
+
+      return tailGroup;
+    }
+
+    // Default: tapered tail - series of segments getting smaller
     const segments = 6;
     for (let i = 0; i < segments; i++) {
       const t = i / segments;
@@ -225,7 +286,7 @@ export class ReptileGenerator extends CreatureBase {
       tailGroup.add(seg);
     }
 
-    return tailGroup as unknown as Mesh;
+    return tailGroup;
   }
 
   private generateShell(params: ReptileParameters): Mesh {

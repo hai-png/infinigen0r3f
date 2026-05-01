@@ -4,4 +4,4 @@
  * Files importing from '../core/node-base' will find NodeDefinition here.
  */
 
-export { NodeDefinition, NodeBase, NodeInstance, NodeLink } from './types';
+export type { NodeDefinition, NodeBase, NodeInstance, NodeLink } from './types';

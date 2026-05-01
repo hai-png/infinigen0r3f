@@ -5,7 +5,7 @@
  * Each with multiple variations, parametric controls, and style options
  */
 
-import { Group, BoxGeometry, CylinderGeometry, TorusGeometry, Mesh, CircleGeometry } from 'three';
+import { Group, BoxGeometry, CylinderGeometry, TorusGeometry, Mesh, CircleGeometry, DoubleSide } from 'three';
 import { ApplianceBase, ApplianceParams } from './ApplianceBase';
 import { SeededRandom } from '../../../core/util/MathUtils';
 
@@ -289,7 +289,7 @@ export class LaundryAppliances extends ApplianceBase<LaundryApplianceParams> {
       color: 0x888888,
       metalness: 0.95,
       roughness: 0.2,
-      side: 2, // BackSide
+      side: DoubleSide,
     });
     const drum = new Mesh(drumGeo, drumMat);
     drum.rotation.x = Math.PI / 2;

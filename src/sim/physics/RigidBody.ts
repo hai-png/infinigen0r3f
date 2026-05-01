@@ -16,6 +16,8 @@ export interface RigidBodyConfig {
   angularDamping?: number;
   gravityScale?: number;
   ccdEnabled?: boolean;
+  /** Velocity threshold above which CCD is activated (default 1.0). Only used when ccdEnabled is true. */
+  ccdMotionThreshold?: number;
   sleepThreshold?: number;
   /** Override local-space inertia tensor (3x3). If not provided, computed from mass+shape. */
   inertiaTensor?: Matrix3;
@@ -218,6 +220,8 @@ export class RigidBody {
   public angularDamping: number;
   public gravityScale: number;
   public ccdEnabled: boolean;
+  /** Velocity threshold above which CCD is activated. Body uses CCD when ccdEnabled AND linearVelocity.length() > ccdMotionThreshold. */
+  public ccdMotionThreshold: number;
   public sleepThreshold: number;
 
   // Sleeping
@@ -277,6 +281,7 @@ export class RigidBody {
     this.angularDamping = config.angularDamping ?? 0.05;
     this.gravityScale = config.gravityScale ?? 1.0;
     this.ccdEnabled = config.ccdEnabled ?? false;
+    this.ccdMotionThreshold = config.ccdMotionThreshold ?? 1.0;
     this.sleepThreshold = config.sleepThreshold ?? 0.01;
   }
 

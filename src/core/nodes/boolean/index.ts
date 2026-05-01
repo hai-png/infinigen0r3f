@@ -3,8 +3,8 @@
  * Mesh boolean operations (CSG) - Union, Intersect, Difference
  */
 
-export {
-  // Node Classes
+export type {
+  // Node Classes (interfaces)
   BooleanUnionNode,
   BooleanIntersectNode,
   BooleanDifferenceNode,

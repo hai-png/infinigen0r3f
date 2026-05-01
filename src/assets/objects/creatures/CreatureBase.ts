@@ -5,17 +5,19 @@
  */
 
 import {
-  Group, Mesh, Material, SphereGeometry, BoxGeometry, CylinderGeometry,
+  Object3D, Group, Mesh, Material, SphereGeometry, BoxGeometry, CylinderGeometry,
   MeshStandardMaterial, ConeGeometry, CapsuleGeometry, TorusGeometry,
   BufferGeometry, Float32BufferAttribute, Vector3, Skeleton, Bone,
   SkinnedMesh, AnimationClip, AnimationMixer
 } from 'three';
-import { SeededRandom } from '../../../core/util/math/index';
+import { SeededRandom } from '@/core/util/MathUtils';
 import { BaseObjectGenerator, BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
 import { SkeletonBuilder, CreatureSkeletonConfig } from './skeleton/SkeletonBuilder';
 import { IdleAnimation, IdleBehavior } from './animation/IdleAnimation';
 import { WalkCycle, GaitType, WalkCycleParams } from './animation/WalkCycle';
 import { BehaviorTree, CreatureContext, BehaviorState, createDefaultContext } from './animation/BehaviorTree';
+import { SkinnedMeshBuilder } from './skeleton/SkinnedMeshBuilder';
+import { IKController, IKChain, IKEffector } from './animation/IKController';
 
 export enum CreatureType {
   MAMMAL = 'mammal',
@@ -50,6 +52,10 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
   protected walkCycle: WalkCycle;
   protected behaviorTree: BehaviorTree;
 
+  // Skinning & IK
+  protected skinnedMeshBuilder: SkinnedMeshBuilder;
+  protected ikController: IKController | null = null;
+
   // Stored results
   protected skeleton: Skeleton | null = null;
   protected idleClip: AnimationClip | null = null;
@@ -72,6 +78,7 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
 
     // Initialize subsystems
     this.skeletonBuilder = new SkeletonBuilder(this.params.seed);
+    this.skinnedMeshBuilder = new SkinnedMeshBuilder();
     this.idleAnimation = new IdleAnimation(this.params.seed);
     this.walkCycle = new WalkCycle(this.params.seed);
     this.behaviorTree = new BehaviorTree(createDefaultContext());
@@ -143,6 +150,183 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
     mesh.bind(skeleton);
     mesh.name = 'skinnedBody';
     return mesh;
+  }
+
+  /**
+   * Build the full skeleton, compute skin weights, create a SkinnedMesh,
+   * and initialize the IK controller for this creature.
+   *
+   * Call this after setting creatureType in params.
+   */
+  buildSkeletonAndSkin(
+    bodyGeometry?: BufferGeometry,
+    bodyMaterial?: Material,
+    skeletonConfig?: CreatureSkeletonConfig,
+  ): SkinnedMesh {
+    // 1. Build the bone hierarchy via SkeletonBuilder
+    const skeleton = this.buildSkeleton(skeletonConfig);
+
+    // 2. Create body geometry if not provided
+    const geometry = bodyGeometry ?? this.createEllipsoidGeometry(
+      this.params.size * 0.4,
+      this.params.size * 0.35,
+      this.params.size * 0.5,
+    );
+
+    // 3. Compute skin weights and create SkinnedMesh via SkinnedMeshBuilder
+    const boneWeights = new Map<string, number[]>();
+    const material = bodyMaterial ?? this.createStandardMaterial({
+      color: 0x8b7355,
+      roughness: 0.8,
+      skinning: true,
+    });
+
+    // Ensure the material supports skinning
+    if (material instanceof MeshStandardMaterial) {
+      (material as any).skinning = true;
+    }
+
+    const skinnedMesh = this.skinnedMeshBuilder.buildSkinnedMesh(
+      geometry,
+      skeleton,
+      boneWeights,
+      material,
+    );
+
+    // 4. Store the skeleton reference
+    this.skeleton = skeleton;
+
+    // 5. Build default IK chains from the skeleton's limb bones
+    this.ikController = new IKController();
+    this.buildDefaultIKChains(skeleton);
+
+    return skinnedMesh;
+  }
+
+  /**
+   * Get the IK controller (null if buildSkeletonAndSkin hasn't been called)
+   */
+  getIKController(): IKController | null {
+    return this.ikController;
+  }
+
+  /**
+   * Convenience: solve all IK chains
+   */
+  solveIK(iterations?: number): void {
+    this.ikController?.solve(iterations);
+  }
+
+  /**
+   * Build default IK chains from the skeleton by detecting limb patterns.
+   * Looks for common bone naming patterns (femur, tibia, humerus, radius, etc.)
+   */
+  protected buildDefaultIKChains(skeleton: Skeleton): void {
+    if (!this.ikController) return;
+
+    const bones = skeleton.bones;
+
+    // Detect limb chains by looking for known bone name patterns
+    const limbPatterns = [
+      // Mammal front legs
+      { root: /^scapula_(L|R)$/, upper: /^humerus_front_(L|R)$/, lower: /^radius_front_(L|R)$/, end: /^hand_front_(L|R)$/ },
+      // Mammal hind legs
+      { root: /^pelvis$/, upper: /^femur_hind_(L|R)$/, lower: /^tibia_hind_(L|R)$/, end: /^foot_hind_(L|R)$/ },
+      // Reptile splayed legs
+      { root: /^leg_(front|hind)_(L|R)$/, upper: /^upper_(front|hind)_(L|R)$/, lower: /^lower_(front|hind)_(L|R)$/, end: /^foot_(front|hind)_(L|R)$/ },
+      // Bird legs
+      { root: /^pelvis$/, upper: /^femur_(L|R)$/, lower: /^tibiotarsus_(L|R)$/, end: /^tarsometatarsus_(L|R)$/ },
+      // Insect legs
+      { root: /^coxa_(pro|meso|meta)_(L|R)$/, upper: /^femur_(pro|meso|meta)_(L|R)$/, lower: /^tibia_(pro|meso|meta)_(L|R)$/, end: /^tarsus_(pro|meso|meta)_(L|R)$/ },
+    ];
+
+    // Build a name → bone map
+    const boneMap = new Map<string, Bone>();
+    for (const bone of bones) {
+      boneMap.set(bone.name, bone);
+    }
+
+    // Find all matching limb chains
+    for (const pattern of limbPatterns) {
+      // Collect all bones matching the "upper" pattern
+      for (const bone of bones) {
+        const match = bone.name.match(pattern.upper);
+        if (!match) continue;
+
+        const side = match[match.length - 1]; // L or R or the last capture group
+
+        // Try to find the chain: root → upper → lower → end
+        const chainBones: Bone[] = [];
+
+        // Find root (may be shared between sides)
+        const rootBone = this.findBoneByPattern(bones, pattern.root, side);
+        if (rootBone) chainBones.push(rootBone);
+
+        // Upper
+        chainBones.push(bone);
+
+        // Lower
+        const lowerBone = this.findBoneInHierarchy(bone, pattern.lower);
+        if (lowerBone) chainBones.push(lowerBone);
+
+        // End effector
+        const endBone = lowerBone
+          ? this.findBoneInHierarchy(lowerBone, pattern.end)
+          : null;
+        if (endBone) chainBones.push(endBone);
+
+        // Need at least 2 bones for a chain
+        if (chainBones.length < 2) continue;
+
+        // Create the effector on the last bone (or end bone)
+        const effectorBone = endBone ?? lowerBone ?? bone;
+        const effectorPos = new Vector3();
+        effectorBone.getWorldPosition(effectorPos);
+
+        const effector: IKEffector = {
+          bone: effectorBone,
+          targetPosition: effectorPos.clone(),
+          weight: 1.0,
+        };
+
+        const chain: IKChain = {
+          bones: chainBones,
+          effector,
+        };
+
+        this.ikController.addChain(chain);
+      }
+    }
+  }
+
+  /**
+   * Find a bone by pattern and side (L/R)
+   */
+  private findBoneByPattern(bones: Bone[], pattern: RegExp, side: string): Bone | null {
+    for (const bone of bones) {
+      const match = bone.name.match(pattern);
+      if (match && bone.name.includes(side)) {
+        return bone;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find a descendant bone matching the given pattern
+   */
+  private findBoneInHierarchy(bone: Bone, pattern: RegExp): Bone | null {
+    for (const child of bone.children) {
+      if (child instanceof Bone) {
+        if (pattern.test(child.name)) {
+          return child;
+        }
+        // Recurse
+        const found = this.findBoneInHierarchy(child, pattern);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
   // ── Animation System ─────────────────────────────────────────────
@@ -396,9 +580,9 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
     return { ...base, ...override };
   }
 
-  abstract generateBodyCore(): Mesh;
-  abstract generateHead(): Mesh;
-  abstract generateLimbs(): Mesh[];
-  abstract generateAppendages(): Mesh[];
+  abstract generateBodyCore(): Object3D;
+  abstract generateHead(): Object3D;
+  abstract generateLimbs(): Object3D[];
+  abstract generateAppendages(): Object3D[];
   abstract applySkin(materials: Material[]): Material[];
 }
