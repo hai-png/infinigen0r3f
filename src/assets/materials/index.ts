@@ -42,3 +42,7 @@ export type { BlendParams } from './blending/MaterialBlender';
 
 export { DecalSystem } from './decals/DecalSystem';
 export type { DecalParams, DecalPlacement } from './decals/DecalSystem';
+
+// Node-material bridge: node system → category generators
+export { NodeMaterialGenerator, generateNodeMaterial, generateMaterial } from './node-materials';
+export type { MaterialCategory, NodeMaterialParams, NodeMaterialResult } from './node-materials';

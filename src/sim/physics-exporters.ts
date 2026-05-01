@@ -9,7 +9,11 @@
  * Ported from: infinigen/core/physics/exporters.py
  */
 
-import { Scene, Object3D, Mesh, BoxGeometry, Vector3, Quaternion, Euler } from 'three';
+import { Scene, Object3D, Mesh, BoxGeometry, Vector3, Quaternion, Euler, Group } from 'three';
+
+// Extend the local JointType to include additional types used in articulated objects
+// without conflicting with the physics-exporters internal definition.
+type ExtendedJointType = JointType | 'hinge' | 'ball_socket';
 
 /**
  * Base configuration for physics export
@@ -299,17 +303,32 @@ export class MJCFExporter {
   
   /**
    * Export collision geometry
+   * Uses mesh name reference when geometry is a mesh type: <geom type="mesh" mesh="name"/>
    */
   private exportCollisionGeom(obj: Object3D, props: RigidBodyProps): string {
     const mesh = obj as Mesh;
     const geomType = this.inferGeomType(mesh);
+    const meshName = obj.name || `mesh_${obj.id}`;
     
     let xml = '      <geom ';
     
-    if (props.isStatic) {
-      xml += 'type="mesh" ';
+    if (geomType === 'mesh') {
+      xml += `type="mesh" mesh="${meshName}" `;
     } else {
       xml += `type="${geomType}" `;
+      // Add size for box, radius for sphere/cylinder
+      if (geomType === 'box' && mesh.geometry) {
+        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+        const bbox = mesh.geometry.boundingBox;
+        if (bbox) {
+          const size = new Vector3();
+          bbox.getSize(size);
+          xml += `size="${(size.x/2).toFixed(4)} ${(size.y/2).toFixed(4)} ${(size.z/2).toFixed(4)}" `;
+        }
+      }
+    }
+    
+    if (!props.isStatic) {
       xml += `mass="${props.mass.toFixed(4)}" `;
       xml += `friction="${props.friction}" `;
       xml += `restitution="${props.restitution}" `;
@@ -321,13 +340,31 @@ export class MJCFExporter {
   
   /**
    * Export visual geometry
+   * Uses mesh name reference when geometry is a mesh type: <geom type="mesh" mesh="name"/>
    */
   private exportVisualGeom(obj: Object3D): string {
     const mesh = obj as Mesh;
     const geomType = this.inferGeomType(mesh);
+    const meshName = obj.name || `mesh_${obj.id}`;
     
     let xml = '      <geom ';
-    xml += `type="${geomType}" `;
+    
+    if (geomType === 'mesh') {
+      xml += `type="mesh" mesh="${meshName}" `;
+    } else {
+      xml += `type="${geomType}" `;
+      // Add size for box, radius for sphere/cylinder
+      if (geomType === 'box' && mesh.geometry) {
+        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+        const bbox = mesh.geometry.boundingBox;
+        if (bbox) {
+          const size = new Vector3();
+          bbox.getSize(size);
+          xml += `size="${(size.x/2).toFixed(4)} ${(size.y/2).toFixed(4)} ${(size.z/2).toFixed(4)}" `;
+        }
+      }
+    }
+    
     xml += 'material="visual_mat" ';
     xml += 'rgba="0.8 0.8 0.8 1" ';
     xml += 'group="1" '; // Visual group
@@ -353,27 +390,141 @@ export class MJCFExporter {
   
   /**
    * Export joint for articulated body
+   * Reads joint metadata from obj.userData.joint to determine the correct type.
+   * Supports: hinge → hinge, prismatic → slide, ball_socket → ball, fixed → fixed, continuous → hinge (unlimited)
    */
   private exportJoint(obj: Object3D): string {
-    // Default to fixed joint
-    let xml = '      <joint type="fixed"/>\n';
+    const joint = obj.userData?.joint as (JointProps & { type: ExtendedJointType }) | undefined;
+
+    // If no joint metadata, default to fixed
+    if (!joint) {
+      return '      <joint type="fixed"/>\n';
+    }
+
+    // Map joint type to MJCF type
+    let mjcfType: string;
+    let limited = true;
+    switch (joint.type as ExtendedJointType) {
+      case 'revolute':
+      case 'hinge':
+        mjcfType = 'hinge';
+        break;
+      case 'continuous':
+        mjcfType = 'hinge';
+        limited = false;
+        break;
+      case 'prismatic':
+        mjcfType = 'slide';
+        break;
+      case 'ball':
+      case 'ball_socket':
+        mjcfType = 'ball';
+        break;
+      case 'fixed':
+      default:
+        return '      <joint type="fixed"/>\n';
+    }
+
+    const jointName = obj.name || `joint_${obj.id}`;
+    const axis = joint.axis || new Vector3(0, 0, 1);
+    const origin = joint.origin || new Vector3();
+
+    let xml = `      <joint name="${jointName}" type="${mjcfType}"`;
+    xml += ` axis="${axis.x.toFixed(4)} ${axis.y.toFixed(4)} ${axis.z.toFixed(4)}"`;
+    xml += ` pos="${origin.x.toFixed(4)} ${origin.y.toFixed(4)} ${origin.z.toFixed(4)}"`;
+
+    // Range (limits)
+    if (limited && joint.lowerLimit !== undefined && joint.upperLimit !== undefined) {
+      xml += ` range="${joint.lowerLimit.toFixed(4)} ${joint.upperLimit.toFixed(4)}"`;
+    } else if (!limited) {
+      xml += ` limited="false"`;
+    }
+
+    // Damping
+    if (joint.damping > 0) {
+      xml += ` damping="${joint.damping.toFixed(4)}"`;
+    }
+
+    // Friction
+    if (joint.friction > 0) {
+      xml += ` friction="${joint.friction.toFixed(4)}"`;
+    }
+
+    xml += '/>\n';
     return xml;
   }
   
   /**
    * Export actuators section
+   * Generates <motor> elements for all actuated joints found in the scene.
+   * Looks for obj.userData.joint.actuated or obj.userData.joint.motor config.
    */
   private exportActuators(scene: Scene): string {
-    // Placeholder for actuator export
-    return '  <actuator>\n  </actuator>\n\n';
+    const actuators: { jointName: string; ctrlRange: [number, number]; gearRatio: number }[] = [];
+
+    scene.traverse((obj) => {
+      const joint = obj.userData?.joint as JointProps | undefined;
+      if (!joint) return;
+
+      // Only add actuators for non-fixed, actuated joints
+      if (joint.type === 'fixed') return;
+
+      const isActuated = obj.userData?.actuated ?? obj.userData?.motor !== undefined;
+      if (!isActuated) return;
+
+      const jointName = obj.name || `joint_${obj.id}`;
+      const motor = obj.userData?.motor as { ctrlRange?: [number, number]; gearRatio?: number } | undefined;
+
+      const ctrlRange: [number, number] = motor?.ctrlRange ?? [
+        joint.lowerLimit ?? -1,
+        joint.upperLimit ?? 1,
+      ];
+      const gearRatio = motor?.gearRatio ?? 1;
+
+      actuators.push({ jointName, ctrlRange, gearRatio });
+    });
+
+    if (actuators.length === 0) {
+      return '  <actuator>\n  </actuator>\n\n';
+    }
+
+    let xml = '  <actuator>\n';
+    for (const act of actuators) {
+      xml += `    <motor name="${act.jointName}_motor" joint="${act.jointName}" `;
+      xml += `ctrlrange="${act.ctrlRange[0].toFixed(4)} ${act.ctrlRange[1].toFixed(4)}" `;
+      xml += `ctrllimited="true" gear="${act.gearRatio}"/>\n`;
+    }
+    xml += '  </actuator>\n\n';
+    return xml;
   }
   
   /**
    * Export sensors section
+   * Generates jointpos and jointvel sensors for all non-fixed joints.
    */
   private exportSensors(scene: Scene): string {
-    // Placeholder for sensor export
-    return '  <sensor>\n  </sensor>\n\n';
+    const sensors: { jointName: string }[] = [];
+
+    scene.traverse((obj) => {
+      const joint = obj.userData?.joint as JointProps | undefined;
+      if (!joint) return;
+      if (joint.type === 'fixed') return;
+
+      const jointName = obj.name || `joint_${obj.id}`;
+      sensors.push({ jointName });
+    });
+
+    if (sensors.length === 0) {
+      return '  <sensor>\n  </sensor>\n\n';
+    }
+
+    let xml = '  <sensor>\n';
+    for (const sensor of sensors) {
+      xml += `    <jointpos joint="${sensor.jointName}"/>\n`;
+      xml += `    <jointvel joint="${sensor.jointName}"/>\n`;
+    }
+    xml += '  </sensor>\n\n';
+    return xml;
   }
 }
 
@@ -653,16 +804,72 @@ export class URDFExporter {
   
   /**
    * Export URDF joint
+   * Reads joint metadata from obj.userData.joint to determine the correct type.
+   * Supports: revolute, continuous, prismatic, fixed, ball/floating
    */
   private exportJointURDF(parent: string, child: string, obj: Object3D): string {
     const jointName = `joint_${parent}_to_${child}`;
-    
-    let xml = `  <joint name="${jointName}" type="fixed">\n`;
+    const joint = obj.userData?.joint as (JointProps & { type: ExtendedJointType }) | undefined;
+
+    // Determine URDF joint type
+    let urdfType = 'fixed';
+    if (joint) {
+      switch (joint.type as ExtendedJointType) {
+        case 'revolute':
+        case 'hinge':
+          urdfType = 'revolute';
+          break;
+        case 'continuous':
+          urdfType = 'continuous';
+          break;
+        case 'prismatic':
+          urdfType = 'prismatic';
+          break;
+        case 'ball':
+        case 'ball_socket':
+          urdfType = 'floating'; // URDF doesn't have ball, use floating
+          break;
+        case 'fixed':
+        default:
+          urdfType = 'fixed';
+          break;
+      }
+    }
+
+    let xml = `  <joint name="${jointName}" type="${urdfType}">\n`;
     xml += `    <parent link="${parent}"/>\n`;
     xml += `    <child link="${child}"/>\n`;
     xml += `    <origin xyz="${obj.position.x.toFixed(4)} ${obj.position.y.toFixed(4)} ${obj.position.z.toFixed(4)}"/>\n`;
+
+    // Add axis for non-fixed, non-ball joints
+    if (joint && urdfType !== 'fixed' && urdfType !== 'floating') {
+      const axis = joint.axis || new Vector3(0, 0, 1);
+      xml += `    <axis xyz="${axis.x.toFixed(4)} ${axis.y.toFixed(4)} ${axis.z.toFixed(4)}"/>\n`;
+    }
+
+    // Add limits for revolute and prismatic
+    if (joint && (urdfType === 'revolute' || urdfType === 'prismatic')) {
+      if (joint.lowerLimit !== undefined && joint.upperLimit !== undefined) {
+        xml += `    <limit lower="${joint.lowerLimit.toFixed(4)}" upper="${joint.upperLimit.toFixed(4)}"`;
+        if (joint.maxVelocity !== undefined) {
+          xml += ` velocity="${joint.maxVelocity.toFixed(4)}"`;
+        }
+        if (joint.maxEffort !== undefined) {
+          xml += ` effort="${joint.maxEffort.toFixed(4)}"`;
+        }
+        xml += `/>\n`;
+      }
+    }
+
+    // Add damping/friction
+    if (joint && (joint.damping > 0 || joint.friction > 0)) {
+      xml += `    <dynamics`;
+      if (joint.damping > 0) xml += ` damping="${joint.damping.toFixed(4)}"`;
+      if (joint.friction > 0) xml += ` friction="${joint.friction.toFixed(4)}"`;
+      xml += `/>\n`;
+    }
+
     xml += '  </joint>\n\n';
-    
     return xml;
   }
 }

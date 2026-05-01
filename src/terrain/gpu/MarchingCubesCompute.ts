@@ -1,9 +1,22 @@
 /**
  * Infinigen R3F Port - GPU Compute Shader Implementation
  * WebGPU-based Marching Cubes for Real-time Mesh Generation
+ *
+ * Two-pass GPU approach:
+ *   Pass 1 (classify): Count triangles per cell using atomic counters
+ *   Pass 2 (generate): Write vertex positions + normals using prefix-sum offsets
+ *
+ * Falls back to a robust CPU implementation when WebGPU is unavailable.
+ * The CPU path is the primary/default; GPU is an optional acceleration.
  */
 
+import * as THREE from 'three';
 import { BufferAttribute, BufferGeometry } from 'three';
+import { EDGE_TABLE, TRIANGLE_TABLE, EDGE_VERTICES, CORNER_OFFSETS } from '../mesher/MarchingCubesLUTs';
+
+// ============================================================================
+// Public Types
+// ============================================================================
 
 export interface GPUComputeConfig {
   voxelSize: number;
@@ -20,191 +33,18 @@ export interface MarchingCubesResult {
   triangleCount: number;
 }
 
-/**
- * GPU-accelerated Marching Cubes using WebGPU compute shaders
- * Provides real-time volumetric mesh generation
- */
+// ============================================================================
+// Marching Cubes Compute (GPU + CPU fallback)
+// ============================================================================
+
 export class MarchingCubesCompute {
-  // @ts-ignore - WebGPU types not in TypeScript standard library
+  // WebGPU handles (typed as `any` because WebGPU types are not in the
+  // standard TypeScript library and may not exist at runtime)
   private device: any = null;
-  // @ts-ignore - WebGPU types not in TypeScript standard library
-  private pipeline: any = null;
-  // @ts-ignore - WebGPU types not in TypeScript standard library
-  private bindGroupLayout: any = null;
+  private classifyPipeline: any = null;
+  private generatePipeline: any = null;
   private config: GPUComputeConfig;
   private initialized: boolean = false;
-
-  // Marching cubes lookup tables
-  private static readonly edgeTable = new Int32Array([
-    0x0000, 0x0100, 0x0200, 0x0300, 0x0400, 0x0500, 0x0600, 0x0700,
-    0x0800, 0x0900, 0x0a00, 0x0b00, 0x0c00, 0x0d00, 0x0e00, 0x0f00,
-    0x1000, 0x1100, 0x1200, 0x1300, 0x1400, 0x1500, 0x1600, 0x1700,
-    0x1800, 0x1900, 0x1a00, 0x1b00, 0x1c00, 0x1d00, 0x1e00, 0x1f00,
-    0x2000, 0x2100, 0x2200, 0x2300, 0x2400, 0x2500, 0x2600, 0x2700,
-    0x2800, 0x2900, 0x2a00, 0x2b00, 0x2c00, 0x2d00, 0x2e00, 0x2f00,
-    0x3000, 0x3100, 0x3200, 0x3300, 0x3400, 0x3500, 0x3600, 0x3700,
-    0x3800, 0x3900, 0x3a00, 0x3b00, 0x3c00, 0x3d00, 0x3e00, 0x3f00,
-    0x4000, 0x4100, 0x4200, 0x4300, 0x4400, 0x4500, 0x4600, 0x4700,
-    0x4800, 0x4900, 0x4a00, 0x4b00, 0x4c00, 0x4d00, 0x4e00, 0x4f00,
-    0x5000, 0x5100, 0x5200, 0x5300, 0x5400, 0x5500, 0x5600, 0x5700,
-    0x5800, 0x5900, 0x5a00, 0x5b00, 0x5c00, 0x5d00, 0x5e00, 0x5f00,
-    0x6000, 0x6100, 0x6200, 0x6300, 0x6400, 0x6500, 0x6600, 0x6700,
-    0x6800, 0x6900, 0x6a00, 0x6b00, 0x6c00, 0x6d00, 0x6e00, 0x6f00,
-    0x7000, 0x7100, 0x7200, 0x7300, 0x7400, 0x7500, 0x7600, 0x7700,
-    0x7800, 0x7900, 0x7a00, 0x7b00, 0x7c00, 0x7d00, 0x7e00, 0x7f00,
-    0x8000, 0x8100, 0x8200, 0x8300, 0x8400, 0x8500, 0x8600, 0x8700,
-    0x8800, 0x8900, 0x8a00, 0x8b00, 0x8c00, 0x8d00, 0x8e00, 0x8f00,
-    0x9000, 0x9100, 0x9200, 0x9300, 0x9400, 0x9500, 0x9600, 0x9700,
-    0x9800, 0x9900, 0x9a00, 0x9b00, 0x9c00, 0x9d00, 0x9e00, 0x9f00,
-    0xa000, 0xa100, 0xa200, 0xa300, 0xa400, 0xa500, 0xa600, 0xa700,
-    0xa800, 0xa900, 0xaa00, 0xab00, 0xac00, 0xad00, 0xae00, 0xaf00,
-    0xb000, 0xb100, 0xb200, 0xb300, 0xb400, 0xb500, 0xb600, 0xb700,
-    0xb800, 0xb900, 0xba00, 0xbb00, 0xbc00, 0xbd00, 0xbe00, 0xbf00,
-    0xc000, 0xc100, 0xc200, 0xc300, 0xc400, 0xc500, 0xc600, 0xc700,
-    0xc800, 0xc900, 0xca00, 0xcb00, 0xcc00, 0xcd00, 0xce00, 0xcf00,
-    0xd000, 0xd100, 0xd200, 0xd300, 0xd400, 0xd500, 0xd600, 0xd700,
-    0xd800, 0xd900, 0xda00, 0xdb00, 0xdc00, 0xdd00, 0xde00, 0xdf00,
-    0xe000, 0xe100, 0xe200, 0xe300, 0xe400, 0xe500, 0xe600, 0xe700,
-    0xe800, 0xe900, 0xea00, 0xeb00, 0xec00, 0xed00, 0xee00, 0xef00,
-    0xf000, 0xf100, 0xf200, 0xf300, 0xf400, 0xf500, 0xf600, 0xf700,
-    0xf800, 0xf900, 0xfa00, 0xfb00, 0xfc00, 0xfd00, 0xfe00, 0xff00,
-  ]);
-
-  private static readonly triTableData: number[] = [
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    1, 8, 3, 9, 8, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    1, 2, 10, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    0, 8, 3, 1, 2, 10, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    9, 2, 10, 0, 2, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    2, 8, 3, 2, 10, 8, 10, 9, 8, -1, -1, -1, -1, -1, -1, -1,
-    3, 11, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    0, 11, 2, 8, 11, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    1, 9, 0, 2, 3, 11, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    1, 11, 2, 1, 9, 11, 9, 8, 11, -1, -1, -1, -1, -1, -1, -1,
-    3, 10, 1, 11, 10, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    0, 10, 1, 0, 8, 10, 8, 11, 10, -1, -1, -1, -1, -1, -1, -1,
-    3, 9, 0, 3, 11, 9, 11, 10, 9, -1, -1, -1, -1, -1, -1, -1,
-    9, 8, 10, 10, 8, 11, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    4, 7, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    4, 3, 0, 7, 3, 4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    0, 1, 9, 4, 7, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    1, 4, 1, 9, 4, 7, 7, 4, 3, -1, -1, -1, -1, -1, -1, -1,
-    9, 2, 10, 4, 7, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    2, 3, 0, 2, 10, 3, 4, 7, 8, -1, -1, -1, -1, -1, -1, -1,
-    0, 2, 9, 2, 10, 9, 4, 7, 8, -1, -1, -1, -1, -1, -1, -1,
-    10, 2, 7, 10, 7, 3, 7, 2, 4, -1, -1, -1, -1, -1, -1, -1,
-    3, 11, 2, 4, 7, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    4, 7, 8, 0, 11, 2, 0, 8, 11, -1, -1, -1, -1, -1, -1, -1,
-    1, 9, 0, 2, 3, 11, 4, 7, 8, -1, -1, -1, -1, -1, -1, -1,
-    1, 11, 2, 1, 9, 11, 4, 7, 8, 9, 8, 11, -1, -1, -1, -1,
-    3, 10, 1, 11, 10, 3, 4, 7, 8, -1, -1, -1, -1, -1, -1, -1,
-    10, 1, 0, 10, 0, 8, 10, 8, 11, 4, 7, 8, -1, -1, -1, -1,
-    4, 7, 8, 3, 9, 0, 3, 11, 9, 11, 10, 9, -1, -1, -1, -1,
-    9, 8, 4, 10, 8, 11, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    4, 9, 5, 7, 6, 11, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    5, 0, 4, 5, 11, 0, 3, 0, 11, 6, 11, 3, -1, -1, -1, -1,
-    5, 0, 4, 5, 9, 0, 7, 6, 11, -1, -1, -1, -1, -1, -1, -1,
-    5, 3, 11, 5, 9, 3, 9, 8, 3, 7, 6, 11, -1, -1, -1, -1,
-    4, 9, 5, 7, 6, 11, 1, 2, 10, -1, -1, -1, -1, -1, -1, -1,
-    0, 8, 3, 1, 2, 10, 4, 9, 5, 5, 11, 6, -1, -1, -1, -1,
-    5, 0, 4, 5, 2, 0, 2, 10, 0, 7, 6, 11, -1, -1, -1, -1,
-    2, 10, 5, 2, 5, 3, 3, 5, 9, 9, 5, 4, 7, 6, 11, -1,
-    2, 3, 11, 10, 1, 8, 10, 8, 4, 8, 1, 5, -1, -1, -1, -1,
-    4, 9, 5, 0, 8, 11, 0, 11, 2, 11, 8, 7, -1, -1, -1, -1,
-    5, 0, 4, 5, 11, 0, 5, 9, 11, 11, 10, 0, 1, 10, 11, -1,
-    3, 8, 11, 1, 8, 4, 1, 4, 9, 4, 8, 7, -1, -1, -1, -1,
-    1, 4, 9, 7, 6, 11, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    6, 5, 1, 6, 1, 7, 1, 5, 4, -1, -1, -1, -1, -1, -1, -1,
-    6, 0, 1, 6, 5, 0, 3, 4, 8, -1, -1, -1, -1, -1, -1, -1,
-    6, 5, 0, 6, 0, 3, 5, 4, 0, 8, 0, 4, -1, -1, -1, -1,
-    6, 5, 1, 6, 1, 7, 10, 2, 3, -1, -1, -1, -1, -1, -1, -1,
-    0, 8, 3, 10, 2, 3, 6, 5, 1, 6, 1, 7, -1, -1, -1, -1,
-    5, 4, 9, 0, 2, 3, 6, 10, 5, 6, 5, 0, 6, 0, 10, -1,
-    10, 2, 3, 10, 3, 5, 5, 3, 4, 5, 4, 9, 6, 5, 10, -1,
-    6, 11, 3, 6, 3, 7, 3, 11, 2, 1, 8, 4, -1, -1, -1, -1,
-    6, 11, 7, 6, 7, 1, 1, 7, 0, 1, 11, 2, -1, -1, -1, -1,
-    6, 11, 3, 6, 3, 7, 0, 9, 8, 3, 9, 0, -1, -1, -1, -1,
-    1, 7, 0, 1, 11, 7, 1, 9, 11, 11, 6, 7, 9, 8, 11, -1,
-    6, 11, 3, 6, 3, 7, 4, 9, 1, 4, 1, 8, -1, -1, -1, -1,
-    4, 9, 1, 1, 9, 0, 6, 11, 7, 1, 7, 11, -1, -1, -1, -1,
-    6, 11, 3, 6, 3, 7, 0, 3, 4, 3, 9, 0, -1, -1, -1, -1,
-    4, 7, 8, 9, 7, 4, 9, 6, 7, 6, 9, 11, -1, -1, -1, -1,
-    9, 5, 4, 10, 5, 9, 10, 6, 5, 11, 3, 2, -1, -1, -1, -1,
-    0, 11, 2, 0, 8, 11, 4, 9, 5, 10, 5, 6, -1, -1, -1, -1,
-    0, 5, 4, 0, 2, 5, 2, 3, 5, 10, 5, 2, 11, 3, 2, -1,
-    8, 11, 2, 8, 2, 5, 2, 11, 3, 5, 2, 9, 5, 4, 2, 10,
-    2, 3, 11, 8, 4, 6, 8, 6, 5, 8, 5, 1, -1, -1, -1, -1,
-    5, 1, 0, 5, 0, 4, 0, 11, 2, 0, 6, 11, 4, 6, 8, -1,
-    5, 0, 4, 5, 11, 0, 5, 9, 11, 11, 10, 0, 1, 10, 11, 6, 3, 2,
-    6, 3, 2, 1, 8, 4, 1, 4, 9, 4, 8, 5, -1, -1, -1, -1,
-    9, 5, 4, 10, 5, 9, 10, 6, 5, 11, 3, 2, 1, 7, 0, -1,
-    0, 11, 2, 0, 8, 11, 4, 9, 5, 10, 5, 6, 1, 7, 0, -1,
-    0, 5, 4, 0, 2, 5, 2, 3, 5, 10, 5, 2, 11, 3, 2, 6, 1, 7,
-    8, 11, 2, 8, 2, 5, 2, 11, 3, 5, 2, 9, 5, 4, 2, 10, 1, 7, 6,
-    7, 6, 5, 7, 5, 8, 5, 6, 1, -1, -1, -1, -1, -1, -1, -1,
-    6, 5, 8, 5, 4, 8, 5, 0, 4, 3, 0, 5, -1, -1, -1, -1,
-    9, 0, 1, 7, 6, 5, 7, 5, 8, -1, -1, -1, -1, -1, -1, -1,
-    9, 8, 4, 5, 4, 9, 5, 3, 4, 3, 9, 5, -1, -1, -1, -1,
-    1, 2, 10, 7, 6, 5, 7, 5, 8, -1, -1, -1, -1, -1, -1, -1,
-    5, 8, 4, 5, 0, 8, 5, 2, 0, 2, 10, 0, 1, 2, 5, -1,
-    9, 0, 1, 7, 6, 5, 7, 5, 8, 0, 2, 10, -1, -1, -1, -1,
-    2, 10, 0, 2, 0, 8, 8, 0, 4, 5, 4, 9, -1, -1, -1, -1,
-    2, 3, 11, 7, 6, 5, 7, 5, 8, -1, -1, -1, -1, -1, -1, -1,
-    5, 8, 4, 5, 0, 8, 5, 2, 0, 2, 10, 0, 1, 2, 5, 11, 3, 2,
-    0, 1, 9, 7, 6, 5, 7, 5, 8, 0, 2, 3, 11, 2, 0, -1,
-    8, 4, 9, 5, 4, 8, 5, 3, 4, 3, 8, 5, 2, 3, 11, -1,
-    7, 6, 5, 7, 5, 8, 4, 9, 1, 4, 1, 8, -1, -1, -1, -1,
-    9, 5, 4, 1, 7, 0, 1, 5, 7, 5, 6, 7, -1, -1, -1, -1,
-    0, 3, 4, 0, 4, 8, 4, 3, 5, 5, 3, 6, -1, -1, -1, -1,
-    9, 5, 4, 1, 7, 0, 1, 5, 7, 5, 6, 7, 3, 4, 5, -1,
-    1, 2, 10, 7, 6, 5, 7, 5, 8, 4, 9, 1, -1, -1, -1, -1,
-    5, 6, 7, 5, 7, 2, 2, 7, 0, 2, 5, 0, 10, 0, 2, -1,
-    9, 0, 1, 7, 6, 5, 7, 5, 8, 0, 2, 10, -1, -1, -1, -1,
-    2, 10, 0, 2, 0, 8, 8, 0, 4, 5, 4, 9, 5, 6, 7, -1,
-    2, 3, 11, 7, 6, 5, 7, 5, 8, 4, 9, 1, -1, -1, -1, -1,
-    5, 6, 7, 5, 7, 2, 2, 7, 0, 2, 5, 0, 10, 0, 2, 11, 3, 2,
-    0, 1, 9, 7, 6, 5, 7, 5, 8, 0, 2, 3, 11, 2, 0, -1,
-    8, 4, 9, 5, 4, 8, 5, 3, 4, 3, 8, 5, 2, 3, 11, 5, 6, 7,
-    11, 9, 7, 11, 7, 4, 7, 9, 5, -1, -1, -1, -1, -1, -1, -1,
-    5, 0, 4, 5, 11, 0, 3, 0, 11, 6, 11, 3, 9, 7, 11, -1,
-    0, 1, 9, 7, 4, 8, 7, 8, 11, 8, 4, 5, -1, -1, -1, -1,
-    5, 3, 11, 5, 9, 3, 9, 8, 3, 7, 6, 11, 1, 7, 5, -1,
-    7, 4, 8, 7, 8, 11, 1, 2, 10, -1, -1, -1, -1, -1, -1, -1,
-    0, 8, 3, 1, 2, 10, 7, 4, 8, 7, 8, 11, 5, 11, 6, -1,
-    5, 11, 6, 0, 2, 9, 0, 9, 7, 9, 2, 10, 7, 4, 8, -1,
-    2, 10, 5, 2, 5, 3, 3, 5, 9, 9, 5, 4, 7, 6, 11, 1, 7, 5,
-    8, 4, 7, 9, 7, 4, 9, 1, 7, 7, 1, 2, 2, 1, 3, -1,
-    9, 7, 4, 9, 11, 7, 9, 1, 11, 11, 0, 7, 0, 11, 2, -1,
-    8, 4, 7, 3, 4, 8, 3, 8, 11, 11, 4, 0, 1, 0, 11, -1,
-    11, 4, 7, 11, 3, 4, 2, 3, 11, -1, -1, -1, -1, -1, -1, -1,
-    1, 8, 4, 1, 4, 7, 4, 8, 9, 6, 5, 10, -1, -1, -1, -1,
-    9, 7, 4, 9, 11, 7, 9, 1, 11, 11, 0, 7, 0, 11, 2, 6, 5, 10,
-    0, 3, 8, 5, 6, 10, 6, 8, 5, 6, 11, 8, 4, 8, 7, -1,
-    10, 5, 6, 11, 4, 7, 11, 2, 4, -1, -1, -1, -1, -1, -1, -1,
-    3, 11, 2, 3, 7, 11, 3, 8, 7, 8, 5, 10, 8, 10, 6, -1,
-    5, 10, 6, 4, 7, 11, 4, 11, 0, 4, 0, 9, -1, -1, -1, -1,
-    0, 3, 8, 5, 6, 10, 6, 8, 5, 6, 11, 8, 4, 8, 7, 1, 7, 0,
-    10, 5, 6, 4, 7, 11, 4, 11, 0, 4, 0, 9, 1, 7, 0, -1,
-    1, 7, 0, 1, 11, 7, 1, 9, 11, 11, 6, 7, 9, 8, 11, 5, 10, 6,
-    10, 5, 6, 9, 8, 11, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    9, 5, 8, 8, 5, 7, 10, 1, 3, -1, -1, -1, -1, -1, -1, -1,
-    0, 9, 5, 0, 5, 10, 0, 10, 3, 10, 5, 7, -1, -1, -1, -1,
-    9, 5, 8, 8, 5, 7, 10, 1, 3, 0, 8, 10, 0, 10, 8, -1,
-    5, 7, 8, 5, 10, 7, 10, 0, 7, 1, 7, 0, -1, -1, -1, -1,
-    1, 3, 10, 9, 5, 11, 9, 11, 0, 11, 5, 7, -1, -1, -1, -1,
-    0, 11, 2, 0, 8, 11, 3, 10, 9, 3, 9, 5, 5, 9, 11, -1,
-    0, 11, 2, 0, 8, 11, 3, 10, 9, 3, 9, 5, 5, 9, 11, 1, 7, 0,
-    2, 3, 10, 5, 7, 8, 5, 8, 1, -1, -1, -1, -1, -1, -1, -1,
-    7, 8, 5, 7, 5, 1, 5, 8, 4, 10, 1, 5, 11, 2, 10, -1,
-    9, 5, 11, 9, 11, 0, 11, 5, 7, 1, 3, 10, -1, -1, -1, -1,
-    0, 11, 2, 0, 8, 11, 3, 10, 9, 3, 9, 5, 5, 9, 11, 1, 7, 0,
-    5, 7, 8, 5, 10, 7, 10, 0, 7, 1, 7, 0, 2, 3, 10, -1,
-    11, 2, 10, 5, 7, 8, 5, 8, 4, 10, 1, 5, -1, -1, -1, -1,
-  ];
-
-  private static readonly triTable = new Int32Array(MarchingCubesCompute.triTableData);
 
   constructor(config: Partial<GPUComputeConfig> = {}) {
     this.config = {
@@ -216,366 +56,222 @@ export class MarchingCubesCompute {
     };
   }
 
+  // ========================================================================
+  // Public API
+  // ========================================================================
+
   /**
-   * Initialize WebGPU device and compute pipeline
+   * Initialize WebGPU device and compute pipelines.
+   * Returns `true` if GPU is available, `false` otherwise.
    */
   async initialize(): Promise<boolean> {
-    if (!navigator.gpu) {
-      console.warn('WebGPU not supported, falling back to CPU implementation');
+    if (typeof navigator === 'undefined' || !navigator.gpu) {
       return false;
     }
 
     try {
       const adapter = await navigator.gpu.requestAdapter();
-      if (!adapter) {
-        console.warn('No GPU adapter available');
-        return false;
-      }
+      if (!adapter) return false;
 
       this.device = await adapter.requestDevice();
-      
-      // Create compute pipeline
-      const shaderModule = this.device.createShaderModule({
-        code: this.getWGSLShader(),
+
+      // Classify pipeline (pass 1): counts triangles per cell
+      const classifyModule = this.device.createShaderModule({
+        code: this.getClassifyWGSL(),
       });
 
-      this.bindGroupLayout = this.device.createBindGroupLayout({
-        entries: [
-          {
-            binding: 0,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: 'storage' },
-          },
-          {
-            binding: 1,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: 'storage' },
-          },
-          {
-            binding: 2,
-            visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: 'uniform' },
-          },
-        ],
+      this.classifyPipeline = this.device.createComputePipeline({
+        layout: 'auto',
+        compute: { module: classifyModule, entryPoint: 'classify_main' },
       });
 
-      const pipelineLayout = this.device.createPipelineLayout({
-        bindGroupLayouts: [this.bindGroupLayout],
+      // Generate pipeline (pass 2): writes vertex data
+      const generateModule = this.device.createShaderModule({
+        code: this.getGenerateWGSL(),
       });
 
-      this.pipeline = this.device.createComputePipeline({
-        layout: pipelineLayout,
-        compute: {
-          module: shaderModule,
-          entryPoint: 'main',
-        },
+      this.generatePipeline = this.device.createComputePipeline({
+        layout: 'auto',
+        compute: { module: generateModule, entryPoint: 'generate_main' },
       });
 
       this.initialized = true;
-      console.log('WebGPU Marching Cubes initialized successfully');
       return true;
     } catch (error) {
-      console.error('Failed to initialize WebGPU:', error);
+      console.warn('WebGPU Marching Cubes initialization failed, will use CPU fallback:', error);
+      this.device = null;
+      this.initialized = false;
       return false;
     }
   }
 
   /**
-   * WGSL compute shader for Marching Cubes
-   */
-  private getWGSLShader(): string {
-    return `
-      struct VoxelData {
-        value: f32,
-      };
-
-      struct VertexOutput {
-        position: vec3<f32>,
-        normal: vec3<f32>,
-      };
-
-      struct Uniforms {
-        gridSize: u32,
-        voxelSize: f32,
-        isoLevel: f32,
-        padding: u32,
-      };
-
-      @group(0) @binding(0) var<storage, read> voxels: array<VoxelData>;
-      @group(0) @binding(1) var<storage, read_write> vertices: array<vec3<f32>>;
-      @group(0) @binding(2) var<uniform> uniforms: Uniforms;
-
-      fn interpolate(p1: vec3<f32>, p2: vec3<f32>, val1: f32, val2: f32) -> vec3<f32> {
-        if (abs(val1 - val2) < 0.0001) {
-          return p1;
-        }
-        let mu = (uniforms.isoLevel - val1) / (val2 - val1);
-        return p1 + (p2 - p1) * mu;
-      }
-
-      fn getVoxelIndex(x: u32, y: u32, z: u32) -> u32 {
-        return x + y * uniforms.gridSize + z * uniforms.gridSize * uniforms.gridSize;
-      }
-
-      @compute @workgroup_size(8, 8, 1)
-      fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-        let gridSize = uniforms.gridSize;
-        
-        if (global_id.x >= gridSize - 1 || global_id.y >= gridSize - 1 || global_id.z >= gridSize - 1) {
-          return;
-        }
-
-        let x = global_id.x;
-        let y = global_id.y;
-        let z = global_id.z;
-
-        // Get voxel values at cube corners
-        let v0 = voxels[getVoxelIndex(x, y, z)].value;
-        let v1 = voxels[getVoxelIndex(x + 1, y, z)].value;
-        let v2 = voxels[getVoxelIndex(x + 1, y + 1, z)].value;
-        let v3 = voxels[getVoxelIndex(x, y + 1, z)].value;
-        let v4 = voxels[getVoxelIndex(x, y, z + 1)].value;
-        let v5 = voxels[getVoxelIndex(x + 1, y, z + 1)].value;
-        let v6 = voxels[getVoxelIndex(x + 1, y + 1, z + 1)].value;
-        let v7 = voxels[getVoxelIndex(x, y + 1, z + 1)].value;
-
-        // Determine cube configuration
-        var config: u32 = 0;
-        if (v0 > uniforms.isoLevel) { config = config | 1; }
-        if (v1 > uniforms.isoLevel) { config = config | 2; }
-        if (v2 > uniforms.isoLevel) { config = config | 4; }
-        if (v3 > uniforms.isoLevel) { config = config | 8; }
-        if (v4 > uniforms.isoLevel) { config = config | 16; }
-        if (v5 > uniforms.isoLevel) { config = config | 32; }
-        if (v6 > uniforms.isoLevel) { config = config | 64; }
-        if (v7 > uniforms.isoLevel) { config = config | 128; }
-
-        // Skip empty or full cubes
-        if (config == 0 || config == 255) {
-          return;
-        }
-
-        // Generate vertices for this cube (simplified - actual implementation needs atomic counters)
-        // This is a placeholder for the full marching cubes algorithm
-      }
-    `;
-  }
-
-  /**
-   * Execute GPU marching cubes on voxel data
+   * Execute marching cubes – tries GPU first, falls back to CPU.
    */
   async execute(voxelData: Float32Array): Promise<MarchingCubesResult> {
-    if (!this.initialized || !this.device || !this.pipeline) {
-      throw new Error('GPU not initialized. Call initialize() first.');
-    }
-
-    const gridSize = this.config.gridSize;
-    const totalVoxels = gridSize * gridSize * gridSize;
-    
-    // Create input buffer
-    const voxelBuffer = this.device.createBuffer({
-      size: voxelData.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      mappedAtCreation: false,
-    });
-    this.device.queue.writeBuffer(voxelBuffer, 0, voxelData);
-
-    // Estimate output size (worst case: 5 triangles per voxel * 3 vertices)
-    const maxVertices = totalVoxels * 15;
-    const vertexBuffer = this.device.createBuffer({
-      size: maxVertices * 12, // vec3<f32> = 12 bytes
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    });
-
-    // Create uniform buffer
-    const uniformData = new Uint32Array([
-      gridSize,
-      this.config.voxelSize,
-      this.config.isoLevel,
-      0, // padding
-    ]);
-    const uniformBuffer = this.device.createBuffer({
-      size: uniformData.byteLength,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
-    this.device.queue.writeBuffer(uniformBuffer, 0, uniformData);
-
-    // Create bind group
-    const bindGroup = this.device.createBindGroup({
-      layout: this.bindGroupLayout!,
-      entries: [
-        { binding: 0, resource: { buffer: voxelBuffer } },
-        { binding: 1, resource: { buffer: vertexBuffer } },
-        { binding: 2, resource: { buffer: uniformBuffer } },
-      ],
-    });
-
-    // Encode commands
-    const commandEncoder = this.device.createCommandEncoder();
-    const passEncoder = commandEncoder.beginComputePass();
-    passEncoder.setPipeline(this.pipeline);
-    passEncoder.setBindGroup(0, bindGroup);
-    
-    const workgroupCountX = Math.ceil(gridSize / 8);
-    const workgroupCountY = Math.ceil(gridSize / 8);
-    passEncoder.dispatchWorkgroups(workgroupCountX, workgroupCountY);
-    passEncoder.end();
-
-    // Read back results
-    const readBuffer = this.device.createBuffer({
-      size: maxVertices * 12,
-      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-    });
-    commandEncoder.copyBufferToBuffer(vertexBuffer, 0, readBuffer, 0, maxVertices * 12);
-
-    const gpuCommands = commandEncoder.finish();
-    this.device.queue.submit([gpuCommands]);
-
-    await readBuffer.mapAsync(GPUMapMode.READ);
-    const resultBuffer = readBuffer.getMappedRange();
-    const resultData = new Float32Array(resultBuffer);
-
-    // Count actual vertices (non-zero positions)
-    let vertexCount = 0;
-    for (let i = 0; i < maxVertices; i += 3) {
-      if (resultData[i] !== 0 || resultData[i + 1] !== 0 || resultData[i + 2] !== 0) {
-        vertexCount++;
+    if (this.initialized && this.device) {
+      try {
+        return await this.executeGPU(voxelData);
+      } catch (err) {
+        console.warn('GPU marching cubes failed, falling back to CPU:', err);
       }
     }
-
-    const vertices = new Float32Array(resultData.slice(0, vertexCount * 3));
-    
-    readBuffer.unmap();
-
-    // Cleanup
-    voxelBuffer.destroy();
-    vertexBuffer.destroy();
-    uniformBuffer.destroy();
-    readBuffer.destroy();
-
-    return {
-      vertices,
-      normals: new Float32Array(), // TODO: Calculate normals
-      indices: new Uint32Array(),  // TODO: Generate indices
-      vertexCount,
-      triangleCount: Math.floor(vertexCount / 3),
-    };
+    return this.executeCPU(voxelData);
   }
 
   /**
-   * Fallback CPU implementation when WebGPU is not available
+   * CPU-only execution (guaranteed to work everywhere).
    */
   public executeCPU(voxelData: Float32Array): MarchingCubesResult {
-    const gridSize = this.config.gridSize;
-    const vertices: number[] = [];
-    const normals: number[] = [];
-    const indices: number[] = [];
+    const gs = this.config.gridSize;
+    const isoLevel = this.config.isoLevel;
+    const vs = this.config.voxelSize;
+
+    const positions: number[] = [];
+    const normalData: number[] = [];
+    const indexData: number[] = [];
     let vertexIndex = 0;
 
     const getVoxel = (x: number, y: number, z: number): number => {
-      if (x < 0 || x >= gridSize || y < 0 || y >= gridSize || z < 0 || z >= gridSize) {
-        return this.config.isoLevel;
+      if (x < 0 || x >= gs || y < 0 || y >= gs || z < 0 || z >= gs) {
+        return isoLevel;
       }
-      return voxelData[z * gridSize * gridSize + y * gridSize + x];
+      return voxelData[z * gs * gs + y * gs + x];
     };
 
-    const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+    /** Sample the SDF at a world-space position (nearest-neighbor) */
+    const sampleWorld = (wx: number, wy: number, wz: number): number => {
+      const gx = Math.floor(wx / vs);
+      const gy = Math.floor(wy / vs);
+      const gz = Math.floor(wz / vs);
+      return getVoxel(gx, gy, gz);
+    };
 
-    for (let z = 0; z < gridSize - 1; z++) {
-      for (let y = 0; y < gridSize - 1; y++) {
-        for (let x = 0; x < gridSize - 1; x++) {
-          // Get voxel values
-          const v0 = getVoxel(x, y, z);
-          const v1 = getVoxel(x + 1, y, z);
-          const v2 = getVoxel(x + 1, y + 1, z);
-          const v3 = getVoxel(x, y + 1, z);
-          const v4 = getVoxel(x, y, z + 1);
-          const v5 = getVoxel(x + 1, y, z + 1);
-          const v6 = getVoxel(x + 1, y + 1, z + 1);
-          const v7 = getVoxel(x, y + 1, z + 1);
+    /** Compute SDF gradient via central differences for normal estimation */
+    const computeNormal = (wx: number, wy: number, wz: number): [number, number, number] => {
+      const eps = vs * 0.5;
+      const dxp = sampleWorld(wx + eps, wy, wz);
+      const dxm = sampleWorld(wx - eps, wy, wz);
+      const dyp = sampleWorld(wx, wy + eps, wz);
+      const dym = sampleWorld(wx, wy - eps, wz);
+      const dzp = sampleWorld(wx, wy, wz + eps);
+      const dzm = sampleWorld(wx, wy, wz - eps);
+      const nx = dxp - dxm;
+      const ny = dyp - dym;
+      const nz = dzp - dzm;
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      if (len < 1e-10) return [0, 1, 0];
+      return [nx / len, ny / len, nz / len];
+    };
 
-          // Determine configuration
-          let config = 0;
-          if (v0 > this.config.isoLevel) config |= 1;
-          if (v1 > this.config.isoLevel) config |= 2;
-          if (v2 > this.config.isoLevel) config |= 4;
-          if (v3 > this.config.isoLevel) config |= 8;
-          if (v4 > this.config.isoLevel) config |= 16;
-          if (v5 > this.config.isoLevel) config |= 32;
-          if (v6 > this.config.isoLevel) config |= 64;
-          if (v7 > this.config.isoLevel) config |= 128;
+    for (let z = 0; z < gs - 1; z++) {
+      for (let y = 0; y < gs - 1; y++) {
+        for (let x = 0; x < gs - 1; x++) {
+          // Get 8 corner SDF values
+          const cornerValues = new Float64Array(8);
+          for (let i = 0; i < 8; i++) {
+            cornerValues[i] = getVoxel(
+              x + CORNER_OFFSETS[i][0],
+              y + CORNER_OFFSETS[i][1],
+              z + CORNER_OFFSETS[i][2],
+            );
+          }
 
-          if (config === 0 || config === 255) continue;
-
-          // Edge table lookup
-          const edgeFlags = MarchingCubesCompute.edgeTable[config];
-          if (edgeFlags === 0) continue;
-
-          // Calculate vertices
-          const cubeVertices: [number, number, number][] = [
-            [x, y, z], [x + 1, y, z], [x + 1, y + 1, z], [x, y + 1, z],
-            [x, y, z + 1], [x + 1, y, z + 1], [x + 1, y + 1, z + 1], [x, y + 1, z + 1],
-          ];
-
-          const edgePoints: ([number, number, number] | null)[] = new Array(12).fill(null);
-
-          // Edge definitions
-          const edges: [[number, number], [number, number]][] = [
-            [[0, 1], [v0, v1]], [[1, 2], [v1, v2]], [[2, 3], [v2, v3]], [[3, 0], [v3, v0]],
-            [[4, 5], [v4, v5]], [[5, 6], [v5, v6]], [[6, 7], [v6, v7]], [[7, 4], [v7, v4]],
-            [[0, 4], [v0, v4]], [[1, 5], [v1, v5]], [[2, 6], [v2, v6]], [[3, 7], [v3, v7]],
-          ];
-
-          for (let e = 0; e < 12; e++) {
-            if (edgeFlags & (1 << e)) {
-              const [[i0, i1], [val0, val1]] = edges[e];
-              const t = (this.config.isoLevel - val0) / (val1 - val0 || 0.0001);
-              const [x0, y0, z0] = cubeVertices[i0];
-              const [x1, y1, z1] = cubeVertices[i1];
-              edgePoints[e] = [
-                lerp(x0, x1, t),
-                lerp(y0, y1, t),
-                lerp(z0, z1, t),
-              ];
+          // Determine case index: bit i set if corner i is INSIDE (below isoLevel)
+          let caseIndex = 0;
+          for (let i = 0; i < 8; i++) {
+            if (cornerValues[i] < isoLevel) {
+              caseIndex |= (1 << i);
             }
           }
 
-          // Add triangles
-          let ti = 0;
-          while (MarchingCubesCompute.triTable[config][ti] !== -1) {
-            const e0 = MarchingCubesCompute.triTable[config][ti];
-            const e1 = MarchingCubesCompute.triTable[config][ti + 1];
-            const e2 = MarchingCubesCompute.triTable[config][ti + 2];
+          if (caseIndex === 0 || caseIndex === 255) continue;
 
-            if (edgePoints[e0] && edgePoints[e1] && edgePoints[e2]) {
-              vertices.push(...edgePoints[e0]!, ...edgePoints[e1]!, ...edgePoints[e2]!);
-              indices.push(vertexIndex, vertexIndex + 1, vertexIndex + 2);
-              vertexIndex += 3;
+          // Get edge flags from lookup table
+          const edgeFlags = EDGE_TABLE[caseIndex];
+          if (edgeFlags === 0) continue;
+
+          // Compute intersection points on intersected edges
+          const edgeVerts = new Array<{ x: number; y: number; z: number } | null>(12).fill(null);
+
+          for (let edge = 0; edge < 12; edge++) {
+            if ((edgeFlags & (1 << edge)) === 0) continue;
+
+            const v0idx = EDGE_VERTICES[edge * 2];
+            const v1idx = EDGE_VERTICES[edge * 2 + 1];
+
+            const d0 = cornerValues[v0idx];
+            const d1 = cornerValues[v1idx];
+            const diff = d0 - d1;
+            const t = Math.abs(diff) > 1e-10 ? (d0 - isoLevel) / diff : 0.5;
+
+            const p0x = (x + CORNER_OFFSETS[v0idx][0]) * vs;
+            const p0y = (y + CORNER_OFFSETS[v0idx][1]) * vs;
+            const p0z = (z + CORNER_OFFSETS[v0idx][2]) * vs;
+
+            const p1x = (x + CORNER_OFFSETS[v1idx][0]) * vs;
+            const p1y = (y + CORNER_OFFSETS[v1idx][1]) * vs;
+            const p1z = (z + CORNER_OFFSETS[v1idx][2]) * vs;
+
+            edgeVerts[edge] = {
+              x: p0x + t * (p1x - p0x),
+              y: p0y + t * (p1y - p0y),
+              z: p0z + t * (p1z - p0z),
+            };
+          }
+
+          // Generate triangles from the triangle table
+          const base = caseIndex * 16;
+          for (let i = 0; i < 16; i += 3) {
+            const e0 = TRIANGLE_TABLE[base + i];
+            if (e0 === -1) break;
+
+            const e1 = TRIANGLE_TABLE[base + i + 1];
+            const e2 = TRIANGLE_TABLE[base + i + 2];
+
+            const p0 = edgeVerts[e0];
+            const p1 = edgeVerts[e1];
+            const p2 = edgeVerts[e2];
+
+            if (!p0 || !p1 || !p2) continue;
+
+            positions.push(p0.x, p0.y, p0.z);
+            positions.push(p1.x, p1.y, p1.z);
+            positions.push(p2.x, p2.y, p2.z);
+
+            // Compute normals via SDF gradient
+            if (this.config.useNormals) {
+              const n0 = computeNormal(p0.x, p0.y, p0.z);
+              const n1 = computeNormal(p1.x, p1.y, p1.z);
+              const n2 = computeNormal(p2.x, p2.y, p2.z);
+              normalData.push(n0[0], n0[1], n0[2]);
+              normalData.push(n1[0], n1[1], n1[2]);
+              normalData.push(n2[0], n2[1], n2[2]);
             }
 
-            ti += 3;
+            indexData.push(vertexIndex, vertexIndex + 1, vertexIndex + 2);
+            vertexIndex += 3;
           }
         }
       }
     }
 
     return {
-      vertices: new Float32Array(vertices),
-      normals: new Float32Array(normals),
-      indices: new Uint32Array(indices),
-      vertexCount: vertices.length / 3,
-      triangleCount: indices.length / 3,
+      vertices: new Float32Array(positions),
+      normals: new Float32Array(normalData),
+      indices: new Uint32Array(indexData),
+      vertexCount: positions.length / 3,
+      triangleCount: indexData.length / 3,
     };
   }
 
   /**
-   * Convert result to Three.js geometry
+   * Convert a MarchingCubesResult to a Three.js BufferGeometry.
    */
   public toGeometry(result: MarchingCubesResult): BufferGeometry {
     const geometry = new BufferGeometry();
-    
     geometry.setAttribute('position', new BufferAttribute(result.vertices, 3));
-    
+
     if (result.normals.length > 0) {
       geometry.setAttribute('normal', new BufferAttribute(result.normals, 3));
     } else {
@@ -590,9 +286,457 @@ export class MarchingCubesCompute {
   }
 
   /**
-   * Check if WebGPU is available
+   * Check if WebGPU is available in the current environment.
    */
   public static isWebGPUSupported(): boolean {
     return typeof navigator !== 'undefined' && !!navigator.gpu;
+  }
+
+  // ========================================================================
+  // GPU Implementation
+  // ========================================================================
+
+  private async executeGPU(voxelData: Float32Array): Promise<MarchingCubesResult> {
+    const gs = this.config.gridSize;
+    const totalCells = (gs - 1) * (gs - 1) * (gs - 1);
+    const dev = this.device;
+
+    // --- Upload voxel data ---
+    const voxelBuffer = dev.createBuffer({
+      size: voxelData.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(voxelBuffer, 0, voxelData);
+
+    // --- Upload uniforms (16 bytes) ---
+    const uniformBuf = dev.createBuffer({
+      size: 16,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    const uniAB = new ArrayBuffer(16);
+    const uniDV = new DataView(uniAB);
+    uniDV.setUint32(0, gs, true);
+    uniDV.setFloat32(4, this.config.voxelSize, true);
+    uniDV.setFloat32(8, this.config.isoLevel, true);
+    uniDV.setUint32(12, 0, true);
+    dev.queue.writeBuffer(uniformBuf, 0, uniAB);
+
+    // --- Upload lookup tables as i32 storage buffers ---
+    // Edge table: 256 u16 values → 256 i32 values
+    const edgeTableI32 = new Int32Array(256);
+    for (let i = 0; i < 256; i++) edgeTableI32[i] = EDGE_TABLE[i];
+    const edgeTableBuf = dev.createBuffer({
+      size: 256 * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(edgeTableBuf, 0, edgeTableI32);
+
+    // Triangle table: 4096 Int8 values → 4096 i32 values
+    const triTableI32 = new Int32Array(256 * 16);
+    for (let i = 0; i < 256 * 16; i++) triTableI32[i] = TRIANGLE_TABLE[i];
+    const triTableBuf = dev.createBuffer({
+      size: 256 * 16 * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(triTableBuf, 0, triTableI32);
+
+    // ================================================================
+    // Pass 1: Classify cells – count triangles per cell
+    // ================================================================
+    const triCountBuf = dev.createBuffer({
+      size: totalCells * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
+    const totalTriBuf = dev.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(totalTriBuf, 0, new Uint32Array([0]));
+
+    const classifyBG = dev.createBindGroup({
+      layout: this.classifyPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: voxelBuffer } },
+        { binding: 1, resource: { buffer: triCountBuf } },
+        { binding: 2, resource: { buffer: uniformBuf } },
+        { binding: 3, resource: { buffer: totalTriBuf } },
+        { binding: 4, resource: { buffer: edgeTableBuf } },
+      ],
+    });
+
+    const wgSize = 4;
+    const dx = Math.ceil((gs - 1) / wgSize);
+    const dy = Math.ceil((gs - 1) / wgSize);
+    const dz = Math.ceil((gs - 1) / wgSize);
+
+    const enc1 = dev.createCommandEncoder();
+    const p1 = enc1.beginComputePass();
+    p1.setPipeline(this.classifyPipeline);
+    p1.setBindGroup(0, classifyBG);
+    p1.dispatchWorkgroups(dx, dy, dz);
+    p1.end();
+
+    // Read back total triangle count
+    const totalTriRead = dev.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    });
+    enc1.copyBufferToBuffer(totalTriBuf, 0, totalTriRead, 0, 4);
+    dev.queue.submit([enc1.finish()]);
+
+    await totalTriRead.mapAsync(GPUMapMode.READ);
+    const totalTri = new Uint32Array(totalTriRead.getMappedRange())[0];
+    totalTriRead.unmap();
+    totalTriRead.destroy();
+
+    if (totalTri === 0) {
+      this.destroyBuffers(voxelBuffer, uniformBuf, edgeTableBuf, triTableBuf, triCountBuf, totalTriBuf);
+      return { vertices: new Float32Array(0), normals: new Float32Array(0), indices: new Uint32Array(0), vertexCount: 0, triangleCount: 0 };
+    }
+
+    // ================================================================
+    // CPU prefix-sum of per-cell triangle counts → vertex offsets
+    // ================================================================
+    const triCountRead = dev.createBuffer({
+      size: totalCells * 4,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    });
+    const encPfx = dev.createCommandEncoder();
+    encPfx.copyBufferToBuffer(triCountBuf, 0, triCountRead, 0, totalCells * 4);
+    dev.queue.submit([encPfx.finish()]);
+
+    await triCountRead.mapAsync(GPUMapMode.READ);
+    const triCounts = new Uint32Array(triCountRead.getMappedRange()).slice();
+    triCountRead.unmap();
+    triCountRead.destroy();
+
+    const vertexOffsets = new Uint32Array(totalCells);
+    let running = 0;
+    for (let i = 0; i < totalCells; i++) {
+      vertexOffsets[i] = running * 3;
+      running += triCounts[i];
+    }
+
+    const offsetBuf = dev.createBuffer({
+      size: totalCells * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    dev.queue.writeBuffer(offsetBuf, 0, vertexOffsets);
+
+    // ================================================================
+    // Pass 2: Generate vertices + normals
+    // ================================================================
+    const maxVerts = Math.min(totalTri, (gs - 1) ** 3 * 5) * 3;
+    const vertBuf = dev.createBuffer({
+      size: maxVerts * 3 * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
+    const normBuf = dev.createBuffer({
+      size: maxVerts * 3 * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
+
+    const generateBG = dev.createBindGroup({
+      layout: this.generatePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: voxelBuffer } },
+        { binding: 1, resource: { buffer: offsetBuf } },
+        { binding: 2, resource: { buffer: uniformBuf } },
+        { binding: 3, resource: { buffer: triTableBuf } },
+        { binding: 4, resource: { buffer: vertBuf } },
+        { binding: 5, resource: { buffer: normBuf } },
+      ],
+    });
+
+    const enc2 = dev.createCommandEncoder();
+    const p2 = enc2.beginComputePass();
+    p2.setPipeline(this.generatePipeline);
+    p2.setBindGroup(0, generateBG);
+    p2.dispatchWorkgroups(dx, dy, dz);
+    p2.end();
+
+    const vertRead = dev.createBuffer({
+      size: maxVerts * 3 * 4,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    });
+    const normRead = dev.createBuffer({
+      size: maxVerts * 3 * 4,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    });
+    enc2.copyBufferToBuffer(vertBuf, 0, vertRead, 0, maxVerts * 3 * 4);
+    enc2.copyBufferToBuffer(normBuf, 0, normRead, 0, maxVerts * 3 * 4);
+    dev.queue.submit([enc2.finish()]);
+
+    await vertRead.mapAsync(GPUMapMode.READ);
+    const gpuVerts = new Float32Array(vertRead.getMappedRange()).slice(0, maxVerts * 3);
+    vertRead.unmap();
+    vertRead.destroy();
+
+    await normRead.mapAsync(GPUMapMode.READ);
+    const gpuNorms = new Float32Array(normRead.getMappedRange()).slice(0, maxVerts * 3);
+    normRead.unmap();
+    normRead.destroy();
+
+    // Generate sequential indices
+    const idxData = new Uint32Array(maxVerts);
+    for (let i = 0; i < maxVerts; i++) idxData[i] = i;
+
+    // Cleanup
+    this.destroyBuffers(voxelBuffer, uniformBuf, edgeTableBuf, triTableBuf, triCountBuf, totalTriBuf, offsetBuf, vertBuf, normBuf);
+
+    return {
+      vertices: gpuVerts,
+      normals: gpuNorms,
+      indices: idxData,
+      vertexCount: maxVerts,
+      triangleCount: maxVerts / 3,
+    };
+  }
+
+  private destroyBuffers(...buffers: any[]): void {
+    for (const b of buffers) {
+      try { if (b && typeof b.destroy === 'function') b.destroy(); } catch {}
+    }
+  }
+
+  // ========================================================================
+  // WGSL Compute Shaders
+  // ========================================================================
+
+  /**
+   * Pass 1: For each cell, determine the marching cubes case and count
+   * the number of triangles. Writes per-cell counts and atomically
+   * accumulates the total.
+   */
+  private getClassifyWGSL(): string {
+    return `
+      struct Uniforms {
+        gridSize: u32,
+        voxelSize: f32,
+        isoLevel: f32,
+        padding: u32,
+      };
+
+      @group(0) @binding(0) var<storage, read> voxels: array<f32>;
+      @group(0) @binding(1) var<storage, read_write> triCounts: array<atomic<u32>>;
+      @group(0) @binding(2) var<uniform> uniforms: Uniforms;
+      @group(0) @binding(3) var<storage, read_write> totalTriangles: atomic<u32>;
+      @group(0) @binding(4) var<storage, read> edgeTable: array<i32>;
+
+      fn getVoxel(x: u32, y: u32, z: u32) -> f32 {
+        if (x >= uniforms.gridSize || y >= uniforms.gridSize || z >= uniforms.gridSize) {
+          return uniforms.isoLevel;
+        }
+        return voxels[z * uniforms.gridSize * uniforms.gridSize + y * uniforms.gridSize + x];
+      }
+
+      fn countTrianglesForCase(caseIdx: u32) -> u32 {
+        if (caseIdx == 0u || caseIdx == 255u) { return 0u; }
+        // Count triangles by scanning the triangle table.
+        // The tri table is stored in edgeTable buffer starting at offset 256.
+        var count: u32 = 0u;
+        for (var i = 0u; i < 16u; i += 3u) {
+          let entry = edgeTable[256u + caseIdx * 16u + i];
+          if (entry == -1) { break; }
+          count = count + 1u;
+        }
+        return count;
+      }
+
+      @compute @workgroup_size(4, 4, 4)
+      fn classify_main(@builtin(global_invocation_id) gid: vec3<u32>) {
+        let gs = uniforms.gridSize;
+        if (gid.x >= gs - 1u || gid.y >= gs - 1u || gid.z >= gs - 1u) { return; }
+
+        let x = gid.x; let y = gid.y; let z = gid.z;
+
+        let v0 = getVoxel(x,     y,     z);
+        let v1 = getVoxel(x+1u,  y,     z);
+        let v2 = getVoxel(x+1u,  y+1u,  z);
+        let v3 = getVoxel(x,     y+1u,  z);
+        let v4 = getVoxel(x,     y,     z+1u);
+        let v5 = getVoxel(x+1u,  y,     z+1u);
+        let v6 = getVoxel(x+1u,  y+1u,  z+1u);
+        let v7 = getVoxel(x,     y+1u,  z+1u);
+
+        var caseIdx: u32 = 0u;
+        if (v0 < uniforms.isoLevel) { caseIdx = caseIdx | 1u; }
+        if (v1 < uniforms.isoLevel) { caseIdx = caseIdx | 2u; }
+        if (v2 < uniforms.isoLevel) { caseIdx = caseIdx | 4u; }
+        if (v3 < uniforms.isoLevel) { caseIdx = caseIdx | 8u; }
+        if (v4 < uniforms.isoLevel) { caseIdx = caseIdx | 16u; }
+        if (v5 < uniforms.isoLevel) { caseIdx = caseIdx | 32u; }
+        if (v6 < uniforms.isoLevel) { caseIdx = caseIdx | 64u; }
+        if (v7 < uniforms.isoLevel) { caseIdx = caseIdx | 128u; }
+
+        let cellIdx = z * (gs - 1u) * (gs - 1u) + y * (gs - 1u) + x;
+        let triCount = countTrianglesForCase(caseIdx);
+
+        atomicStore(&triCounts[cellIdx], triCount);
+        atomicAdd(&totalTriangles, triCount);
+      }
+    `;
+  }
+
+  /**
+   * Pass 2: For each cell, generate vertex positions and normals for
+   * all triangles. Uses the prefix-sum offsets (binding 1) to determine
+   * where in the output buffer to write.
+   */
+  private getGenerateWGSL(): string {
+    return `
+      struct Uniforms {
+        gridSize: u32,
+        voxelSize: f32,
+        isoLevel: f32,
+        padding: u32,
+      };
+
+      @group(0) @binding(0) var<storage, read> voxels: array<f32>;
+      @group(0) @binding(1) var<storage, read> vertexOffsets: array<u32>;
+      @group(0) @binding(2) var<uniform> uniforms: Uniforms;
+      @group(0) @binding(3) var<storage, read> triTable: array<i32>;
+      @group(0) @binding(4) var<storage, read_write> outPositions: array<f32>;
+      @group(0) @binding(5) var<storage, read_write> outNormals: array<f32>;
+
+      fn getVoxel(x: u32, y: u32, z: u32) -> f32 {
+        if (x >= uniforms.gridSize || y >= uniforms.gridSize || z >= uniforms.gridSize) {
+          return uniforms.isoLevel;
+        }
+        return voxels[z * uniforms.gridSize * uniforms.gridSize + y * uniforms.gridSize + x];
+      }
+
+      fn getVoxelWorld(gx: f32, gy: f32, gz: f32) -> f32 {
+        let ix = i32(gx / uniforms.voxelSize);
+        let iy = i32(gy / uniforms.voxelSize);
+        let iz = i32(gz / uniforms.voxelSize);
+        let gs = i32(uniforms.gridSize);
+        if (ix < 0 || iy < 0 || iz < 0 || ix >= gs || iy >= gs || iz >= gs) {
+          return uniforms.isoLevel;
+        }
+        return voxels[u32(iz) * uniforms.gridSize * uniforms.gridSize + u32(iy) * uniforms.gridSize + u32(ix)];
+      }
+
+      fn vertexInterp(p1: vec3<f32>, p2: vec3<f32>, v1: f32, v2: f32) -> vec3<f32> {
+        if (abs(v1 - v2) < 0.00001) { return p1; }
+        let t = (uniforms.isoLevel - v1) / (v2 - v1);
+        return p1 + (p2 - p1) * t;
+      }
+
+      fn computeNormal(px: f32, py: f32, pz: f32) -> vec3<f32> {
+        let eps = uniforms.voxelSize * 0.5;
+        let dxp = getVoxelWorld(px + eps, py, pz);
+        let dxm = getVoxelWorld(px - eps, py, pz);
+        let dyp = getVoxelWorld(px, py + eps, pz);
+        let dym = getVoxelWorld(px, py - eps, pz);
+        let dzp = getVoxelWorld(px, py, pz + eps);
+        let dzm = getVoxelWorld(px, py, pz - eps);
+        let n = vec3<f32>(dxp - dxm, dyp - dym, dzp - dzm);
+        let len = length(n);
+        if (len < 0.00001) { return vec3<f32>(0.0, 1.0, 0.0); }
+        return n / len;
+      }
+
+      @compute @workgroup_size(4, 4, 4)
+      fn generate_main(@builtin(global_invocation_id) gid: vec3<u32>) {
+        let gs = uniforms.gridSize;
+        if (gid.x >= gs - 1u || gid.y >= gs - 1u || gid.z >= gs - 1u) { return; }
+
+        let x = gid.x; let y = gid.y; let z = gid.z;
+        let vs = uniforms.voxelSize;
+
+        // 8 corner positions (world space)
+        let p0 = vec3<f32>(f32(x)   * vs, f32(y)   * vs, f32(z)   * vs);
+        let p1 = vec3<f32>(f32(x+1u) * vs, f32(y)   * vs, f32(z)   * vs);
+        let p2 = vec3<f32>(f32(x+1u) * vs, f32(y+1u) * vs, f32(z)   * vs);
+        let p3 = vec3<f32>(f32(x)   * vs, f32(y+1u) * vs, f32(z)   * vs);
+        let p4 = vec3<f32>(f32(x)   * vs, f32(y)   * vs, f32(z+1u) * vs);
+        let p5 = vec3<f32>(f32(x+1u) * vs, f32(y)   * vs, f32(z+1u) * vs);
+        let p6 = vec3<f32>(f32(x+1u) * vs, f32(y+1u) * vs, f32(z+1u) * vs);
+        let p7 = vec3<f32>(f32(x)   * vs, f32(y+1u) * vs, f32(z+1u) * vs);
+
+        let v0 = getVoxel(x,     y,     z);
+        let v1 = getVoxel(x+1u,  y,     z);
+        let v2 = getVoxel(x+1u,  y+1u,  z);
+        let v3 = getVoxel(x,     y+1u,  z);
+        let v4 = getVoxel(x,     y,     z+1u);
+        let v5 = getVoxel(x+1u,  y,     z+1u);
+        let v6 = getVoxel(x+1u,  y+1u,  z+1u);
+        let v7 = getVoxel(x,     y+1u,  z+1u);
+
+        var caseIdx: u32 = 0u;
+        if (v0 < uniforms.isoLevel) { caseIdx = caseIdx | 1u; }
+        if (v1 < uniforms.isoLevel) { caseIdx = caseIdx | 2u; }
+        if (v2 < uniforms.isoLevel) { caseIdx = caseIdx | 4u; }
+        if (v3 < uniforms.isoLevel) { caseIdx = caseIdx | 8u; }
+        if (v4 < uniforms.isoLevel) { caseIdx = caseIdx | 16u; }
+        if (v5 < uniforms.isoLevel) { caseIdx = caseIdx | 32u; }
+        if (v6 < uniforms.isoLevel) { caseIdx = caseIdx | 64u; }
+        if (v7 < uniforms.isoLevel) { caseIdx = caseIdx | 128u; }
+
+        if (caseIdx == 0u || caseIdx == 255u) { return; }
+
+        // Edge intersection points
+        var edgeVerts: array<vec3<f32>, 12>;
+        edgeVerts[0]  = vertexInterp(p0, p1, v0, v1);
+        edgeVerts[1]  = vertexInterp(p1, p2, v1, v2);
+        edgeVerts[2]  = vertexInterp(p2, p3, v2, v3);
+        edgeVerts[3]  = vertexInterp(p3, p0, v3, v0);
+        edgeVerts[4]  = vertexInterp(p4, p5, v4, v5);
+        edgeVerts[5]  = vertexInterp(p5, p6, v5, v6);
+        edgeVerts[6]  = vertexInterp(p6, p7, v6, v7);
+        edgeVerts[7]  = vertexInterp(p7, p4, v7, v4);
+        edgeVerts[8]  = vertexInterp(p0, p4, v0, v4);
+        edgeVerts[9]  = vertexInterp(p1, p5, v1, v5);
+        edgeVerts[10] = vertexInterp(p2, p6, v2, v6);
+        edgeVerts[11] = vertexInterp(p3, p7, v3, v7);
+
+        // Get vertex offset for this cell
+        let cellIdx = z * (gs - 1u) * (gs - 1u) + y * (gs - 1u) + x;
+        var vertIdx = vertexOffsets[cellIdx];
+
+        // Generate triangles
+        for (var triIdx = 0u; triIdx < 5u; triIdx++) {
+          let base = caseIdx * 16u + triIdx * 3u;
+          let e0 = triTable[base];
+          if (e0 < 0) { break; }
+          let e1 = triTable[base + 1u];
+          let e2 = triTable[base + 2u];
+
+          let v0p = edgeVerts[u32(e0)];
+          let v1p = edgeVerts[u32(e1)];
+          let v2p = edgeVerts[u32(e2)];
+
+          // Write positions
+          let o = vertIdx * 3u;
+          outPositions[o]      = v0p.x;
+          outPositions[o + 1u] = v0p.y;
+          outPositions[o + 2u] = v0p.z;
+          outPositions[o + 3u] = v1p.x;
+          outPositions[o + 4u] = v1p.y;
+          outPositions[o + 5u] = v1p.z;
+          outPositions[o + 6u] = v2p.x;
+          outPositions[o + 7u] = v2p.y;
+          outPositions[o + 8u] = v2p.z;
+
+          // Write normals via SDF gradient
+          let n0 = computeNormal(v0p.x, v0p.y, v0p.z);
+          let n1 = computeNormal(v1p.x, v1p.y, v1p.z);
+          let n2 = computeNormal(v2p.x, v2p.y, v2p.z);
+
+          outNormals[o]      = n0.x;
+          outNormals[o + 1u] = n0.y;
+          outNormals[o + 2u] = n0.z;
+          outNormals[o + 3u] = n1.x;
+          outNormals[o + 4u] = n1.y;
+          outNormals[o + 5u] = n1.z;
+          outNormals[o + 6u] = n2.x;
+          outNormals[o + 7u] = n2.y;
+          outNormals[o + 8u] = n2.z;
+
+          vertIdx += 3u;
+        }
+      }
+    `;
   }
 }

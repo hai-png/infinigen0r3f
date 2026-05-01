@@ -1373,8 +1373,114 @@ export interface GeometryNodeDefinition {
 }
 
 /**
- * Satisfies function alias for constraint checking
+ * Satisfies function: evaluates a constraint against a variable assignment
+ *
+ * Recursively evaluates the constraint expression using the provided assignment
+ * map to resolve variable values. Supports all constraint types: equality,
+ * inequality, comparison, logical combination, and expression-based constraints.
  */
 export function satisfies(constraint: Constraint, assignment: Map<string, any>): boolean {
-  return true; // Placeholder - actual implementation would evaluate the constraint
+  // If the constraint has an expression tree, evaluate it
+  if (constraint.expression) {
+    return evaluateExpressionNode(constraint.expression, assignment);
+  }
+
+  // Otherwise, evaluate based on the constraint's operator and operands
+  const leftVal = evaluateExpressionNode(constraint.left, assignment);
+  const rightVal = evaluateExpressionNode(constraint.right, assignment);
+
+  switch (constraint.operator) {
+    case 'eq': return leftVal === rightVal;
+    case 'neq': return leftVal !== rightVal;
+    case 'lt': return leftVal < rightVal;
+    case 'lte': return leftVal <= rightVal;
+    case 'gt': return leftVal > rightVal;
+    case 'gte': return leftVal >= rightVal;
+    case 'in': return Array.isArray(rightVal) && rightVal.includes(leftVal);
+    case 'not_in': return Array.isArray(rightVal) && !rightVal.includes(leftVal);
+    case 'contains': return Array.isArray(leftVal) && leftVal.includes(rightVal);
+    case 'overlaps': return Array.isArray(leftVal) && Array.isArray(rightVal) && leftVal.some((v: any) => rightVal.includes(v));
+    case 'aligned': return typeof leftVal === 'number' && typeof rightVal === 'number' && Math.abs(leftVal - rightVal) < 0.1;
+    case 'parallel': return typeof leftVal === 'number' && typeof rightVal === 'number' && Math.abs(leftVal - rightVal) < 0.1;
+    case 'perpendicular': return typeof leftVal === 'number' && typeof rightVal === 'number' && Math.abs(Math.abs(leftVal - rightVal) - Math.PI / 2) < 0.1;
+    default: return true;
+  }
+}
+
+/**
+ * Evaluate an expression node using a variable assignment map
+ */
+function evaluateExpressionNode(node: ExpressionNode, assignment: Map<string, any>): any {
+  if (!node) return undefined;
+
+  switch (node.type) {
+    case 'Constant': {
+      const constNode = node as ConstantExprNode;
+      return constNode.value;
+    }
+    case 'Variable': {
+      const varNode = node as VariableExprNode;
+      return assignment.get(varNode.name) ?? varNode.domain?.sample?.() ?? undefined;
+    }
+    case 'BinaryOp': {
+      const binOp = node as BinaryOpNode;
+      const left = evaluateExpressionNode(binOp.left, assignment);
+      const right = evaluateExpressionNode(binOp.right, assignment);
+      switch (binOp.op) {
+        case '+': return (left ?? 0) + (right ?? 0);
+        case '-': return (left ?? 0) - (right ?? 0);
+        case '*': return (left ?? 0) * (right ?? 0);
+        case '/': return right !== 0 ? (left ?? 0) / right : 0;
+        case '^': return Math.pow(left ?? 0, right ?? 1);
+        case '%': return right !== 0 ? (left ?? 0) % right : 0;
+        case 'min': return Math.min(left ?? Infinity, right ?? Infinity);
+        case 'max': return Math.max(left ?? -Infinity, right ?? -Infinity);
+        case 'and': return !!(left && right);
+        case 'or': return !!(left || right);
+        case 'xor': return !!left !== !!right;
+        case 'implies': return !left || !!right;
+        case 'eq': return left === right;
+        case 'neq': return left !== right;
+        case 'lt': return left < right;
+        case 'lte': return left <= right;
+        case 'gt': return left > right;
+        case 'gte': return left >= right;
+        default: return undefined;
+      }
+    }
+    case 'UnaryOp': {
+      const unOp = node as UnaryOpNode;
+      const operand = evaluateExpressionNode(unOp.operand || (unOp as any).child, assignment);
+      switch (unOp.op) {
+        case '-': return -(operand ?? 0);
+        case 'not': return !operand;
+        case 'abs': return Math.abs(operand ?? 0);
+        case 'sqrt': return Math.sqrt(operand ?? 0);
+        case 'sin': return Math.sin(operand ?? 0);
+        case 'cos': return Math.cos(operand ?? 0);
+        default: return operand;
+      }
+    }
+    case 'FunctionCall': {
+      const fnNode = node as FunctionCallExprNode;
+      const fnName = fnNode.name;
+      const args = fnNode.args.map(a => evaluateExpressionNode(a, assignment));
+      // Built-in math functions
+      switch (fnName) {
+        case 'distance': return args.length >= 2 ? Math.abs((args[0] ?? 0) - (args[1] ?? 0)) : 0;
+        case 'min': return Math.min(...args.map(a => a ?? Infinity));
+        case 'max': return Math.max(...args.map(a => a ?? -Infinity));
+        case 'clamp': return args.length >= 3 ? Math.max(args[1], Math.min(args[2], args[0])) : args[0];
+        case 'lerp': return args.length >= 3 ? (args[0] ?? 0) + ((args[1] ?? 0) - (args[0] ?? 0)) * (args[2] ?? 0) : 0;
+        default: return undefined;
+      }
+    }
+    case 'IfElse': {
+      const ifElse = node as IfElseNode;
+      const condition = evaluateExpressionNode(ifElse.condition, assignment);
+      return condition ? evaluateExpressionNode(ifElse.thenExpr, assignment) : evaluateExpressionNode(ifElse.elseExpr, assignment);
+    }
+    default:
+      return undefined;
+  }
 }

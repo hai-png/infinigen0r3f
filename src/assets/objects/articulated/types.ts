@@ -11,7 +11,7 @@ import * as THREE from 'three';
 // Joint Types
 // ============================================================================
 
-export type JointType = 'hinge' | 'prismatic' | 'ball' | 'fixed';
+export type JointType = 'hinge' | 'prismatic' | 'ball' | 'ball_socket' | 'fixed' | 'continuous';
 
 export interface JointInfo {
   /** Unique identifier for this joint */
@@ -80,12 +80,14 @@ function axisToMJCF(v: THREE.Vector3): string {
 }
 
 /** Joint type mapping to MJCF */
-function jointTypeToMJCF(type: JointType): string {
+function jointTypeToMJCF(type: JointType): { mjcfType: string; limited: boolean } {
   switch (type) {
-    case 'hinge': return 'hinge';
-    case 'prismatic': return 'slide';
-    case 'ball': return 'ball';
-    case 'fixed': return 'fixed';
+    case 'hinge': return { mjcfType: 'hinge', limited: true };
+    case 'continuous': return { mjcfType: 'hinge', limited: false };
+    case 'prismatic': return { mjcfType: 'slide', limited: true };
+    case 'ball':
+    case 'ball_socket': return { mjcfType: 'ball', limited: false };
+    case 'fixed': return { mjcfType: 'fixed', limited: false };
   }
 }
 
@@ -103,21 +105,35 @@ export function generateMJCF(
   lines.push('  <worldbody>');
   lines.push('    <body name="' + name + '_base" pos="0 0 0">');
 
-  // Add geoms for each mesh
+  // Add geoms for each mesh - use mesh reference when available
+  // Add mesh assets first
+  lines.push('  <asset>');
   for (const [meshName, data] of meshGeometries) {
-    lines.push(`      <geom name="${meshName}" type="box" size="${vec3ToMJCF(data.size.clone().multiplyScalar(0.5))}" pos="${vec3ToMJCF(data.pos)}" />`);
+    lines.push(`    <mesh name="${meshName}" file="./meshes/${meshName}.obj" scale="${data.size.x.toFixed(4)} ${data.size.y.toFixed(4)} ${data.size.z.toFixed(4)}" />`);
+  }
+  lines.push('  </asset>');
+
+  // Add geom references in worldbody
+  for (const [meshName, data] of meshGeometries) {
+    lines.push(`      <geom name="${meshName}_geom" type="mesh" mesh="${meshName}" pos="${vec3ToMJCF(data.pos)}" />`);
   }
 
   // Add joints
   for (const joint of joints) {
     if (joint.type === 'fixed') continue;
 
-    const mjcfType = jointTypeToMJCF(joint.type);
+    const { mjcfType, limited } = jointTypeToMJCF(joint.type);
     const axisStr = axisToMJCF(joint.axis);
-    const rangeStr = `${joint.limits.min.toFixed(4)} ${joint.limits.max.toFixed(4)}`;
     const posStr = vec3ToMJCF(joint.anchor);
 
-    let jointXml = `      <joint name="${joint.id}" type="${mjcfType}" axis="${axisStr}" range="${rangeStr}" pos="${posStr}"`;
+    let jointXml = `      <joint name="${joint.id}" type="${mjcfType}" axis="${axisStr}" pos="${posStr}"`;
+
+    if (limited) {
+      const rangeStr = `${joint.limits.min.toFixed(4)} ${joint.limits.max.toFixed(4)}`;
+      jointXml += ` range="${rangeStr}"`;
+    } else {
+      jointXml += ` limited="false"`;
+    }
 
     if (joint.damping > 0) {
       jointXml += ` damping="${joint.damping.toFixed(4)}"`;
@@ -144,9 +160,20 @@ export function generateMJCF(
     lines.push('  <actuator>');
     for (const joint of actuatedJoints) {
       const ctrlRange = joint.motor?.ctrlRange ?? [joint.limits.min, joint.limits.max];
-      lines.push(`    <motor name="${joint.id}_motor" joint="${joint.id}" ctrlrange="${ctrlRange[0].toFixed(4)} ${ctrlRange[1].toFixed(4)}" gear="${joint.motor?.gearRatio ?? 1}" />`);
+      lines.push(`    <motor name="${joint.id}_motor" joint="${joint.id}" ctrlrange="${ctrlRange[0].toFixed(4)} ${ctrlRange[1].toFixed(4)}" ctrllimited="true" gear="${joint.motor?.gearRatio ?? 1}" />`);
     }
     lines.push('  </actuator>');
+  }
+
+  // Add sensors (joint position + velocity for all non-fixed joints)
+  const movableJoints = joints.filter(j => j.type !== 'fixed');
+  if (movableJoints.length > 0) {
+    lines.push('  <sensor>');
+    for (const joint of movableJoints) {
+      lines.push(`    <jointpos joint="${joint.id}"/>`);
+      lines.push(`    <jointvel joint="${joint.id}"/>`);
+    }
+    lines.push('  </sensor>');
   }
 
   lines.push('</mujoco>');

@@ -8,6 +8,7 @@
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 export interface SnowParams {
   intensity: number;
@@ -36,14 +37,16 @@ interface Snowflake {
 export class SnowSystem {
   private scene: THREE.Scene;
   private params: SnowParams;
+  private rng: SeededRandom;
   private snowMesh: THREE.Points | null = null;
   private accumulationMeshes: THREE.Mesh[] = [];
   private snowflakes: Snowflake[] = [];
   private readonly maxFlakes = 8000;
   private accumulationMap: Map<string, number> = new Map();
 
-  constructor(scene: THREE.Scene, params: Partial<SnowParams> = {}) {
+  constructor(scene: THREE.Scene, params: Partial<SnowParams> = {}, seed: number = 42) {
     this.scene = scene;
+    this.rng = new SeededRandom(seed);
     this.params = {
       intensity: params.intensity ?? 0.6,
       windSpeed: params.windSpeed ?? 3,
@@ -70,16 +73,16 @@ export class SnowSystem {
 
     // Create snowflake data
     for (let i = 0; i < this.maxFlakes; i++) {
-      const x = (Math.random() - 0.5) * 100;
-      const y = Math.random() * 50 + 10;
-      const z = (Math.random() - 0.5) * 100;
+      const x = (this.rng.next() - 0.5) * 100;
+      const y = this.rng.next() * 50 + 10;
+      const z = (this.rng.next() - 0.5) * 100;
       
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
 
-      sizes[i] = this.params.flakeSize * (0.5 + Math.random() * 0.5);
-      phases[i] = Math.random() * Math.PI * 2;
+      sizes[i] = this.params.flakeSize * (0.5 + this.rng.next() * 0.5);
+      phases[i] = this.rng.next() * Math.PI * 2;
 
       this.snowflakes.push({
         x, y, z,
@@ -87,7 +90,7 @@ export class SnowSystem {
         vy: -this.params.fallSpeed,
         vz: 0,
         size: sizes[i],
-        rotationSpeed: (Math.random() - 0.5) * 2,
+        rotationSpeed: (this.rng.next() - 0.5) * 2,
         phase: phases[i]
       });
     }
@@ -169,9 +172,9 @@ export class SnowSystem {
         }
 
         // Reset flake to top
-        flake.y = 50 + Math.random() * 10;
-        flake.x = (Math.random() - 0.5) * 100;
-        flake.z = (Math.random() - 0.5) * 100;
+        flake.y = 50 + this.rng.next() * 10;
+        flake.x = (this.rng.next() - 0.5) * 100;
+        flake.z = (this.rng.next() - 0.5) * 100;
         flake.vx = 0;
         flake.vz = 0;
       }

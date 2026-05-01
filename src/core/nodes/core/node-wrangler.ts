@@ -555,6 +555,196 @@ export class NodeWrangler {
     return String(index);
   }
 
+  // ==========================================================================
+  // Evaluation Engine: topological sort + execute + getOutput
+  // ==========================================================================
+
+  /**
+   * Node execution function type.
+   * Each node type can register an executor that receives its resolved input values
+   * and returns an object mapping output socket names to their computed values.
+   */
+  static executors: Map<string, (inputs: Record<string, any>, properties: Record<string, any>) => Record<string, any>> = new Map();
+
+  /**
+   * Register an executor for a node type.
+   */
+  static registerExecutor(
+    nodeType: string,
+    executor: (inputs: Record<string, any>, properties: Record<string, any>) => Record<string, any>
+  ): void {
+    NodeWrangler.executors.set(nodeType, executor);
+  }
+
+  /**
+   * Perform topological sort of the nodes in the active group.
+   * Returns an ordered array of node IDs such that all dependencies come before dependents.
+   * Throws if a cycle is detected.
+   */
+  topologicalSort(group?: NodeGroup): string[] {
+    const g = group || this.getActiveGroup();
+    const nodes = Array.from(g.nodes.keys());
+    const visited = new Set<string>();
+    const inStack = new Set<string>();
+    const order: string[] = [];
+
+    // Build adjacency list: for each node, which nodes depend on it?
+    // We need to know: to execute node B, we need the output of node A if A→B
+    // So we find incoming edges for each node.
+    const inDegree = new Map<string, number>();
+    const dependents = new Map<string, Set<string>>(); // nodeId → set of nodes that depend on it
+
+    for (const nodeId of nodes) {
+      inDegree.set(nodeId, 0);
+      dependents.set(nodeId, new Set());
+    }
+
+    for (const link of g.links.values()) {
+      // link.fromNode → link.toNode means toNode depends on fromNode
+      inDegree.set(link.toNode, (inDegree.get(link.toNode) || 0) + 1);
+      dependents.get(link.fromNode)?.add(link.toNode);
+    }
+
+    // Kahn's algorithm (BFS-based topological sort)
+    const queue: string[] = [];
+    for (const [nodeId, degree] of inDegree.entries()) {
+      if (degree === 0) {
+        queue.push(nodeId);
+      }
+    }
+
+    while (queue.length > 0) {
+      const nodeId = queue.shift()!;
+      order.push(nodeId);
+
+      for (const depId of dependents.get(nodeId) || []) {
+        const newDegree = (inDegree.get(depId) || 1) - 1;
+        inDegree.set(depId, newDegree);
+        if (newDegree === 0) {
+          queue.push(depId);
+        }
+      }
+    }
+
+    // If not all nodes are in the order, there's a cycle
+    if (order.length !== nodes.length) {
+      const cycleNodes = nodes.filter(n => !order.includes(n));
+      throw new Error(`Cycle detected in node graph involving nodes: ${cycleNodes.join(', ')}`);
+    }
+
+    return order;
+  }
+
+  /**
+   * Evaluate the entire node graph.
+   * Performs a topological sort, then executes each node in order,
+   * passing resolved input values through connections.
+   * Returns a Map of nodeId → output values (record of output socket name → value).
+   */
+  evaluate(group?: NodeGroup): Map<string, Record<string, any>> {
+    const g = group || this.getActiveGroup();
+    const order = this.topologicalSort(g);
+    const results = new Map<string, Record<string, any>>();
+
+    for (const nodeId of order) {
+      const node = g.nodes.get(nodeId);
+      if (!node) continue;
+
+      // Resolve input values: either from connected outputs or from socket defaults
+      const inputValues: Record<string, any> = {};
+
+      for (const [socketName, socket] of node.inputs.entries()) {
+        // Find if there's a link to this input
+        let resolved = false;
+        for (const link of g.links.values()) {
+          if (link.toNode === nodeId && link.toSocket === socketName) {
+            const sourceResults = results.get(link.fromNode);
+            if (sourceResults && link.fromSocket in sourceResults) {
+              inputValues[socketName] = sourceResults[link.fromSocket];
+              resolved = true;
+            }
+            break;
+          }
+        }
+
+        // If not resolved from a connection, use socket value or default
+        if (!resolved) {
+          inputValues[socketName] = socket.value ?? socket.defaultValue ?? socket.default;
+        }
+      }
+
+      // Execute the node
+      const executor = NodeWrangler.executors.get(String(node.type));
+      if (executor) {
+        try {
+          const outputValues = executor(inputValues, node.properties);
+          results.set(nodeId, outputValues);
+        } catch (err) {
+          console.warn(`[NodeWrangler] Error executing node ${nodeId} (type=${node.type}):`, err);
+          results.set(nodeId, {});
+        }
+      } else {
+        // Default behavior: pass through inputs to outputs
+        const outputValues: Record<string, any> = {};
+        for (const [outName] of node.outputs.entries()) {
+          // If there's an input with the same name, pass it through
+          if (outName in inputValues) {
+            outputValues[outName] = inputValues[outName];
+          } else {
+            // Use the node's properties or a default
+            outputValues[outName] = node.properties[outName] ?? null;
+          }
+        }
+        results.set(nodeId, outputValues);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get the final output of the node graph.
+   * Finds the "output" node (GroupOutput or similar) and returns its input values.
+   * If no output node is found, returns the outputs of the last node in topological order.
+   */
+  getOutput(group?: NodeGroup): Record<string, any> {
+    const g = group || this.getActiveGroup();
+    const results = this.evaluate(g);
+
+    // Look for GroupOutput node
+    for (const [nodeId, node] of g.nodes.entries()) {
+      if (
+        String(node.type) === 'GroupOutputNode' ||
+        String(node.type) === 'GroupOutput' ||
+        node.name === 'Group Output' ||
+        node.name === 'Output'
+      ) {
+        // Return the values that feed into this node
+        const outputValues: Record<string, any> = {};
+        for (const [socketName] of node.inputs.entries()) {
+          // Find connected source
+          for (const link of g.links.values()) {
+            if (link.toNode === nodeId && link.toSocket === socketName) {
+              const sourceResults = results.get(link.fromNode);
+              if (sourceResults && link.fromSocket in sourceResults) {
+                outputValues[socketName] = sourceResults[link.fromSocket];
+              }
+              break;
+            }
+          }
+        }
+        return outputValues;
+      }
+    }
+
+    // Fallback: return the outputs of the last node in topological order
+    const order = this.topologicalSort(g);
+    if (order.length === 0) return {};
+
+    const lastNodeId = order[order.length - 1];
+    return results.get(lastNodeId) || {};
+  }
+
   /**
    * Export node graph to JSON
    */

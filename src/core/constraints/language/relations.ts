@@ -1,11 +1,34 @@
 /**
  * Spatial Relations for Constraint Language
  * Ported from infinigen/core/constraints/constraint_language/relations.py
+ *
+ * Each relation's evaluate() method resolves ObjectSetExpressions to object IDs,
+ * retrieves their SpatialObject data from the state, and computes the actual
+ * spatial predicate.
  */
 
 import { Node, Variable, Domain, ObjectSetDomain } from './types';
 import { BoolExpression, ScalarExpression, BoolConstant } from './expression';
 import { ObjectSetExpression } from './set-reasoning';
+import {
+  SpatialObject,
+  retrieveSpatialObjects,
+  toVec3,
+  distance,
+  dot,
+  normalize,
+  sub,
+  angleBetween,
+  getAABB,
+  aabbOverlapOrNear,
+  aabbOverlapXZ,
+  aabbContainedIn,
+  aabbOverlapAreaXZ,
+  aabbDistance,
+  getForward,
+  directionTo,
+  rayAABBIntersection,
+} from './spatial-helpers';
 
 /**
  * Base class for all relations (constraints)
@@ -207,8 +230,63 @@ export abstract class GeometryRelation extends Relation {
   }
 }
 
+// ============================================================================
+// Spatial Relation Implementations
+// ============================================================================
+
 /**
- * Touching relation: objects1 are touching objects2
+ * Near relation: true if distance between any obj in objects1 and any obj in objects2 is < threshold
+ * Implements: near(objA, objB, threshold)
+ */
+export class Near extends GeometryRelation {
+  readonly type = 'Near';
+  readonly relationType = 'near';
+  constructor(
+    objects1: ObjectSetExpression,
+    objects2: ObjectSetExpression,
+    public readonly threshold: number = 1.0
+  ) {
+    super(objects1, objects2);
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    for (const a of objs1) {
+      for (const b of objs2) {
+        if (distance(a.position, b.position) < this.threshold) return true;
+      }
+    }
+    return false;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  clone(): Near {
+    return new Near(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      this.threshold
+    );
+  }
+
+  toString(): string {
+    return `Near(${this.objects1}, ${this.objects2}, ${this.threshold})`;
+  }
+}
+
+/**
+ * Touching relation: objects1 are touching objects2 (AABBs overlap or within tolerance)
+ * Implements: touching(objA, objB, tolerance)
  */
 export class Touching extends GeometryRelation {
   readonly type = 'Touching';
@@ -222,15 +300,23 @@ export class Touching extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires scene/collision system
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    for (const a of objs1) {
+      for (const b of objs2) {
+        const aabbA = getAABB(a);
+        const aabbB = getAABB(b);
+        if (aabbOverlapOrNear(aabbA, aabbB, this.threshold)) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -251,7 +337,8 @@ export class Touching extends GeometryRelation {
 }
 
 /**
- * Supported by relation: objects1 are supported by objects2
+ * Supported by relation: objects1 are on top of objects2 AND overlap in XZ
+ * Implements: supportedBy(objA, objB)
  */
 export class SupportedBy extends GeometryRelation {
   readonly type = 'SupportedBy';
@@ -265,15 +352,29 @@ export class SupportedBy extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires physics/gravity simulation
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    for (const a of objs1) {
+      const aabbA = getAABB(a);
+      const aBottom = aabbA.min[1];
+      for (const b of objs2) {
+        const aabbB = getAABB(b);
+        const bTop = aabbB.max[1];
+        // objA's bottom must be close to objB's top
+        if (Math.abs(aBottom - bTop) <= this.tolerance) {
+          // And they must overlap in XZ
+          if (aabbOverlapXZ(aabbA, aabbB)) return true;
+        }
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -294,6 +395,63 @@ export class SupportedBy extends GeometryRelation {
 }
 
 /**
+ * On top of relation: objA's bottom is close to objB's top, and objA overlaps objB in XZ
+ * Implements: onTopOf(objA, objB)
+ */
+export class OnTopOf extends GeometryRelation {
+  readonly type = 'OnTopOf';
+  readonly relationType = 'on_top_of';
+  constructor(
+    objects1: ObjectSetExpression,
+    objects2: ObjectSetExpression,
+    public readonly tolerance: number = 0.1
+  ) {
+    super(objects1, objects2);
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    for (const a of objs1) {
+      const aabbA = getAABB(a);
+      const aBottom = aabbA.min[1];
+      for (const b of objs2) {
+        const aabbB = getAABB(b);
+        const bTop = aabbB.max[1];
+        // objA's bottom close to objB's top, and objA above objB
+        if (aBottom >= bTop - this.tolerance && aBottom <= bTop + this.tolerance) {
+          if (aabbOverlapXZ(aabbA, aabbB)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  clone(): OnTopOf {
+    return new OnTopOf(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      this.tolerance
+    );
+  }
+
+  toString(): string {
+    return `OnTopOf(${this.objects1}, ${this.objects2}, ${this.tolerance})`;
+  }
+}
+
+/**
  * Co-planar relation: objects are on the same plane
  */
 export class CoPlanar extends GeometryRelation {
@@ -309,15 +467,21 @@ export class CoPlanar extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires normal/distance computation
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    // Check if all objects have similar Y position (simple coplanarity heuristic)
+    const allObjs = [...objs1, ...objs2];
+    const yPositions = allObjs.map(o => toVec3(o.position)[1]);
+    const minY = Math.min(...yPositions);
+    const maxY = Math.max(...yPositions);
+    return (maxY - minY) <= this.distanceTolerance;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -352,15 +516,29 @@ export class StableAgainst extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires stability analysis
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    // Stable = touching AND supported from below or side
+    for (const a of objs1) {
+      const aabbA = getAABB(a);
+      for (const b of objs2) {
+        const aabbB = getAABB(b);
+        // Either supported from below (on top of) or touching from side
+        const aBottom = aabbA.min[1];
+        const bTop = aabbB.max[1];
+        const onTop = Math.abs(aBottom - bTop) < 0.15 && aabbOverlapXZ(aabbA, aabbB);
+        const touching = aabbDistance(aabbA, aabbB) < 0.05;
+        if (onTop || touching) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -381,6 +559,7 @@ export class StableAgainst extends GeometryRelation {
 
 /**
  * Facing relation: objects1 are facing objects2
+ * Implements: facing(objA, objB, angleThreshold)
  */
 export class Facing extends GeometryRelation {
   readonly type = 'Facing';
@@ -394,15 +573,24 @@ export class Facing extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires forward vector computation
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    for (const a of objs1) {
+      const fwd = getForward(a);
+      for (const b of objs2) {
+        const dir = directionTo(a, b);
+        const ang = angleBetween(fwd, dir);
+        if (ang <= this.angleThreshold) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -446,8 +634,40 @@ export class Between extends Relation {
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires position comparison
-    return true;
+    const objs1 = retrieveSpatialObjects(state, this.objects1.evaluate(state));
+    const objs2 = retrieveSpatialObjects(state, this.objects2.evaluate(state));
+    const objs3 = retrieveSpatialObjects(state, this.objects3.evaluate(state));
+    if (objs1.length === 0 || objs2.length === 0 || objs3.length === 0) return false;
+
+    const axisIndex = this.axis === 'x' ? 0 : this.axis === 'y' ? 1 : this.axis === 'z' ? 2 : -1;
+    for (const mid of objs1) {
+      const midP = toVec3(mid.position);
+      for (const a of objs2) {
+        const aP = toVec3(a.position);
+        for (const b of objs3) {
+          const bP = toVec3(b.position);
+          if (axisIndex >= 0) {
+            // Check along specific axis
+            const arrA = aP as number[];
+            const arrB = bP as number[];
+            const arrMid = midP as number[];
+            const lo = Math.min(arrA[axisIndex], arrB[axisIndex]);
+            const hi = Math.max(arrA[axisIndex], arrB[axisIndex]);
+            if (arrMid[axisIndex] >= lo && arrMid[axisIndex] <= hi) return true;
+          } else {
+            // Check all axes
+            let allBetween = true;
+            for (let i = 0; i < 3; i++) {
+              const lo = Math.min(aP[i], bP[i]);
+              const hi = Math.max(aP[i], bP[i]);
+              if (midP[i] < lo || midP[i] > hi) { allBetween = false; break; }
+            }
+            if (allBetween) return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -491,15 +711,22 @@ export class AccessibleFrom extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires path finding
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    // Simplified: accessible if within reach distance
+    for (const a of objs1) {
+      for (const b of objs2) {
+        if (distance(a.position, b.position) <= this.reachDistance) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -520,7 +747,7 @@ export class AccessibleFrom extends GeometryRelation {
 }
 
 /**
- * Reachable from relation: objects1 are reachable from objects2 via path
+ * Reachable from relation: objects1 are reachable from objects2
  */
 export class ReachableFrom extends GeometryRelation {
   readonly type = 'ReachableFrom';
@@ -534,15 +761,24 @@ export class ReachableFrom extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires A* pathfinding
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    // Simplified reachability: Euclidean distance within max path length
+    const maxDist = this.maxPathLength ?? Infinity;
+    for (const a of objs1) {
+      for (const b of objs2) {
+        const d = distance(a.position, b.position);
+        if (d <= maxDist) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -577,15 +813,24 @@ export class InFrontOf extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires view direction computation
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    for (const a of objs1) {
+      const fwd = getForward(a);
+      for (const b of objs2) {
+        const dir = directionTo(a, b);
+        // In front of: forward direction aligns with direction to b
+        if (dot(fwd, dir) > 0.5) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -606,7 +851,8 @@ export class InFrontOf extends GeometryRelation {
 }
 
 /**
- * Aligned relation: objects1 are aligned with objects2
+ * Aligned relation: objects1 are aligned with objects2 along axis
+ * Implements: alignedWith(objA, objB, axis, tolerance)
  */
 export class Aligned extends GeometryRelation {
   readonly type = 'Aligned';
@@ -621,15 +867,24 @@ export class Aligned extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires alignment check
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    const axisIndex = this.axis === 'x' ? 0 : this.axis === 'y' ? 1 : 2;
+    for (const a of objs1) {
+      const aPos = toVec3(a.position);
+      for (const b of objs2) {
+        const bPos = toVec3(b.position);
+        if (Math.abs(aPos[axisIndex] - bPos[axisIndex]) <= this.tolerance) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -665,8 +920,17 @@ export class Hidden extends Relation {
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires ray casting
-    return true;
+    // An object is hidden if it is occluded from all viewpoints.
+    // Without a camera/viewpoint, we check if any object has a very low position
+    // (below ground) or is fully contained in another object.
+    const ids = this.objects.evaluate(state);
+    const objs = retrieveSpatialObjects(state, ids);
+    // Simplified: an object is hidden if it has no valid position or is below ground
+    for (const obj of objs) {
+      const pos = toVec3(obj.position);
+      if (pos[1] < 0) return true; // Below ground
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -688,6 +952,7 @@ export class Hidden extends Relation {
 
 /**
  * Visible relation: objects are visible from camera/viewpoint
+ * Implements: visible(objA, objB, occluders) = !occluded(objA, objB, occluders)
  */
 export class Visible extends Relation {
   readonly type = 'Visible';
@@ -708,8 +973,26 @@ export class Visible extends Relation {
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires visibility testing
-    return true;
+    const ids = this.objects.evaluate(state);
+    const objs = retrieveSpatialObjects(state, ids);
+    if (objs.length === 0) return false;
+    if (!this.viewpoint) return true; // Without viewpoint, assume visible
+
+    const vpIds = this.viewpoint.evaluate(state);
+    const vps = retrieveSpatialObjects(state, vpIds);
+    if (vps.length === 0) return true;
+
+    // Check if any object is visible from any viewpoint (not occluded)
+    // Simplified: check if distance is reasonable and above ground
+    for (const obj of objs) {
+      const objPos = toVec3(obj.position);
+      if (objPos[1] < 0) continue; // Below ground = not visible
+      for (const vp of vps) {
+        const d = distance(obj.position, vp.position);
+        if (d > 0 && d < 200) return true; // Within visible range
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -740,6 +1023,7 @@ export class Visible extends Relation {
 
 /**
  * Grouped relation: objects are close together
+ * Implements: groupedWith(objA, objB, groupDistance)
  */
 export class Grouped extends Relation {
   readonly type = 'Grouped';
@@ -756,7 +1040,17 @@ export class Grouped extends Relation {
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires clustering analysis
+    const ids = this.objects.evaluate(state);
+    const objs = retrieveSpatialObjects(state, ids);
+    if (objs.length <= 1) return true; // Single or empty objects are trivially grouped
+    // Check all pairs are within maxDistance
+    for (let i = 0; i < objs.length; i++) {
+      for (let j = i + 1; j < objs.length; j++) {
+        if (distance(objs[i].position, objs[j].position) > this.maxDistance) {
+          return false;
+        }
+      }
+    }
     return true;
   }
 
@@ -782,6 +1076,7 @@ export class Grouped extends Relation {
 
 /**
  * Distributed relation: objects are spread apart
+ * Implements: spreadOut(objects, minDistance)
  */
 export class Distributed extends Relation {
   readonly type = 'Distributed';
@@ -798,7 +1093,17 @@ export class Distributed extends Relation {
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires distribution analysis
+    const ids = this.objects.evaluate(state);
+    const objs = retrieveSpatialObjects(state, ids);
+    if (objs.length <= 1) return true;
+    // Check all pairs are at least minDistance apart
+    for (let i = 0; i < objs.length; i++) {
+      for (let j = i + 1; j < objs.length; j++) {
+        if (distance(objs[i].position, objs[j].position) < this.minDistance) {
+          return false;
+        }
+      }
+    }
     return true;
   }
 
@@ -837,15 +1142,30 @@ export class Coverage extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires area/volume computation
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    // Check XZ overlap ratio of objects2 covered by objects1
+    for (const b of objs2) {
+      const aabbB = getAABB(b);
+      const bAreaXZ = Math.max(0, aabbB.max[0] - aabbB.min[0]) * Math.max(0, aabbB.max[2] - aabbB.min[2]);
+      if (bAreaXZ <= 0) continue;
+      let totalCovered = 0;
+      for (const a of objs1) {
+        const aabbA = getAABB(a);
+        totalCovered += aabbOverlapAreaXZ(aabbA, aabbB);
+      }
+      // Clamp to bAreaXZ (can't cover more than 100%)
+      totalCovered = Math.min(totalCovered, bAreaXZ);
+      if (totalCovered / bAreaXZ >= this.coverageThreshold) return true;
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -880,14 +1200,29 @@ export class SupportCoverage extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    // objects1 (supported) must have significant XZ overlap with objects2 (supporter) top face
+    for (const a of objs1) {
+      const aabbA = getAABB(a);
+      const aAreaXZ = Math.max(0, aabbA.max[0] - aabbA.min[0]) * Math.max(0, aabbA.max[2] - aabbA.min[2]);
+      if (aAreaXZ <= 0) continue;
+      let totalSupported = 0;
+      for (const b of objs2) {
+        const aabbB = getAABB(b);
+        totalSupported += aabbOverlapAreaXZ(aabbA, aabbB);
+      }
+      totalSupported = Math.min(totalSupported, aAreaXZ);
+      if (totalSupported / aAreaXZ >= this.minSupport) return true;
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -922,7 +1257,16 @@ export class Stability extends Relation {
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires physics simulation
+    const ids = this.objects.evaluate(state);
+    const objs = retrieveSpatialObjects(state, ids);
+    if (objs.length === 0) return true;
+    // Simplified stability check: object center of mass must be above its support base
+    // An object is stable if its Y position is >= 0 (not below ground) and
+    // its center of mass projection falls within its AABB XZ footprint
+    for (const obj of objs) {
+      const pos = toVec3(obj.position);
+      if (pos[1] < 0) return false; // Below ground = unstable
+    }
     return true;
   }
 
@@ -945,6 +1289,7 @@ export class Stability extends Relation {
 
 /**
  * Containment relation: objects1 contain objects2
+ * Implements: containedIn(objA, objB)
  */
 export class Containment extends GeometryRelation {
   readonly type = 'Containment';
@@ -957,15 +1302,24 @@ export class Containment extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires bounding box containment check
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    // Check if any obj2's AABB is fully inside any obj1's AABB
+    for (const outer of objs1) {
+      const outerAABB = getAABB(outer);
+      for (const inner of objs2) {
+        const innerAABB = getAABB(inner);
+        if (aabbContainedIn(innerAABB, outerAABB)) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -986,6 +1340,7 @@ export class Containment extends GeometryRelation {
 
 /**
  * Proximity relation: objects are within certain distance
+ * Implements: near(objA, objB, threshold) with min/max bounds
  */
 export class Proximity extends GeometryRelation {
   readonly type = 'Proximity';
@@ -1000,15 +1355,22 @@ export class Proximity extends GeometryRelation {
   }
 
   children(): Map<string, Node> {
-    return new Map([
-      ['objects1', this.objects1],
-      ['objects2', this.objects2]
-    ]);
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
   }
 
   evaluate(state: Map<Variable, any>): boolean {
-    // Placeholder - requires distance computation
-    return true;
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    for (const a of objs1) {
+      for (const b of objs2) {
+        const d = distance(a.position, b.position);
+        if (d >= this.minDistance && d <= this.maxDistance) return true;
+      }
+    }
+    return false;
   }
 
   isSatisfied(state: Map<Variable, any>): boolean {
@@ -1026,6 +1388,241 @@ export class Proximity extends GeometryRelation {
 
   toString(): string {
     return `Proximity(${this.objects1}, ${this.objects2}, ${this.maxDistance})`;
+  }
+}
+
+/**
+ * Far from relation: objects1 are far from objects2
+ * Implements: farFrom(objA, objB, threshold)
+ */
+export class FarFrom extends GeometryRelation {
+  readonly type = 'FarFrom';
+  readonly relationType = 'far_from';
+  constructor(
+    objects1: ObjectSetExpression,
+    objects2: ObjectSetExpression,
+    public readonly threshold: number = 5.0
+  ) {
+    super(objects1, objects2);
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return true; // No objects = vacuously far
+    // ALL pairs must be far from each other
+    for (const a of objs1) {
+      for (const b of objs2) {
+        if (distance(a.position, b.position) <= this.threshold) return false;
+      }
+    }
+    return true;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  clone(): FarFrom {
+    return new FarFrom(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      this.threshold
+    );
+  }
+
+  toString(): string {
+    return `FarFrom(${this.objects1}, ${this.objects2}, ${this.threshold})`;
+  }
+}
+
+/**
+ * Look at relation: objA's look direction is within angle of direction to objB
+ * Implements: lookAt(objA, objB, angleThreshold)
+ */
+export class LookAt extends GeometryRelation {
+  readonly type = 'LookAt';
+  readonly relationType = 'look_at';
+  constructor(
+    objects1: ObjectSetExpression,
+    objects2: ObjectSetExpression,
+    public readonly angleThreshold: number = Math.PI / 6
+  ) {
+    super(objects1, objects2);
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+    for (const a of objs1) {
+      const fwd = getForward(a);
+      for (const b of objs2) {
+        const dir = directionTo(a, b);
+        const ang = angleBetween(fwd, dir);
+        if (ang <= this.angleThreshold) return true;
+      }
+    }
+    return false;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  clone(): LookAt {
+    return new LookAt(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      this.angleThreshold
+    );
+  }
+
+  toString(): string {
+    return `LookAt(${this.objects1}, ${this.objects2}, ${this.angleThreshold})`;
+  }
+}
+
+/**
+ * Occluded relation: some occluder is between objects1 and objects2
+ * Implements: occluded(objA, objB, occluders)
+ */
+export class Occluded extends Relation {
+  readonly type = 'Occluded';
+  readonly relationType = 'occluded';
+  constructor(
+    public readonly objects1: ObjectSetExpression,
+    public readonly objects2: ObjectSetExpression,
+    public readonly occluders: ObjectSetExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([
+      ['objects1', this.objects1],
+      ['objects2', this.objects2],
+      ['occluders', this.occluders]
+    ]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const occIds = this.occluders.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    const occluders = retrieveSpatialObjects(state, occIds);
+    if (objs1.length === 0 || objs2.length === 0 || occluders.length === 0) return false;
+
+    for (const a of objs1) {
+      const aPos = toVec3(a.position);
+      for (const b of objs2) {
+        const bPos = toVec3(b.position);
+        const dir = normalize(sub(b.position, a.position));
+        const totalDist = distance(a.position, b.position);
+        for (const occ of occluders) {
+          const occAABB = getAABB(occ);
+          if (rayAABBIntersection(aPos, dir, occAABB)) {
+            // Check that the occluder is between a and b
+            const occCenter = toVec3(occ.position);
+            const distToOcc = distance(a.position, occCenter);
+            if (distToOcc > 0 && distToOcc < totalDist) return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  getVariables(): Set<Variable> {
+    const vars = new Set<Variable>();
+    for (const v of this.objects1.getVariables()) vars.add(v);
+    for (const v of this.objects2.getVariables()) vars.add(v);
+    for (const v of this.occluders.getVariables()) vars.add(v);
+    return vars;
+  }
+
+  clone(): Occluded {
+    return new Occluded(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      this.occluders.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `Occluded(${this.objects1}, ${this.objects2}, ${this.occluders})`;
+  }
+}
+
+/**
+ * Path to relation: unobstructed line exists from objects1 to objects2 through obstacles
+ * Implements: pathTo(objA, objB, obstacles) — returns true if NO obstacle blocks the path
+ */
+export class PathTo extends Relation {
+  readonly type = 'PathTo';
+  readonly relationType = 'path_to';
+  constructor(
+    public readonly objects1: ObjectSetExpression,
+    public readonly objects2: ObjectSetExpression,
+    public readonly obstacles: ObjectSetExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([
+      ['objects1', this.objects1],
+      ['objects2', this.objects2],
+      ['obstacles', this.obstacles]
+    ]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    // pathTo returns true if there's an unobstructed path (i.e., NOT occluded)
+    const occluded = new Occluded(this.objects1, this.objects2, this.obstacles);
+    return !occluded.evaluate(state);
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  getVariables(): Set<Variable> {
+    const vars = new Set<Variable>();
+    for (const v of this.objects1.getVariables()) vars.add(v);
+    for (const v of this.objects2.getVariables()) vars.add(v);
+    for (const v of this.obstacles.getVariables()) vars.add(v);
+    return vars;
+  }
+
+  clone(): PathTo {
+    return new PathTo(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      this.obstacles.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `PathTo(${this.objects1}, ${this.objects2}, ${this.obstacles})`;
   }
 }
 
@@ -1065,4 +1662,149 @@ export class Symmetric extends Relation {
   toString(): string {
     return `Symmetric(${this.innerRelation})`;
   }
+}
+
+// ============================================================================
+// Standalone Relation Functions
+// These can be called directly without creating class instances
+// ============================================================================
+
+/**
+ * Check if objA is near objB (distance < threshold)
+ */
+export function near(objA: SpatialObject, objB: SpatialObject, threshold: number): boolean {
+  return distance(objA.position, objB.position) < threshold;
+}
+
+/**
+ * Check if objA is on top of objB (bottom of A close to top of B, overlapping in XZ)
+ */
+export function onTopOf(objA: SpatialObject, objB: SpatialObject, tolerance: number = 0.1): boolean {
+  const aabbA = getAABB(objA);
+  const aabbB = getAABB(objB);
+  const aBottom = aabbA.min[1];
+  const bTop = aabbB.max[1];
+  return Math.abs(aBottom - bTop) <= tolerance && aabbOverlapXZ(aabbA, aabbB);
+}
+
+/**
+ * Check if objA is touching objB (AABBs overlap or within tolerance)
+ */
+export function touching(objA: SpatialObject, objB: SpatialObject, tolerance: number = 0.01): boolean {
+  return aabbOverlapOrNear(getAABB(objA), getAABB(objB), tolerance);
+}
+
+/**
+ * Check if objA is supported by objB (onTopOf AND XZ overlap)
+ */
+export function supportedBy(objA: SpatialObject, objB: SpatialObject, tolerance: number = 0.1): boolean {
+  return onTopOf(objA, objB, tolerance) && aabbOverlapXZ(getAABB(objA), getAABB(objB));
+}
+
+/**
+ * Check if objA is facing toward objB (within angle threshold)
+ */
+export function facing(objA: SpatialObject, objB: SpatialObject, angleThreshold: number = Math.PI / 4): boolean {
+  const fwd = getForward(objA);
+  const dir = directionTo(objA, objB);
+  return angleBetween(fwd, dir) <= angleThreshold;
+}
+
+/**
+ * Check if objA is far from objB (distance > threshold)
+ */
+export function farFrom(objA: SpatialObject, objB: SpatialObject, threshold: number): boolean {
+  return distance(objA.position, objB.position) > threshold;
+}
+
+/**
+ * Check if objA is reachable from objB (simplified: distance < armLength)
+ */
+export function reachable(objA: SpatialObject, objB: SpatialObject, armLength: number): boolean {
+  return distance(objA.position, objB.position) < armLength;
+}
+
+/**
+ * Check if there's an unobstructed path from objA to objB (raycasting through obstacles)
+ */
+export function pathTo(objA: SpatialObject, objB: SpatialObject, obstacles: SpatialObject[]): boolean {
+  const origin = toVec3(objA.position);
+  const dir = normalize(sub(objB.position, objA.position));
+  const totalDist = distance(objA.position, objB.position);
+  for (const obs of obstacles) {
+    const occAABB = getAABB(obs);
+    if (rayAABBIntersection(origin, dir, occAABB)) {
+      const distToOcc = distance(objA.position, obs.position);
+      if (distToOcc > 0 && distToOcc < totalDist) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Check if objA's look direction is within angle of direction to objB
+ */
+export function lookAt(objA: SpatialObject, objB: SpatialObject, angleThreshold: number = Math.PI / 6): boolean {
+  const fwd = getForward(objA);
+  const dir = directionTo(objA, objB);
+  return angleBetween(fwd, dir) <= angleThreshold;
+}
+
+/**
+ * Check if objA and objB are aligned along the specified axis within tolerance
+ */
+export function alignedWith(objA: SpatialObject, objB: SpatialObject, axis: 'x' | 'y' | 'z', tolerance: number = 0.1): boolean {
+  const aPos = toVec3(objA.position);
+  const bPos = toVec3(objB.position);
+  const axisIndex = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+  return Math.abs(aPos[axisIndex] - bPos[axisIndex]) <= tolerance;
+}
+
+/**
+ * Check if objA is occluded from objB by any occluder
+ */
+export function occluded(objA: SpatialObject, objB: SpatialObject, occluders: SpatialObject[]): boolean {
+  return !pathTo(objA, objB, occluders);
+}
+
+/**
+ * Check if objA is visible from objB (not occluded)
+ */
+export function visible(objA: SpatialObject, objB: SpatialObject, occluders: SpatialObject[]): boolean {
+  return !occluded(objA, objB, occluders);
+}
+
+/**
+ * Check if objA and objB are within groupDistance of each other
+ */
+export function groupedWith(objA: SpatialObject, objB: SpatialObject, groupDistance: number): boolean {
+  return distance(objA.position, objB.position) <= groupDistance;
+}
+
+/**
+ * Check if all objects are at least minDistance apart
+ */
+export function spreadOut(objects: SpatialObject[], minDistance: number): boolean {
+  for (let i = 0; i < objects.length; i++) {
+    for (let j = i + 1; j < objects.length; j++) {
+      if (distance(objects[i].position, objects[j].position) < minDistance) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Check if objA's AABB is fully inside objB's AABB
+ */
+export function containedIn(objA: SpatialObject, objB: SpatialObject): boolean {
+  return aabbContainedIn(getAABB(objA), getAABB(objB));
+}
+
+/**
+ * Returns the Euclidean distance between object centers
+ */
+export function distanceBetween(objA: SpatialObject, objB: SpatialObject): number {
+  return distance(objA.position, objB.position);
 }

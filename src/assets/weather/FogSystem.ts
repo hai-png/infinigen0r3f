@@ -8,6 +8,7 @@
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 export interface FogParams {
   density: number;
@@ -23,6 +24,7 @@ export interface FogParams {
 export class FogSystem {
   private scene: THREE.Scene;
   private params: FogParams;
+  private rng: SeededRandom;
   private fogMesh: THREE.Mesh | null = null;
   private noiseTexture: THREE.DataTexture | null = null;
   private timeUniform: THREE.IUniform<number>;
@@ -30,8 +32,9 @@ export class FogSystem {
   private heightUniform: THREE.IUniform<number>;
   private falloffUniform: THREE.IUniform<number>;
 
-  constructor(scene: THREE.Scene, params: Partial<FogParams> = {}) {
+  constructor(scene: THREE.Scene, params: Partial<FogParams> = {}, seed: number = 42) {
     this.scene = scene;
+    this.rng = new SeededRandom(seed);
     this.params = {
       density: params.density ?? 0.5,
       color: params.color || new THREE.Color(0x888888),
@@ -166,7 +169,7 @@ export class FogSystem {
     const data = new Uint8Array(size);
 
     for (let i = 0; i < size; i++) {
-      data[i] = Math.floor(Math.random() * 256);
+      data[i] = Math.floor(this.rng.next() * 256);
     }
 
     const texture = new THREE.DataTexture(data, width, height);

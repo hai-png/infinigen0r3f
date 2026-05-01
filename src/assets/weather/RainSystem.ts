@@ -8,6 +8,7 @@
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 export interface RainParams {
   intensity: number;
@@ -22,6 +23,7 @@ export interface RainParams {
 export class RainSystem {
   private scene: THREE.Scene;
   private params: RainParams;
+  private rng: SeededRandom;
   private rainMesh: THREE.InstancedMesh | null = null;
   private splashMesh: THREE.InstancedMesh | null = null;
   private dummy: THREE.Object3D;
@@ -29,8 +31,9 @@ export class RainSystem {
   private readonly maxDrops = 10000;
   private readonly maxSplashes = 2000;
 
-  constructor(scene: THREE.Scene, params: Partial<RainParams> = {}) {
+  constructor(scene: THREE.Scene, params: Partial<RainParams> = {}, seed: number = 42) {
     this.scene = scene;
+    this.rng = new SeededRandom(seed);
     this.params = {
       intensity: params.intensity ?? 0.7,
       windSpeed: params.windSpeed ?? 5,
@@ -107,10 +110,10 @@ export class RainSystem {
    * Reset a single rain drop to top of simulation volume
    */
   private resetDrop(index: number): void {
-    const x = (Math.random() - 0.5) * 100;
-    const y = Math.random() * 50 + 20;
-    const z = (Math.random() - 0.5) * 100;
-    const velocity = this.params.fallSpeed * (0.8 + Math.random() * 0.4);
+    const x = (this.rng.next() - 0.5) * 100;
+    const y = this.rng.next() * 50 + 20;
+    const z = (this.rng.next() - 0.5) * 100;
+    const velocity = this.params.fallSpeed * (0.8 + this.rng.next() * 0.4);
 
     this.rainData[index * 4] = x;
     this.rainData[index * 4 + 1] = y;
@@ -142,7 +145,7 @@ export class RainSystem {
       // Check for ground collision
       if (y < 0) {
         // Create splash
-        if (this.params.splashEnabled && this.splashMesh && Math.random() < 0.3) {
+        if (this.params.splashEnabled && this.splashMesh && this.rng.next() < 0.3) {
           this.createSplash(x, 0, z);
         }
 

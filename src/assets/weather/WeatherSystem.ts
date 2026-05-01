@@ -8,6 +8,7 @@
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 import { createNoise3D, NoiseFunction3D } from 'simplex-noise';
 
 export type WeatherType = 'clear' | 'cloudy' | 'rain' | 'snow' | 'fog' | 'storm' | 'thunderstorm';
@@ -34,6 +35,7 @@ export class WeatherSystem {
   private scene: THREE.Scene;
   private state: WeatherState;
   private noise: NoiseFunction3D;
+  private rng: SeededRandom;
   
   // Particle systems
   private rainParticles: THREE.Points | null = null;
@@ -48,8 +50,9 @@ export class WeatherSystem {
   private lastLightningTime: number = 0;
   private lightningInterval: number = 5000;
 
-  constructor(scene: THREE.Scene, initialWeather: WeatherType = 'clear') {
+  constructor(scene: THREE.Scene, initialWeather: WeatherType = 'clear', seed: number = 42) {
     this.scene = scene;
+    this.rng = new SeededRandom(seed);
     this.noise = createNoise3D();
     
     this.state = {
@@ -156,10 +159,10 @@ export class WeatherSystem {
     const rainVelocities = new Float32Array(rainCount);
     
     for (let i = 0; i < rainCount; i++) {
-      rainPositions[i * 3] = (Math.random() - 0.5) * 200;
-      rainPositions[i * 3 + 1] = Math.random() * 100;
-      rainPositions[i * 3 + 2] = (Math.random() - 0.5) * 200;
-      rainVelocities[i] = 20 + Math.random() * 10;
+      rainPositions[i * 3] = (this.rng.next() - 0.5) * 200;
+      rainPositions[i * 3 + 1] = this.rng.next() * 100;
+      rainPositions[i * 3 + 2] = (this.rng.next() - 0.5) * 200;
+      rainVelocities[i] = 20 + this.rng.next() * 10;
     }
     
     rainGeometry.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
@@ -182,9 +185,9 @@ export class WeatherSystem {
     const snowPositions = new Float32Array(snowCount * 3);
     
     for (let i = 0; i < snowCount; i++) {
-      snowPositions[i * 3] = (Math.random() - 0.5) * 200;
-      snowPositions[i * 3 + 1] = Math.random() * 100;
-      snowPositions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+      snowPositions[i * 3] = (this.rng.next() - 0.5) * 200;
+      snowPositions[i * 3 + 1] = this.rng.next() * 100;
+      snowPositions[i * 3 + 2] = (this.rng.next() - 0.5) * 200;
     }
     
     snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
@@ -266,7 +269,7 @@ export class WeatherSystem {
     
     // Handle lightning for thunderstorms
     if (this.state.currentType === 'thunderstorm' || this.state.currentType === 'storm') {
-      if (time - this.lastLightningTime > this.lightningInterval * (0.5 + Math.random())) {
+      if (time - this.lastLightningTime > this.lightningInterval * (0.5 + this.rng.next())) {
         this.triggerLightning();
         this.lastLightningTime = time;
       }
@@ -294,8 +297,8 @@ export class WeatherSystem {
       // Reset particle if it falls below ground
       if (positions[i * 3 + 1] < 0) {
         positions[i * 3 + 1] = 100;
-        positions[i * 3] = (Math.random() - 0.5) * 200;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+        positions[i * 3] = (this.rng.next() - 0.5) * 200;
+        positions[i * 3 + 2] = (this.rng.next() - 0.5) * 200;
       }
     }
     
@@ -320,8 +323,8 @@ export class WeatherSystem {
       // Reset particle if it falls below ground
       if (positions[i * 3 + 1] < 0) {
         positions[i * 3 + 1] = 100;
-        positions[i * 3] = (Math.random() - 0.5) * 200;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+        positions[i * 3] = (this.rng.next() - 0.5) * 200;
+        positions[i * 3 + 2] = (this.rng.next() - 0.5) * 200;
       }
     }
     
@@ -361,7 +364,7 @@ export class WeatherSystem {
    * Create a simple cloud mesh
    */
   private createCloud(): THREE.Mesh {
-    const geometry = new THREE.SphereGeometry(5 + Math.random() * 10, 8, 8);
+    const geometry = new THREE.SphereGeometry(5 + this.rng.next() * 10, 8, 8);
     const material = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
@@ -370,9 +373,9 @@ export class WeatherSystem {
     
     const cloud = new THREE.Mesh(geometry, material);
     cloud.position.set(
-      (Math.random() - 0.5) * 200,
-      50 + Math.random() * 30,
-      (Math.random() - 0.5) * 200
+      (this.rng.next() - 0.5) * 200,
+      50 + this.rng.next() * 30,
+      (this.rng.next() - 0.5) * 200
     );
     
     return cloud;
@@ -385,9 +388,9 @@ export class WeatherSystem {
     // Create bright ambient flash
     const flashLight = new THREE.PointLight(0xffffff, 5.0, 500);
     flashLight.position.set(
-      (Math.random() - 0.5) * 100,
-      60 + Math.random() * 30,
-      (Math.random() - 0.5) * 100
+      (this.rng.next() - 0.5) * 100,
+      60 + this.rng.next() * 30,
+      (this.rng.next() - 0.5) * 100
     );
     this.scene.add(flashLight);
 
@@ -400,8 +403,8 @@ export class WeatherSystem {
     });
 
     // Generate jagged bolt path from cloud to ground
-    const startX = (Math.random() - 0.5) * 100;
-    const startZ = (Math.random() - 0.5) * 100;
+    const startX = (this.rng.next() - 0.5) * 100;
+    const startZ = (this.rng.next() - 0.5) * 100;
     const startY = 70;
     const endY = 0;
     const segments = 8;
@@ -410,8 +413,8 @@ export class WeatherSystem {
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
       const y = startY + (endY - startY) * t;
-      const jagX = i === 0 || i === segments ? 0 : (Math.random() - 0.5) * 8;
-      const jagZ = i === 0 || i === segments ? 0 : (Math.random() - 0.5) * 8;
+      const jagX = i === 0 || i === segments ? 0 : (this.rng.next() - 0.5) * 8;
+      const jagZ = i === 0 || i === segments ? 0 : (this.rng.next() - 0.5) * 8;
       points.push(new THREE.Vector3(startX + jagX, y, startZ + jagZ));
     }
 
@@ -462,7 +465,7 @@ export class WeatherSystem {
     this.scene.add(boltGroup);
 
     // Remove lightning after a short duration
-    const flashDuration = 100 + Math.random() * 200;
+    const flashDuration = 100 + this.rng.next() * 200;
     setTimeout(() => {
       this.scene.remove(flashLight);
       this.scene.remove(boltGroup);
@@ -475,7 +478,7 @@ export class WeatherSystem {
     }, flashDuration);
 
     // Second flash (flicker effect)
-    if (Math.random() > 0.5) {
+    if (this.rng.next() > 0.5) {
       setTimeout(() => {
         const secondFlash = new THREE.PointLight(0xffffff, 3.0, 500);
         secondFlash.position.copy(flashLight.position);
@@ -483,8 +486,8 @@ export class WeatherSystem {
         setTimeout(() => {
           this.scene.remove(secondFlash);
           secondFlash.dispose();
-        }, 50 + Math.random() * 100);
-      }, flashDuration + 50 + Math.random() * 100);
+        }, 50 + this.rng.next() * 100);
+      }, flashDuration + 50 + this.rng.next() * 100);
     }
   }
 

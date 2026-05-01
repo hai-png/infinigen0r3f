@@ -16,6 +16,7 @@
 
 import * as THREE from 'three';
 import { createNoise3D, NoiseFunction3D } from 'simplex-noise';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 export type BoulderType = 'round' | 'angular' | 'flat' | 'irregular' | 'weathered';
 export type BoulderMaterial = 'granite' | 'limestone' | 'sandstone' | 'basalt' | 'slate';
@@ -68,9 +69,11 @@ const DEFAULT_BOULDER_CONFIG: BoulderConfig = {
 export class BoulderGenerator {
   private noise: NoiseFunction3D;
   private config: BoulderConfig;
+  private rng: SeededRandom;
   
-  constructor(config: Partial<BoulderConfig> = {}) {
+  constructor(config: Partial<BoulderConfig> = {}, seed: number = 42) {
     this.noise = createNoise3D();
+    this.rng = new SeededRandom(seed);
     this.config = { ...DEFAULT_BOULDER_CONFIG, ...config };
   }
 
@@ -91,14 +94,14 @@ export class BoulderGenerator {
     
     // Apply random rotation
     if (this.config.rotationRandomization > 0) {
-      mesh.rotation.x = Math.random() * this.config.rotationRandomization;
-      mesh.rotation.y = Math.random() * this.config.rotationRandomization;
-      mesh.rotation.z = Math.random() * this.config.rotationRandomization;
+      mesh.rotation.x = this.rng.next() * this.config.rotationRandomization;
+      mesh.rotation.y = this.rng.next() * this.config.rotationRandomization;
+      mesh.rotation.z = this.rng.next() * this.config.rotationRandomization;
     }
     
     // Apply random scale
     if (this.config.scaleRandomization > 0) {
-      const scale = 1 + (Math.random() - 0.5) * this.config.scaleRandomization;
+      const scale = 1 + (this.rng.next() - 0.5) * this.config.scaleRandomization;
       mesh.scale.setScalar(scale);
     }
     
@@ -118,19 +121,19 @@ export class BoulderGenerator {
     
     for (let i = 0; i < count; i++) {
       // Random position within area
-      const x = (Math.random() - 0.5) * areaSize;
-      const z = (Math.random() - 0.5) * areaSize;
+      const x = (this.rng.next() - 0.5) * areaSize;
+      const z = (this.rng.next() - 0.5) * areaSize;
       const y = 0; // Should be placed on terrain surface
       
       dummy.position.set(x, y, z);
       
       // Random rotation
-      dummy.rotation.x = Math.random() * Math.PI;
-      dummy.rotation.y = Math.random() * Math.PI;
-      dummy.rotation.z = Math.random() * Math.PI;
+      dummy.rotation.x = this.rng.next() * Math.PI;
+      dummy.rotation.y = this.rng.next() * Math.PI;
+      dummy.rotation.z = this.rng.next() * Math.PI;
       
       // Random scale variation
-      const scale = 1 + (Math.random() - 0.5) * this.config.sizeVariation;
+      const scale = 1 + (this.rng.next() - 0.5) * this.config.sizeVariation;
       dummy.scale.setScalar(scale);
       
       dummy.updateMatrix();
@@ -139,9 +142,9 @@ export class BoulderGenerator {
       // Color variation
       const color = this.getMaterialColor(this.config.materialType);
       const variation = this.config.colorVariation;
-      color.r *= 1 + (Math.random() - 0.5) * variation;
-      color.g *= 1 + (Math.random() - 0.5) * variation;
-      color.b *= 1 + (Math.random() - 0.5) * variation;
+      color.r *= 1 + (this.rng.next() - 0.5) * variation;
+      color.g *= 1 + (this.rng.next() - 0.5) * variation;
+      color.b *= 1 + (this.rng.next() - 0.5) * variation;
       instancedMesh.setColorAt(i, color);
     }
     
@@ -366,19 +369,19 @@ export class BoulderGenerator {
       const boulder = this.generateBoulder();
       
       // Position in area
-      const x = (Math.random() - 0.5) * areaSize;
-      const z = (Math.random() - 0.5) * areaSize;
+      const x = (this.rng.next() - 0.5) * areaSize;
+      const z = (this.rng.next() - 0.5) * areaSize;
       const y = terrainHeight ? terrainHeight(x, z) : 0;
       
       boulder.position.set(x, y, z);
       
       // Rotate to sit on surface
-      boulder.rotation.x = Math.random() * Math.PI;
-      boulder.rotation.y = Math.random() * Math.PI;
-      boulder.rotation.z = Math.random() * Math.PI;
+      boulder.rotation.x = this.rng.next() * Math.PI;
+      boulder.rotation.y = this.rng.next() * Math.PI;
+      boulder.rotation.z = this.rng.next() * Math.PI;
       
       // Scale variation
-      const scale = 0.5 + Math.random() * 1.5;
+      const scale = 0.5 + this.rng.next() * 1.5;
       boulder.scale.setScalar(scale);
       
       group.add(boulder);

@@ -4,6 +4,8 @@
  * plus built-in actions and conditions for common creature behaviors
  */
 
+import { SeededRandom } from '../../../../core/util/MathUtils';
+
 export enum BehaviorStatus {
   SUCCESS = 'SUCCESS',
   FAILURE = 'FAILURE',
@@ -305,16 +307,17 @@ export class IdleAction extends ActionNode {
 export class WanderAction extends ActionNode {
   private wanderDuration: number;
   private elapsed: number = 0;
+  private rng: SeededRandom;
 
-  constructor(wanderDuration: number = 3.0) {
+  constructor(wanderDuration: number = 3.0, seed: number = 42) {
     super('wander', (ctx, dt) => {
       this.elapsed += dt;
       ctx.currentAction = 'wander';
 
       // Pick a new wander target if needed
       if (!ctx.wanderTarget || this.elapsed <= dt * 2) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * ctx.maxWanderRadius;
+        const angle = this.rng.next() * Math.PI * 2;
+        const dist = this.rng.next() * ctx.maxWanderRadius;
         ctx.wanderTarget = {
           x: ctx.homePosition.x + Math.cos(angle) * dist,
           y: ctx.position.y,
@@ -350,6 +353,7 @@ export class WanderAction extends ActionNode {
       return BehaviorStatus.RUNNING;
     });
     this.wanderDuration = wanderDuration;
+    this.rng = new SeededRandom(seed);
   }
 
   reset(_ctx: CreatureContext): void {
