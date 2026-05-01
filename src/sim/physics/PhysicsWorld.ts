@@ -1,21 +1,143 @@
 /**
  * PhysicsWorld - Main physics simulation engine
- * 
+ *
  * Features:
  * - Body management (add/remove)
  * - Fixed timestep with accumulator
  * - Full collision pipeline (broad + narrow phase)
+ * - GJK/EPA fallback for unsupported shape pairs
+ * - Multi-contact manifold persistence for stable stacking
+ * - Continuous Collision Detection (CCD) for fast-moving bodies
+ * - 3x3 inertia tensor integration
  * - Gravity
  * - Collision response with friction/restitution
  * - Joint system
  */
-import { Vector3 } from 'three';
-import { RigidBody, RigidBodyConfig, BodyType } from './RigidBody';
+import { Vector3, Matrix3 } from 'three';
+import { RigidBody, RigidBodyConfig, BodyType, mulMatrix3Vector3 } from './RigidBody';
 import { Collider, ColliderConfig } from './Collider';
 import { Joint, JointConfig } from './Joint';
 import { BroadPhase, BroadPhasePair } from './collision/BroadPhase';
 import { NarrowPhase, CollisionPair, ContactPoint } from './collision/NarrowPhase';
 import { PhysicsMaterial, materialPresets, combineFriction, combineRestitution } from './Material';
+import { ContinuousCollisionDetector, CCDEvent } from './CCD';
+
+// ============================================================================
+// Shape Utilities (consolidated from RigidBodyDynamics.ts)
+// ============================================================================
+
+export type PhysicsShapeType =
+  | 'box'
+  | 'sphere'
+  | 'capsule'
+  | 'cylinder'
+  | 'convexHull'
+  | 'trimesh'
+  | 'heightfield';
+
+export interface PhysicsShape {
+  type: PhysicsShapeType;
+  dimensions?: Vector3; // For box, capsule, cylinder
+  radius?: number;      // For sphere, capsule, cylinder
+  height?: number;      // For capsule, cylinder
+  vertices?: Float32Array; // For convexHull, trimesh
+  indices?: Uint32Array;   // For trimesh
+  heights?: Float32Array;  // For heightfield
+  size?: Vector3;          // For heightfield
+}
+
+/**
+ * Create a box shape
+ */
+export function createBoxShape(width: number, height: number, depth: number): PhysicsShape {
+  return {
+    type: 'box',
+    dimensions: new Vector3(width, height, depth),
+  };
+}
+
+/**
+ * Create a sphere shape
+ */
+export function createSphereShape(radius: number): PhysicsShape {
+  return {
+    type: 'sphere',
+    radius,
+  };
+}
+
+/**
+ * Create a capsule shape
+ */
+export function createCapsuleShape(radius: number, height: number): PhysicsShape {
+  return {
+    type: 'capsule',
+    radius,
+    height,
+  };
+}
+
+/**
+ * Create a cylinder shape
+ */
+export function createCylinderShape(radius: number, height: number): PhysicsShape {
+  return {
+    type: 'cylinder',
+    radius,
+    height,
+  };
+}
+
+/**
+ * Create a convex hull from vertices
+ */
+export function createConvexHullShape(vertices: Float32Array): PhysicsShape {
+  return {
+    type: 'convexHull',
+    vertices,
+  };
+}
+
+/**
+ * Create a trimesh shape
+ */
+export function createTrimeshShape(vertices: Float32Array, indices: Uint32Array): PhysicsShape {
+  return {
+    type: 'trimesh',
+    vertices,
+    indices,
+  };
+}
+
+/**
+ * Convert Three.js mesh/geometry to physics shape.
+ *
+ * If useConvexHull is true (default), creates a convex hull approximation.
+ * Otherwise, creates a trimesh shape for detailed collision.
+ */
+export function meshToPhysicsShape(
+  geometry: any,
+  useConvexHull: boolean = true
+): PhysicsShape {
+  // Extract vertices from geometry
+  const positions = geometry.attributes.position.array;
+  const vertices = new Float32Array(positions.length);
+
+  for (let i = 0; i < positions.length; i++) {
+    vertices[i] = positions[i];
+  }
+
+  if (useConvexHull) {
+    return createConvexHullShape(vertices);
+  } else {
+    const indices = geometry.index?.array || new Uint32Array(positions.length / 3);
+    return createTrimeshShape(vertices, indices);
+  }
+}
+
+// ============================================================================
+// PhysicsWorld
+// ============================================================================
 
 export interface PhysicsWorldConfig {
   gravity?: Vector3;
@@ -23,6 +145,8 @@ export interface PhysicsWorldConfig {
   maxSubSteps?: number;
   velocityIterations?: number;
   positionIterations?: number;
+  enableCCD?: boolean;
+  useManifolds?: boolean;
 }
 
 export interface CollisionEvent {
@@ -43,6 +167,10 @@ export class PhysicsWorld {
   private broadPhase: BroadPhase;
   private narrowPhase: NarrowPhase;
 
+  // Continuous Collision Detection
+  private ccd: ContinuousCollisionDetector;
+  public enableCCD: boolean;
+
   // Configuration
   public gravity: Vector3;
   public fixedTimestep: number;
@@ -62,9 +190,13 @@ export class PhysicsWorld {
     this.maxSubSteps = config.maxSubSteps ?? 4;
     this.velocityIterations = config.velocityIterations ?? 8;
     this.positionIterations = config.positionIterations ?? 3;
+    this.enableCCD = config.enableCCD ?? true;
 
     this.broadPhase = new BroadPhase();
     this.narrowPhase = new NarrowPhase();
+    this.narrowPhase.useManifolds = config.useManifolds ?? true;
+
+    this.ccd = new ContinuousCollisionDetector();
   }
 
   /**
@@ -80,11 +212,13 @@ export class PhysicsWorld {
    * Remove a rigid body from the world
    */
   removeBody(bodyId: string): void {
+    // Read colliderId BEFORE deleting from the map
+    const body = this.bodies.get(bodyId);
+    const colliderId = body?.colliderId;
     this.bodies.delete(bodyId);
     // Remove associated collider
-    const body = this.bodies.get(bodyId);
-    if (body?.colliderId) {
-      this.colliders.delete(body.colliderId);
+    if (colliderId) {
+      this.colliders.delete(colliderId);
     }
   }
 
@@ -179,14 +313,33 @@ export class PhysicsWorld {
     this.broadPhase.update(colliderList);
     const broadPairs = this.broadPhase.findPairs();
 
-    // 4. Narrow phase - find actual contacts
-    const collisionPairs = this.narrowPhase.detect(broadPairs);
+    // 4. Narrow phase - find actual contacts (with manifold persistence)
+    const collisionPairs = this.narrowPhase.useManifolds
+      ? this.narrowPhase.detectWithManifolds(broadPairs, this.bodies)
+      : this.narrowPhase.detect(broadPairs);
 
     // 5. Resolve collisions
     this.resolveCollisions(collisionPairs, dt);
 
     // 6. Solve joints
     this.solveJoints(dt);
+
+    // 7. Continuous Collision Detection for fast-moving bodies
+    if (this.enableCCD) {
+      this.runCCD(dt);
+    }
+  }
+
+  /**
+   * Run CCD for fast-moving bodies
+   */
+  private runCCD(dt: number): void {
+    const ccdEvents = this.ccd.detect(this.bodies, this.colliders, dt);
+
+    // Process CCD events in order of increasing TOI
+    for (const event of ccdEvents) {
+      this.ccd.applyCCDResponse(event, dt);
+    }
   }
 
   /**
@@ -224,7 +377,8 @@ export class PhysicsWorld {
   }
 
   /**
-   * Resolve a single contact between two bodies
+   * Resolve a single contact between two bodies.
+   * Uses the full 3x3 inertia tensor for rotational response.
    */
   private resolveContact(
     bodyA: RigidBody, bodyB: RigidBody,
@@ -241,8 +395,6 @@ export class PhysicsWorld {
     if (velAlongNormal > 0) return;
 
     // Get combined material properties
-    const matA = materialPresets[colliderA.id] || materialPresets.default;
-    const matB = materialPresets[colliderB.id] || materialPresets.default;
     const friction = combineFriction(
       { friction: colliderA.friction, restitution: colliderA.restitution, density: 1 },
       { friction: colliderB.friction, restitution: colliderB.restitution, density: 1 }
@@ -252,34 +404,52 @@ export class PhysicsWorld {
       { friction: 1, restitution: colliderB.restitution, density: 1 }
     );
 
-    // Compute impulse magnitude
+    // Compute effective inverse mass along the normal using 3x3 inertia tensor
     const invMassA = bodyA.bodyType === 'static' ? 0 : bodyA.inverseMass;
     const invMassB = bodyB.bodyType === 'static' ? 0 : bodyB.inverseMass;
 
+    const effectiveInvMassA = bodyA.bodyType === 'static' ? 0 :
+      bodyA.getEffectiveInverseMass(contact.point, contact.normal);
+    const effectiveInvMassB = bodyB.bodyType === 'static' ? 0 :
+      bodyB.getEffectiveInverseMass(contact.point, contact.normal);
+
+    // Compute impulse magnitude
     let impulseScalar = -(1 + restitution) * velAlongNormal;
-    impulseScalar /= (invMassA + invMassB);
+    impulseScalar /= (effectiveInvMassA + effectiveInvMassB);
 
     // Apply normal impulse
     const impulse = contact.normal.clone().multiplyScalar(impulseScalar);
+
     if (bodyA.bodyType !== 'static') {
-      bodyA.linearVelocity.sub(impulse.clone().multiplyScalar(invMassA));
+      bodyA.applyImpulseAtPoint(impulse.clone().negate(), contact.point);
     }
     if (bodyB.bodyType !== 'static') {
-      bodyB.linearVelocity.add(impulse.clone().multiplyScalar(invMassB));
+      bodyB.applyImpulseAtPoint(impulse.clone(), contact.point);
     }
 
-    // Friction impulse
+    // Friction impulse (using tangential velocity)
     const tangent = relVel.clone().sub(contact.normal.clone().multiplyScalar(velAlongNormal));
     const tangentLen = tangent.length();
     if (tangentLen > 1e-6) {
       tangent.normalize();
-      const frictionImpulse = Math.min(Math.abs(impulseScalar) * friction, tangentLen / (invMassA + invMassB));
-      const frictionVec = tangent.clone().multiplyScalar(-frictionImpulse);
+
+      // Compute effective inverse mass along tangent
+      const tangentEffectiveInvMassA = bodyA.bodyType === 'static' ? 0 :
+        bodyA.getEffectiveInverseMass(contact.point, tangent);
+      const tangentEffectiveInvMassB = bodyB.bodyType === 'static' ? 0 :
+        bodyB.getEffectiveInverseMass(contact.point, tangent);
+
+      const frictionImpulseScalar = Math.min(
+        Math.abs(impulseScalar) * friction,
+        tangentLen / (tangentEffectiveInvMassA + tangentEffectiveInvMassB)
+      );
+      const frictionVec = tangent.clone().multiplyScalar(-frictionImpulseScalar);
+
       if (bodyA.bodyType !== 'static') {
-        bodyA.linearVelocity.add(frictionVec.clone().multiplyScalar(invMassA));
+        bodyA.applyImpulseAtPoint(frictionVec.clone().negate(), contact.point);
       }
       if (bodyB.bodyType !== 'static') {
-        bodyB.linearVelocity.sub(frictionVec.clone().multiplyScalar(invMassB));
+        bodyB.applyImpulseAtPoint(frictionVec.clone(), contact.point);
       }
     }
 

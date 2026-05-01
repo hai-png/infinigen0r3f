@@ -5,8 +5,10 @@
 
 import { Vector2, Vector3 } from 'three';
 import { SeededRandom } from '../../core/util/math/index';
+import { ErosionSystem } from '../erosion/ErosionSystem';
+import type { HeightMap, NormalMap } from '../types';
+import { heightMapFromFloat32Array } from '../types';
 
-export type HeightMap = Float32Array;
 export type MaskMap = Uint8Array;
 
 export interface TerrainConfig {
@@ -40,11 +42,11 @@ export class TerrainGenerator {
   private width: number;
   private height: number;
   private permutationTable: number[];
-  private cachedHeightMap: HeightMap | null = null;
+  private cachedHeightMap: Float32Array | null = null;
 
   constructor(config: Partial<TerrainConfig> = {}) {
     this.config = {
-      seed: Math.floor(Math.random() * 10000),
+      seed: 42,
       width: 512,
       height: 512,
       scale: 100,
@@ -73,29 +75,29 @@ export class TerrainGenerator {
     console.log(`Generating terrain with seed ${this.config.seed}...`);
     
     // 1. Generate base heightmap with noise
-    const heightMap = this.generateBaseHeightMap();
+    const heightData = this.generateBaseHeightMap();
     
     // 2. Apply tectonic uplift
-    this.applyTectonics(heightMap);
+    this.applyTectonics(heightData);
     
-    // 3. Apply hydraulic erosion
-    this.applyErosion(heightMap);
+    // 3. Apply erosion via ErosionSystem (consolidated entry point)
+    this.applyErosion(heightData);
     
     // 4. Normalize and offset
-    this.normalizeHeightMap(heightMap);
+    this.normalizeHeightMap(heightData);
     
     // 5. Calculate derived maps
-    const normalMap = this.calculateNormals(heightMap);
-    const slopeMap = this.calculateSlopes(heightMap);
-    const biomeMask = this.generateBiomeMask(heightMap, slopeMap);
+    const normalData = this.calculateNormals(heightData);
+    const slopeData = this.calculateSlopes(heightData);
+    const biomeMask = this.generateBiomeMask(heightData, slopeData);
 
-    // Cache heightmap for getHeightAt() lookups
-    this.cachedHeightMap = heightMap;
+    // Cache raw heightmap for getHeightAt() lookups
+    this.cachedHeightMap = heightData;
 
     return {
-      heightMap,
-      normalMap,
-      slopeMap,
+      heightMap: heightMapFromFloat32Array(heightData, this.width, this.height),
+      normalMap: heightMapFromFloat32Array(normalData, this.width, this.height),
+      slopeMap: heightMapFromFloat32Array(slopeData, this.width, this.height),
       biomeMask,
       config: { ...this.config },
       width: this.width,
@@ -106,7 +108,7 @@ export class TerrainGenerator {
   /**
    * Generate base heightmap using Fractal Brownian Motion
    */
-  private generateBaseHeightMap(): HeightMap {
+  private generateBaseHeightMap(): Float32Array {
     const map = new Float32Array(this.width * this.height);
     const amplitude = 1.0;
     const frequency = 1.0 / this.config.scale;
@@ -148,7 +150,7 @@ export class TerrainGenerator {
   /**
    * Apply tectonic plate simulation for mountain ranges
    */
-  private applyTectonics(heightMap: HeightMap): void {
+  private applyTectonics(heightMap: Float32Array): void {
     if (this.config.tectonicPlates <= 0) return;
 
     // Generate plate centers
@@ -185,126 +187,39 @@ export class TerrainGenerator {
   }
 
   /**
-   * Apply hydraulic erosion simulation
+   * Apply erosion using the consolidated ErosionSystem
+   *
+   * Previously this method had inline hydraulic erosion code that duplicated
+   * the logic in ErosionEnhanced.ts. Now it delegates to ErosionSystem which
+   * is the single entry point for all erosion types.
    */
-  private applyErosion(heightMap: HeightMap): void {
-    const iterations = this.config.erosionIterations;
-    const inertia = 0.05;
-    const sedimentCapacityFactor = 4;
-    const erodeSpeed = 0.3;
-    const depositSpeed = 0.3;
-    const evaporateSpeed = 0.01;
-    const gravity = 4;
-    const maxDropletLifetime = 30;
-
-    const tempMap = new Float32Array(heightMap);
-
-    for (let iter = 0; iter < iterations; iter++) {
-      // Initialize droplet
-      let posX = this.rng.next() * this.width;
-      let posY = this.rng.next() * this.height;
-      let dirX = 0;
-      let dirY = 0;
-      let speed = 0;
-      let water = 1;
-      let sediment = 0;
-
-      for (let lifetime = 0; lifetime < maxDropletLifetime; lifetime++) {
-        const nodeX = Math.floor(posX);
-        const nodeY = Math.floor(posY);
-        const cellX = posX - nodeX;
-        const cellY = posY - nodeY;
-
-        if (nodeX < 0 || nodeX >= this.width - 1 || nodeY < 0 || nodeY >= this.height - 1) break;
-
-        // Get heights at corners
-        const idx00 = nodeY * this.width + nodeX;
-        const idx10 = nodeY * this.width + (nodeX + 1);
-        const idx01 = (nodeY + 1) * this.width + nodeX;
-        const idx11 = (nodeY + 1) * this.width + (nodeX + 1);
-
-        const h00 = tempMap[idx00];
-        const h10 = tempMap[idx10];
-        const h01 = tempMap[idx01];
-        const h11 = tempMap[idx11];
-
-        // Bilinear interpolation for height at droplet position
-        const height = 
-          h00 * (1 - cellX) * (1 - cellY) +
-          h10 * cellX * (1 - cellY) +
-          h01 * (1 - cellX) * cellY +
-          h11 * cellX * cellY;
-
-        // Calculate gradient
-        const deltaX = (h10 - h00) * (1 - cellY) + (h11 - h01) * cellY;
-        const deltaY = (h01 - h00) * (1 - cellX) + (h11 - h10) * cellX;
-
-        // Update direction with inertia
-        dirX = dirX * inertia - deltaX * (1 - inertia);
-        dirY = dirY * inertia - deltaY * (1 - inertia);
-
-        // Normalize
-        const len = Math.sqrt(dirX * dirX + dirY * dirY);
-        if (len > 0) {
-          dirX /= len;
-          dirY /= len;
-        }
-
-        // Move droplet
-        posX += dirX;
-        posY += dirY;
-
-        // Update speed
-        const currentHeight = tempMap[Math.floor(posY) * this.width + Math.floor(posX)];
-        speed = Math.sqrt(speed * speed + gravity * (height - currentHeight));
-
-        // Sediment capacity
-        const sedimentCapacity = Math.max(-speed, 1) * Math.min(speed, 4) * sedimentCapacityFactor;
-
-        // Erosion or deposition
-        if (sediment > sedimentCapacity || speed === 0) {
-          // Deposit
-          const amount = (sediment - sedimentCapacity) * depositSpeed;
-          sediment -= amount;
-          
-          // Distribute to corners
-          const distrib = (1 - cellX) * (1 - cellY);
-          tempMap[idx00] += amount * distrib;
-          tempMap[idx10] += amount * cellX * (1 - cellY);
-          tempMap[idx01] += amount * (1 - cellX) * cellY;
-          tempMap[idx11] += amount * cellX * cellY;
-        } else {
-          // Erode
-          const amount = Math.min((sedimentCapacity - sediment) * erodeSpeed, -height * speed * water);
-          
-          if (amount > 0) {
-            sediment += amount;
-            
-            // Remove from corners
-            const distrib = (1 - cellX) * (1 - cellY);
-            tempMap[idx00] -= amount * distrib;
-            tempMap[idx10] -= amount * cellX * (1 - cellY);
-            tempMap[idx01] -= amount * (1 - cellX) * cellY;
-            tempMap[idx11] -= amount * cellX * cellY;
-          }
-        }
-
-        // Evaporation
-        water *= (1 - evaporateSpeed);
-        if (water <= 0) break;
+  private applyErosion(heightMap: Float32Array): void {
+    const erosionSystem = new ErosionSystem(
+      heightMap,
+      this.width,
+      this.height,
+      {
+        hydraulicErosionEnabled: this.config.erosionStrength > 0,
+        thermalErosionEnabled: true,
+        hydraulicIterations: this.config.erosionIterations,
+        erodeSpeed: this.config.erosionStrength,
+        depositSpeed: 0.3,
+        seed: this.config.seed,
       }
-    }
+    );
 
-    // Copy back
+    erosionSystem.simulate();
+
+    // Clamp values
     for (let i = 0; i < heightMap.length; i++) {
-      heightMap[i] = Math.max(0, Math.min(1, tempMap[i]));
+      heightMap[i] = Math.max(0, Math.min(1, heightMap[i]));
     }
   }
 
   /**
    * Normalize heightmap to 0-1 range with optional offset
    */
-  private normalizeHeightMap(heightMap: HeightMap): void {
+  private normalizeHeightMap(heightMap: Float32Array): void {
     let max = -Infinity;
     let min = Infinity;
 
@@ -323,7 +238,7 @@ export class TerrainGenerator {
   /**
    * Calculate normal vectors for lighting
    */
-  private calculateNormals(heightMap: HeightMap): HeightMap {
+  private calculateNormals(heightMap: Float32Array): Float32Array {
     const normals = new Float32Array(this.width * this.height * 3);
     const scale = 1.0 / this.config.scale;
 
@@ -353,7 +268,7 @@ export class TerrainGenerator {
   /**
    * Calculate slope values for biome determination
    */
-  private calculateSlopes(heightMap: HeightMap): HeightMap {
+  private calculateSlopes(heightMap: Float32Array): Float32Array {
     const slopes = new Float32Array(this.width * this.height);
 
     for (let y = 0; y < this.height; y++) {
@@ -386,7 +301,7 @@ export class TerrainGenerator {
   /**
    * Generate biome mask based on height and slope
    */
-  private generateBiomeMask(heightMap: HeightMap, slopeMap: HeightMap): MaskMap {
+  private generateBiomeMask(heightMap: Float32Array, slopeMap: Float32Array): MaskMap {
     const mask = new Uint8Array(this.width * this.height);
 
     for (let i = 0; i < heightMap.length; i++) {

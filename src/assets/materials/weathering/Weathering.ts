@@ -1,7 +1,7 @@
 /**
  * Weathering Effects - Rust, oxidation, moss, water stains, UV damage, dirt/fading
  */
-import { Texture, CanvasTexture, Color, RepeatWrapping } from 'three';
+import { Texture, CanvasTexture, Color, RepeatWrapping, MeshStandardMaterial, MeshPhysicalMaterial } from 'three';
 import { SeededRandom } from '../../../core/util/MathUtils';
 import { Noise3D } from '../../../core/util/math/noise';
 
@@ -231,5 +231,105 @@ export class WeatheringGenerator {
       uvDamage: 0.1,
       dirtBuildup: 0.3,
     };
+  }
+
+  /**
+   * Apply weathering maps (color, roughness, normal) onto an existing material's maps
+   * using canvas compositing. Adds an overall roughness increase based on weathering amount.
+   */
+  applyToMaterial(
+    material: MeshStandardMaterial | MeshPhysicalMaterial,
+    params: WeatheringParams,
+    seed: number
+  ): void {
+    const { colorMap, roughnessMap, normalMap } = this.generate(params, seed);
+
+    // Composite weathering color onto existing material color map
+    if (material.map) {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const existingSrc = material.map.image as HTMLCanvasElement | HTMLImageElement;
+        if (existingSrc) {
+          ctx.drawImage(existingSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        // Multiply-blend weathering color on top for darkening/tinting
+        ctx.globalCompositeOperation = 'multiply';
+        const weatheringSrc = colorMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (weatheringSrc) {
+          ctx.drawImage(weatheringSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        const blended = new CanvasTexture(canvas);
+        blended.wrapS = blended.wrapT = RepeatWrapping;
+        material.map = blended;
+      }
+    } else {
+      material.map = colorMap;
+    }
+
+    // Composite weathering roughness onto existing roughness map
+    if (material.roughnessMap) {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const existingSrc = material.roughnessMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (existingSrc) {
+          ctx.drawImage(existingSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'lighter';
+        const roughnessSrc = roughnessMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (roughnessSrc) {
+          ctx.globalAlpha = 0.5;
+          ctx.drawImage(roughnessSrc as CanvasImageSource, 0, 0, size, size);
+          ctx.globalAlpha = 1.0;
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        const blended = new CanvasTexture(canvas);
+        blended.wrapS = blended.wrapT = RepeatWrapping;
+        material.roughnessMap = blended;
+      }
+    } else {
+      material.roughnessMap = roughnessMap;
+    }
+
+    // Composite weathering normal onto existing normal map
+    if (material.normalMap) {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const existingSrc = material.normalMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (existingSrc) {
+          ctx.drawImage(existingSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'overlay';
+        const normalSrc = normalMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (normalSrc) {
+          ctx.drawImage(normalSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        const blended = new CanvasTexture(canvas);
+        blended.wrapS = blended.wrapT = RepeatWrapping;
+        material.normalMap = blended;
+      }
+    } else {
+      material.normalMap = normalMap;
+    }
+
+    // Increase overall roughness based on weathering amount
+    const totalWeathering = params.rustIntensity + params.mossCoverage +
+      params.waterStains + params.dirtBuildup;
+    material.roughness = Math.min(1.0, material.roughness + totalWeathering * 0.05);
+
+    material.needsUpdate = true;
   }
 }

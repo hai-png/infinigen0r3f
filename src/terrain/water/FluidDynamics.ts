@@ -9,6 +9,7 @@
 
 import * as THREE from 'three';
 import { createNoise3D, NoiseFunction3D } from 'simplex-noise';
+import { SeededRandom } from '../../core/util/math/index';
 
 export interface FluidParticle {
   position: THREE.Vector3;
@@ -28,6 +29,7 @@ export interface FluidSimulationParams {
   gasConstant: number;
   smoothingRadius: number;
   timeStep: number;
+  seed: number;
 }
 
 export class FluidDynamics {
@@ -36,6 +38,7 @@ export class FluidDynamics {
   private noise: NoiseFunction3D;
   private spatialHash: Map<string, FluidParticle[]>;
   private hashScale: number;
+  private rng: SeededRandom;
 
   constructor(params?: Partial<FluidSimulationParams>) {
     this.params = {
@@ -47,12 +50,14 @@ export class FluidDynamics {
       gasConstant: 2000,
       smoothingRadius: 0.5,
       timeStep: 0.016,
+      seed: 42,
       ...params
     };
 
     this.noise = createNoise3D();
     this.spatialHash = new Map();
     this.hashScale = this.params.smoothingRadius;
+    this.rng = new SeededRandom(this.params.seed);
   }
 
   /**
@@ -68,9 +73,9 @@ export class FluidDynamics {
     for (let i = 0; i < count; i++) {
       const particle: FluidParticle = {
         position: new THREE.Vector3(
-          origin.x + Math.random() * size.x,
-          origin.y + Math.random() * size.y,
-          origin.z + Math.random() * size.z
+          origin.x + this.rng.next() * size.x,
+          origin.y + this.rng.next() * size.y,
+          origin.z + this.rng.next() * size.z
         ),
         velocity: new THREE.Vector3(0, 0, 0),
         acceleration: new THREE.Vector3(0, 0, 0),

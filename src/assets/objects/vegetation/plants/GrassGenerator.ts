@@ -1,6 +1,7 @@
 /**
  * GrassGenerator - Procedural grass field generation with blade clusters
  * All geometries in Mesh(geometry, MeshStandardMaterial). Uses SeededRandom.
+ * Wind parameters produce actual vertex shader displacement for animated grass sway.
  */
 import * as THREE from 'three';
 import { SeededRandom } from '../../../../core/util/math/index';
@@ -18,11 +19,94 @@ export interface GrassConfig {
   variety: 'fine' | 'coarse' | 'mixed';
 }
 
+// Custom shader material for wind-animated grass
+const grassVertexShader = `
+  uniform float uTime;
+  uniform float uWindAmplitude;
+  uniform float uWindFrequency;
+  uniform float uBladeHeight;
+
+  varying vec2 vUv;
+  varying vec3 vNormal;
+
+  void main() {
+    vUv = uv;
+    vNormal = normalMatrix * normal;
+
+    vec3 pos = position;
+
+    // Height factor: 0 at base, 1 at tip (grass blade grows along Y)
+    float heightFactor = (pos.y + uBladeHeight * 0.5) / uBladeHeight;
+    heightFactor = clamp(heightFactor, 0.0, 1.0);
+
+    // Wind displacement: sine wave that increases with height
+    float windPhase = pos.x * 0.5 + pos.z * 0.3 + uTime * uWindFrequency;
+    float sway = sin(windPhase) * uWindAmplitude * heightFactor * heightFactor;
+
+    // Secondary gentle cross-wind for more natural motion
+    float crossPhase = pos.z * 0.7 - uTime * uWindFrequency * 0.6;
+    float crossSway = sin(crossPhase) * uWindAmplitude * 0.3 * heightFactor * heightFactor;
+
+    pos.x += sway;
+    pos.z += crossSway;
+
+    // Slight leaning from wind
+    pos.x += uWindAmplitude * 0.2 * heightFactor * heightFactor;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+  }
+`;
+
+const grassFragmentShader = `
+  uniform vec3 uColor;
+
+  varying vec2 vUv;
+  varying vec3 vNormal;
+
+  void main() {
+    // Simple lighting based on normal
+    vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));
+    float diffuse = max(dot(vNormal, lightDir), 0.0) * 0.6 + 0.4;
+
+    // Darken toward base
+    float heightFade = smoothstep(0.0, 0.3, vUv.y);
+    vec3 color = uColor * diffuse * (0.7 + 0.3 * heightFade);
+
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
 export class GrassGenerator {
-  private materialCache: Map<string, THREE.MeshStandardMaterial>;
+  private materialCache: Map<string, THREE.ShaderMaterial>;
+  private windTime: number;
+  private animating: boolean;
 
   constructor() {
     this.materialCache = new Map();
+    this.windTime = 0;
+    this.animating = false;
+  }
+
+  /**
+   * Start wind animation. Call this in a render loop to animate grass.
+   * @param deltaTime - time since last frame in seconds
+   */
+  updateWind(deltaTime: number): void {
+    if (this.animating) {
+      this.windTime += deltaTime;
+      this.materialCache.forEach((mat) => {
+        if (mat.uniforms.uTime) {
+          mat.uniforms.uTime.value = this.windTime;
+        }
+      });
+    }
+  }
+
+  /**
+   * Enable/disable wind animation
+   */
+  setWindEnabled(enabled: boolean): void {
+    this.animating = enabled;
   }
 
   generateGrassField(config: Partial<GrassConfig> = {}, seed: number = 12345): THREE.InstancedMesh {
@@ -80,8 +164,12 @@ export class GrassGenerator {
   }
 
   private createGrassBladeGeometry(config: GrassConfig): THREE.BufferGeometry {
-    const geometry = new THREE.PlaneGeometry(config.bladeWidth, config.bladeHeight, 1, 3);
+    const geometry = new THREE.PlaneGeometry(config.bladeWidth, config.bladeHeight, 1, 4);
     const positions = geometry.attributes.position.array as Float32Array;
+
+    // Store original height for shader reference and add UV-based height
+    const uvAttribute = geometry.attributes.uv;
+    const heightFactors = new Float32Array(uvAttribute.count);
 
     for (let i = 0; i < positions.length; i += 3) {
       const y = positions[i + 1];
@@ -91,14 +179,35 @@ export class GrassGenerator {
       if (y > 0) positions[i + 2] = Math.sin(t * Math.PI) * config.bladeWidth * 0.3;
     }
 
+    // Store per-vertex height factor for the shader
+    for (let i = 0; i < uvAttribute.count; i++) {
+      const y = positions[i * 3 + 1];
+      const t = (y + config.bladeHeight / 2) / config.bladeHeight;
+      heightFactors[i] = t;
+    }
+
+    geometry.setAttribute('aHeightFactor', new THREE.BufferAttribute(heightFactors, 1));
     geometry.computeVertexNormals();
     return geometry;
   }
 
-  private getGrassMaterial(config: GrassConfig): THREE.MeshStandardMaterial {
-    const cacheKey = `grass-${config.colorBase.getHex()}-${config.variety}`;
+  private getGrassMaterial(config: GrassConfig): THREE.ShaderMaterial {
+    const cacheKey = `grass-shader-${config.colorBase.getHex()}-${config.windAmplitude}-${config.windFrequency}`;
     if (this.materialCache.has(cacheKey)) return this.materialCache.get(cacheKey)!;
-    const material = new THREE.MeshStandardMaterial({ color: config.colorBase.clone(), roughness: 0.8, metalness: 0.0, side: THREE.DoubleSide });
+
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: this.windTime },
+        uWindAmplitude: { value: config.windAmplitude },
+        uWindFrequency: { value: config.windFrequency },
+        uBladeHeight: { value: config.bladeHeight },
+        uColor: { value: config.colorBase.clone() },
+      },
+      vertexShader: grassVertexShader,
+      fragmentShader: grassFragmentShader,
+      side: THREE.DoubleSide,
+    });
+
     this.materialCache.set(cacheKey, material);
     return material;
   }
@@ -123,6 +232,8 @@ export class GrassGenerator {
         bladeHeight: clumpConfig.bladeHeight * rng.uniform(0.8, 1.2),
         density: clumpConfig.density,
         colorBase: clumpConfig.colorBase.clone(),
+        windAmplitude: clumpConfig.windAmplitude,
+        windFrequency: clumpConfig.windFrequency,
       }, seed + i);
       clump.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
       group.add(clump);

@@ -1,7 +1,7 @@
 /**
  * Wear and Tear Generator - Scratches, scuffs, dents, edge wear
  */
-import { Texture, CanvasTexture, Color, RepeatWrapping } from 'three';
+import { Texture, CanvasTexture, Color, RepeatWrapping, MeshStandardMaterial, MeshPhysicalMaterial } from 'three';
 import { SeededRandom } from '../../../core/util/MathUtils';
 import { Noise3D } from '../../../core/util/math/noise';
 
@@ -202,5 +202,101 @@ export class WearGenerator {
       dentCount: 5,
       dirtAccumulation: 0.2,
     };
+  }
+
+  /**
+   * Apply wear maps onto an existing material's maps using canvas compositing.
+   * Composites roughness and normal wear maps, adds roughness increase from scuff wear.
+   */
+  applyToMaterial(
+    material: MeshStandardMaterial | MeshPhysicalMaterial,
+    params: WearParams,
+    seed: number
+  ): void {
+    const { roughnessMap, normalMap, aoMap } = this.generateWearMap(params, seed);
+
+    // Composite wear roughness onto existing material roughness map
+    if (material.roughnessMap) {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const existingSrc = material.roughnessMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (existingSrc) {
+          ctx.drawImage(existingSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'lighter';
+        const wearSrc = roughnessMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (wearSrc) {
+          ctx.globalAlpha = 0.6;
+          ctx.drawImage(wearSrc as CanvasImageSource, 0, 0, size, size);
+          ctx.globalAlpha = 1.0;
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        const blended = new CanvasTexture(canvas);
+        blended.wrapS = blended.wrapT = RepeatWrapping;
+        material.roughnessMap = blended;
+      }
+    } else {
+      material.roughnessMap = roughnessMap;
+    }
+
+    // Composite wear normal onto existing normal map
+    if (material.normalMap) {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const existingSrc = material.normalMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (existingSrc) {
+          ctx.drawImage(existingSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'overlay';
+        const wearNormalSrc = normalMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (wearNormalSrc) {
+          ctx.drawImage(wearNormalSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        const blended = new CanvasTexture(canvas);
+        blended.wrapS = blended.wrapT = RepeatWrapping;
+        material.normalMap = blended;
+      }
+    } else {
+      material.normalMap = normalMap;
+    }
+
+    // Apply AO map (darkens existing or replaces)
+    if (material.aoMap) {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const existingSrc = material.aoMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (existingSrc) {
+          ctx.drawImage(existingSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'multiply';
+        const wearAoSrc = aoMap.image as HTMLCanvasElement | HTMLImageElement;
+        if (wearAoSrc) {
+          ctx.drawImage(wearAoSrc as CanvasImageSource, 0, 0, size, size);
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        const blended = new CanvasTexture(canvas);
+        blended.wrapS = blended.wrapT = RepeatWrapping;
+        material.aoMap = blended;
+      }
+    } else {
+      material.aoMap = aoMap;
+    }
+
+    // Increase overall roughness from scuff wear
+    material.roughness = Math.min(1.0, material.roughness + params.scuffDensity * 0.1);
+    material.needsUpdate = true;
   }
 }

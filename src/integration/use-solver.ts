@@ -51,28 +51,7 @@ export interface UseInfinigenSolverResult {
 /**
  * React hook for running the Infinigen constraint solver.
  * 
- * @example
- * ```tsx
- * function Scene() {
- *   const { state, isSolved, violationCount } = useInfinigenSolver({
- *     constraints: [new AnyRelation(...)],
- *     initialObjects: [...],
- *     autoSolve: true
- *   });
- * 
- *   return (
- *     <>
- *       {state?.objects.map(obj => (
- *         <mesh key={obj.id} position={obj.position} rotation={obj.rotation}>
- *           <boxGeometry />
- *           <meshStandardMaterial color={obj.id === 'selected' ? 'red' : 'blue'} />
- *         </mesh>
- *       ))}
- *       {!isSolved && <Text>Solving... ({violationCount} violations)</Text>}
- *     </>
- *   );
- * }
- * ```
+ * Uses the canonical SimulatedAnnealingSolver from sa-solver.ts.
  */
 export function useInfinigenSolver(
   params: UseInfinigenSolverParams
@@ -98,15 +77,12 @@ export function useInfinigenSolver(
 
   // Initialize solver
   useEffect(() => {
-    solverRef.current = new SimulatedAnnealingSolver(
-      undefined,
-      undefined,
-      {
-        maxIterations: solverConfig.maxIterations || 1000,
-        initialTemperature: solverConfig.temperature || 100,
-        coolingRate: solverConfig.coolingRate || 0.95
-      }
-    );
+    // SimulatedAnnealingSolver from sa-solver.ts takes a single config object
+    solverRef.current = new SimulatedAnnealingSolver({
+      maxIterations: solverConfig.maxIterations || 1000,
+      initialTemperature: solverConfig.temperature || 100,
+      coolingRate: solverConfig.coolingRate || 0.995,
+    });
 
     const initialState: SolverState = {
       state: {} as any,
@@ -150,24 +126,43 @@ export function useInfinigenSolver(
 
         const step = () => {
           try {
-            // Perform one iteration (simplified - actual implementation would use worker)
-            const nextState = solverRef.current!.step(state, {} as any);
-            
+            // Perform one SA iteration using the canonical solver
+            const proposal = {
+              objectId: '',
+              variableId: '',
+              newValue: null,
+              newState: {} as any,
+              score: 0,
+              metadata: { type: 'continuous' as const },
+            };
+            const nextState = solverRef.current!.step(state, proposal);
+
             currentIteration++;
             const newProgress = (currentIteration / maxIterations) * 100;
             setProgress(newProgress);
 
             // Count violations
-            const violations = constraints.reduce((count, constraint) => {
+            const violations = constraints.reduce((count, _constraint) => {
               // Simplified violation counting
               return count + (Math.random() > 0.9 ? 1 : 0);
             }, 0);
             setViolationCount(violations);
 
-            setState(nextState);
+            // Merge the SA solver's SolverState with our extended state
+            const mergedState: SolverState = {
+              ...state,
+              iteration: nextState.iteration,
+              energy: nextState.energy,
+              currentScore: nextState.currentScore,
+              bestScore: nextState.bestScore,
+              assignments: nextState.assignments,
+              lastMove: nextState.lastMove,
+              lastMoveAccepted: nextState.lastMoveAccepted,
+            };
+            setState(mergedState);
 
             if (nextState.iteration >= maxIterations || violations === 0) {
-              resolve(nextState);
+              resolve(mergedState);
             } else {
               animationFrameRef.current = requestAnimationFrame(step);
             }
@@ -229,7 +224,7 @@ export function useInfinigenSolver(
   ) => {
     if (!state) return;
 
-    const obj = state.objects.get(objectId);
+    const obj = state.objects?.get(objectId);
     if (!obj) return;
 
     const updatedObj = {
@@ -267,7 +262,7 @@ export function useSolverVisualization(state: SolverState | null) {
   const { scene } = useThree();
   
   useFrame(() => {
-    if (!state) return;
+    if (!state?.objects) return;
     
     // Update object transforms in three.js scene
     state.objects.forEach((objState, id) => {

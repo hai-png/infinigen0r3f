@@ -14,6 +14,7 @@ export { ConiferGenerator, type ConiferConfig } from './trees/ConiferGenerator';
 export { DeciduousGenerator, type DeciduousConfig } from './trees/DeciduousGenerator';
 export { PalmGenerator, type PalmConfig } from './trees/PalmGenerator';
 export { FruitTreeGenerator, type FruitTreeConfig } from './trees/FruitTreeGenerator';
+export { LSystemTreeGenerator, LSystemTreePresets, generateTreeFromPreset, type LSystemRule, type LSystemConfig } from './trees/LSystemTreeGenerator';
 
 // Plants (ground vegetation)
 export { GrassGenerator, type GrassConfig } from './plants/GrassGenerator';

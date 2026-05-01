@@ -3,6 +3,7 @@
  * Stem + blade leaves. All geometries in Mesh(geometry, MeshStandardMaterial). Uses SeededRandom.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SeededRandom } from '../../../../core/util/math/index';
 
 export interface MonocotConfig {
@@ -94,6 +95,9 @@ export class MonocotGenerator {
       const leaf = this.createLeaf(leafAngle, leafHeight, rng);
       group.add(leaf);
     }
+
+    // Bake local transforms so generateField can applyMatrix4 correctly
+    group.updateMatrixWorld(true);
     return group;
   }
 
@@ -129,12 +133,34 @@ export class MonocotGenerator {
     const { clusterSize } = this.config;
     const totalStems = count * clusterSize;
 
+    // Build a full plant (stem + leaves) and merge all child geometries into one
     const stemGroup = this.generateStem(undefined, rng);
-    const stemMesh = stemGroup.children[0] as THREE.Mesh;
-    const geometry = stemMesh.geometry as THREE.BufferGeometry;
-    const material = stemMesh.material as THREE.MeshStandardMaterial;
+    const geometries: THREE.BufferGeometry[] = [];
+    let primaryMaterial: THREE.MeshStandardMaterial | null = null;
 
-    const instancedMesh = new THREE.InstancedMesh(geometry, material, totalStems);
+    for (const child of stemGroup.children) {
+      const mesh = child as THREE.Mesh;
+      if (mesh.isMesh && mesh.geometry) {
+        // Clone geometry and bake the child's local transform into vertex positions
+        const cloned = mesh.geometry.clone();
+        cloned.applyMatrix4(mesh.matrix);
+        geometries.push(cloned);
+        if (!primaryMaterial) {
+          primaryMaterial = mesh.material as THREE.MeshStandardMaterial;
+        }
+      }
+    }
+
+    // Merge stem + all leaf geometries into a single BufferGeometry
+    const mergedGeometry = geometries.length > 1
+      ? mergeGeometries(geometries)
+      : geometries[0] ?? (stemGroup.children[0] as THREE.Mesh).geometry;
+
+    const material = primaryMaterial ?? new THREE.MeshStandardMaterial({
+      color: this.config.primaryColor, roughness: 0.8, side: THREE.DoubleSide,
+    });
+
+    const instancedMesh = new THREE.InstancedMesh(mergedGeometry, material, totalStems);
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
     const quaternion = new THREE.Quaternion();

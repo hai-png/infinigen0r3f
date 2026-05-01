@@ -97,7 +97,7 @@ export class TropicPlantGenerator {
   }
 
   private generateLeaf(rng: SeededRandom): THREE.Mesh {
-    const { leafSize, primaryColor, secondaryColor, variegation, glossiness } = this.config;
+    const { leafSize, primaryColor, secondaryColor, variegation, glossiness, leafFenestration } = this.config;
 
     // Large tropical leaf shape
     const width = leafSize * 0.8;
@@ -106,6 +106,35 @@ export class TropicPlantGenerator {
     shape.moveTo(0, 0);
     shape.bezierCurveTo(width * 0.5, length * 0.3, width * 0.6, length * 0.7, 0, length);
     shape.bezierCurveTo(-width * 0.6, length * 0.7, -width * 0.5, length * 0.3, 0, 0);
+
+    // Apply fenestration: cut holes in the leaf (Monstera-style)
+    if (leafFenestration > 0) {
+      const holeCount = Math.floor(leafFenestration * 8) + 2; // 2-7 holes based on fenestration level
+      for (let h = 0; h < holeCount; h++) {
+        // Distribute holes along the mid-to-upper portion of the leaf
+        const ht = 0.25 + (h / holeCount) * 0.6; // vertical position (0.25-0.85 of leaf length)
+        const holeY = ht * length;
+        // At this height, compute leaf width using the bezier approximation
+        const widthAtHeight = width * 0.5 * Math.sin(ht * Math.PI);
+        const side = (h % 2 === 0) ? 1 : -1;
+        const holeX = side * widthAtHeight * rng.uniform(0.2, 0.6);
+        const holeRadius = Math.max(0.01, widthAtHeight * leafFenestration * rng.uniform(0.15, 0.35));
+
+        const holePath = new THREE.Path();
+        const segments = 12;
+        for (let i = 0; i <= segments; i++) {
+          const angle = (i / segments) * Math.PI * 2;
+          const px = holeX + Math.cos(angle) * holeRadius;
+          const py = holeY + Math.sin(angle) * holeRadius;
+          if (i === 0) {
+            holePath.moveTo(px, py);
+          } else {
+            holePath.lineTo(px, py);
+          }
+        }
+        shape.holes.push(holePath);
+      }
+    }
 
     const geometry = new THREE.ShapeGeometry(shape, 8);
 

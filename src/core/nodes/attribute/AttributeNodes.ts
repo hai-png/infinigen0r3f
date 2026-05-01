@@ -116,7 +116,7 @@ export interface IdInputNodeOutputs {
 }
 
 export interface IndexInputNodeOutputs {
-  index: number;
+  indices: number[];
 }
 
 // ============================================================================
@@ -805,7 +805,7 @@ export class IdInputNode implements AttributeNodeBase {
 
 /**
  * Index Input Node
- * Returns vertex count (number of elements) for the geometry
+ * Returns per-vertex index IDs [0, 1, 2, ..., position.count-1] for the geometry
  */
 export class IndexInputNode implements AttributeNodeBase {
   readonly type = NodeTypes.IndexInput;
@@ -814,21 +814,27 @@ export class IndexInputNode implements AttributeNodeBase {
   inputs: Record<string, any> = {};
   
   outputs: IndexInputNodeOutputs = {
-    index: 0,
+    indices: [],
   };
 
-  execute(geometry?: THREE.BufferGeometry | number): IndexInputNodeOutputs {
-    if (typeof geometry === 'number') {
-      this.outputs.index = geometry;
+  execute(geometry?: THREE.BufferGeometry | number[]): IndexInputNodeOutputs {
+    if (Array.isArray(geometry)) {
+      this.outputs.indices = geometry;
       return this.outputs;
     }
 
     if (geometry && geometry.attributes.position) {
-      this.outputs.index = geometry.attributes.position.count;
+      const count = geometry.attributes.position.count;
+      // Return per-vertex index IDs [0, 1, 2, ..., count-1]
+      const indices: number[] = new Array(count);
+      for (let i = 0; i < count; i++) {
+        indices[i] = i;
+      }
+      this.outputs.indices = indices;
       return this.outputs;
     }
 
-    this.outputs.index = 0;
+    this.outputs.indices = [];
     return this.outputs;
   }
 }

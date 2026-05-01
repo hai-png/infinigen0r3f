@@ -103,11 +103,18 @@ export class FogSystem {
         uniform float windSpeed;
         uniform float noiseScale;
         uniform float turbulence;
-        uniform sampler3D noiseTexture;
+        uniform sampler2D noiseTexture;
         
-        // Simple 3D noise function
+        // Simple 2D noise function using sampler2D
+        // Simulates 3D sampling by slicing at the Y coordinate
         float noise(vec3 p) {
-          return texture(noiseTexture, fract(p)).r;
+          // Use XZ for primary UV, Y to blend between two slices
+          vec2 uv1 = fract(p.xz + floor(p.y) * 0.37);
+          vec2 uv2 = fract(p.xz + (floor(p.y) + 1.0) * 0.37);
+          float blend = fract(p.y);
+          float s1 = texture(noiseTexture, uv1).r;
+          float s2 = texture(noiseTexture, uv2).r;
+          return mix(s1, s2, blend);
         }
         
         void main() {
@@ -150,14 +157,15 @@ export class FogSystem {
   }
 
   /**
-   * Create 3D noise texture
+   * Create 2D noise texture for fog variation
+   * Note: Previously attempted to use sampler3D with a 2D DataTexture, which caused
+   * shader compilation failure. Now uses sampler2D with Y-slice blending in the shader.
    */
-  private createNoiseTexture(width: number, height: number, depth: number): THREE.DataTexture {
-    const size = width * height * depth;
+  private createNoiseTexture(width: number, height: number, _depth: number): THREE.DataTexture {
+    const size = width * height;
     const data = new Uint8Array(size);
 
     for (let i = 0; i < size; i++) {
-      // Generate gradient noise
       data[i] = Math.floor(Math.random() * 256);
     }
 

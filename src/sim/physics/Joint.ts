@@ -120,12 +120,26 @@ export class Joint {
 
     if (bodyA.bodyType !== 'static') {
       bodyA.position.add(correction);
-      // Apply velocity correction
-      const relVel = bodyB.getVelocityAtPoint(anchorB).sub(bodyA.getVelocityAtPoint(anchorA));
-      bodyA.linearVelocity.add(relVel.multiplyScalar(0.3 * bodyA.inverseMass));
     }
     if (bodyB.bodyType !== 'static') {
       bodyB.position.sub(correction);
+    }
+
+    // Apply velocity correction to both bodies, split by inverse mass ratio
+    const invMassA = bodyA.bodyType === 'static' ? 0 : bodyA.inverseMass;
+    const invMassB = bodyB.bodyType === 'static' ? 0 : bodyB.inverseMass;
+    const totalInvMass = invMassA + invMassB;
+
+    if (totalInvMass > 0) {
+      const relVel = bodyB.getVelocityAtPoint(anchorB).sub(bodyA.getVelocityAtPoint(anchorA));
+      const velocityCorrection = relVel.multiplyScalar(0.3);
+
+      if (bodyA.bodyType !== 'static') {
+        bodyA.linearVelocity.add(velocityCorrection.clone().multiplyScalar(invMassA / totalInvMass));
+      }
+      if (bodyB.bodyType !== 'static') {
+        bodyB.linearVelocity.sub(velocityCorrection.clone().multiplyScalar(invMassB / totalInvMass));
+      }
     }
   }
 

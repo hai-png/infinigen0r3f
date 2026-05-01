@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import { NodeTypes } from '../core/node-types';
+import { SeededRandom } from '../../util/MathUtils';
 
 // ============================================================================
 // Type Definitions
@@ -204,6 +205,7 @@ export interface AmbientOcclusionOutputInputs {
   ao?: any;
   samples?: number;
   distance?: number;
+  seed?: number;
 }
 
 export interface AmbientOcclusionOutputOutputs {
@@ -1044,6 +1046,7 @@ export class AmbientOcclusionOutputNode implements OutputNodeBase {
     ao: null,
     samples: 16,
     distance: 1,
+    seed: 42,
   };
   
   outputs: AmbientOcclusionOutputOutputs = {
@@ -1053,7 +1056,9 @@ export class AmbientOcclusionOutputNode implements OutputNodeBase {
   execute(): AmbientOcclusionOutputOutputs {
     const sampleCount = this.inputs.samples ?? 16;
     const aoDistance = this.inputs.distance ?? 1;
+    const aoSeed = this.inputs.seed ?? 42;
     const ao = this.inputs.ao;
+    const rng = new SeededRandom(aoSeed);
 
     // Try to compute AO from geometry
     const geometry = toBufferGeometry(ao);
@@ -1086,7 +1091,7 @@ export class AmbientOcclusionOutputNode implements OutputNodeBase {
           for (let s = 0; s < sampleCount; s++) {
             // Random direction in hemisphere using Fibonacci sphere + cos-weighting
             const phi = 2 * Math.PI * s / sampleCount;
-            const cosTheta = Math.random(); // cos-weighted
+            const cosTheta = rng.next(); // cos-weighted (seeded)
             const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
 
             const sampleDir = new THREE.Vector3()
@@ -1095,15 +1100,59 @@ export class AmbientOcclusionOutputNode implements OutputNodeBase {
               .addScaledVector(normal, cosTheta)
               .normalize();
 
-            // Check if sample direction is occluded by other faces
-            // Simplified: use face normal consistency as proxy
-            const sampleOcclusion = sampleDir.dot(normal) < 0 ? 1 : 0;
-            occlusion += sampleOcclusion;
+            // Use nearby vertex density as occlusion proxy:
+            // Count vertices within a small sphere in the hemisphere below the normal.
+            // Vertices close to the sample direction indicate occluding geometry.
+            const sampleRadius = aoDistance;
+            const px = posAttr.getX(i);
+            const py = posAttr.getY(i);
+            const pz = posAttr.getZ(i);
+            const samplePoint = new THREE.Vector3(px, py, pz).addScaledVector(sampleDir, sampleRadius * 0.5);
+
+            let nearbyOccluders = 0;
+            // Check a subset of nearby vertices for occlusion
+            const checkStep = Math.max(1, Math.floor(normalAttr.count / 200));
+            for (let v = 0; v < normalAttr.count; v += checkStep) {
+              const vx = posAttr.getX(v);
+              const vy = posAttr.getY(v);
+              const vz = posAttr.getZ(v);
+
+              const dx = samplePoint.x - vx;
+              const dy = samplePoint.y - vy;
+              const dz = samplePoint.z - vz;
+              const distSq = dx * dx + dy * dy + dz * dz;
+
+              // If this vertex is within the sample radius and below the surface,
+              // it's an occluder
+              if (distSq < sampleRadius * sampleRadius) {
+                const toVertex = new THREE.Vector3(vx - px, vy - py, vz - pz);
+                // Check if the vertex is on the occluded side (below normal relative to sample)
+                const dotWithNormal = toVertex.dot(normal);
+                if (dotWithNormal < 0) {
+                  // Vertex is below the surface — contributes to occlusion
+                  const proximity = 1 - Math.sqrt(distSq) / sampleRadius;
+                  nearbyOccluders += proximity;
+                } else {
+                  // Vertex is above but may still occlude the sample direction
+                  const dotWithSample = toVertex.normalize().dot(sampleDir);
+                  if (dotWithSample > 0.5) {
+                    // Vertex is roughly in the sample direction — potential occluder
+                    const proximity = 1 - Math.sqrt(distSq) / sampleRadius;
+                    nearbyOccluders += proximity * 0.5;
+                  }
+                }
+              }
+            }
+
+            // If occluders found in this direction, mark as occluded
+            if (nearbyOccluders > 0.1) {
+              occlusion += Math.min(1, nearbyOccluders);
+            }
           }
 
           // AO value: 0 = fully occluded, 1 = fully open
           const aoValue = 1 - occlusion / sampleCount;
-          aoValues.push(aoValue);
+          aoValues.push(Math.max(0, Math.min(1, aoValue)));
         }
 
         this.outputs.aoMap = {

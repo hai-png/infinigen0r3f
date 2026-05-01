@@ -3,6 +3,7 @@
  * Generates various bird species with body, head+beak, wings, legs+toes, and tail
  */
 
+import * as THREE from 'three';
 import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
 
@@ -170,7 +171,7 @@ export class BirdGenerator extends CreatureBase {
     const wingMat = new MeshStandardMaterial({
       color: params.secondaryColor,
       roughness: 0.8,
-      side: 2, // DoubleSide
+      side: THREE.DoubleSide,
     });
     const wings: Mesh[] = [];
 

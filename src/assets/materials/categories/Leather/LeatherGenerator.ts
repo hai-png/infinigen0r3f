@@ -1,8 +1,10 @@
 /**
- * Leather Material Generator - Full-grain, top-grain, suede, distressed
+ * Leather Material Generator - Full-grain, top-grain, suede, distressed, patent
+ * FIX: Patent leather now uses MeshPhysicalMaterial with clearcoat=1.0, clearcoatRoughness=0.1
+ * FIX: sheen param now implemented as sheenColor + sheenRoughness on MeshPhysicalMaterial
  * Grain pattern via canvas texture
  */
-import { Color, Texture, CanvasTexture, MeshStandardMaterial, RepeatWrapping } from 'three';
+import { Color, Texture, CanvasTexture, MeshStandardMaterial, MeshPhysicalMaterial, Material, RepeatWrapping } from 'three';
 import { BaseMaterialGenerator, MaterialOutput } from '../../BaseMaterialGenerator';
 import { SeededRandom } from '../../../../core/util/MathUtils';
 import { Noise3D } from '../../../../core/util/math/noise';
@@ -32,7 +34,7 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
 
   /**
    * Override createBaseMaterial to return MeshStandardMaterial for leather
-   * Patent leather uses clearcoat via MeshPhysicalMaterial, handled in generate()
+   * Patent leather and sheen types use MeshPhysicalMaterial, handled in generate()
    */
   protected createBaseMaterial(): MeshStandardMaterial {
     return new MeshStandardMaterial({
@@ -42,10 +44,30 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
     });
   }
 
+  /**
+   * Create MeshPhysicalMaterial for patent leather or sheen-enabled leather
+   */
+  private createPhysicalMaterial(): MeshPhysicalMaterial {
+    return new MeshPhysicalMaterial({
+      color: 0x4a3728,
+      roughness: 0.4,
+      metalness: 0.0,
+    });
+  }
+
   generate(params: Partial<LeatherParams> = {}, seed?: number): MaterialOutput {
     const finalParams = this.mergeParams(LeatherGenerator.DEFAULT_PARAMS, params);
     const rng = seed !== undefined ? new SeededRandom(seed) : this.rng;
-    const material = this.createBaseMaterial();
+
+    // Determine if we need MeshPhysicalMaterial (patent leather or sheen)
+    const needsPhysical = finalParams.type === 'patent' || finalParams.sheen > 0;
+
+    let material: MeshStandardMaterial | MeshPhysicalMaterial;
+    if (needsPhysical) {
+      material = this.createPhysicalMaterial();
+    } else {
+      material = this.createBaseMaterial();
+    }
 
     material.color = finalParams.color;
     material.roughness = finalParams.roughness;
@@ -60,6 +82,22 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
       material.roughness = 0.7;
     } else if (finalParams.type === 'top-grain') {
       material.roughness = 0.35;
+    }
+
+    // Patent leather: high clearcoat for glossy lacquered finish
+    if (finalParams.type === 'patent' && material instanceof MeshPhysicalMaterial) {
+      material.clearcoat = 1.0;
+      material.clearcoatRoughness = 0.1;
+    }
+
+    // Sheen: soft velvet-like directional reflectance
+    if (finalParams.sheen > 0 && material instanceof MeshPhysicalMaterial) {
+      material.sheen = finalParams.sheen;
+      // sheenColor: slightly lighter than base color for a natural leather sheen
+      const sheenColor = new Color(finalParams.color);
+      sheenColor.offsetHSL(0, 0, 0.15 * finalParams.sheen);
+      material.sheenColor = sheenColor;
+      material.sheenRoughness = 0.5 - finalParams.sheen * 0.3; // more sheen = less sheen roughness
     }
 
     // Generate procedural grain texture
@@ -107,8 +145,20 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
           ctx.fillRect(x, y, 2, 2);
         }
       }
+    } else if (params.type === 'patent') {
+      // Patent leather has very smooth, uniform surface with minimal grain
+      for (let y = 0; y < size; y += 4) {
+        for (let x = 0; x < size; x += 4) {
+          const n = noise.perlin(x / 80, y / 80, 0) * params.grainIntensity * 3;
+          const r = Math.max(0, Math.min(255, Math.floor(params.color.r * 255 + n)));
+          const g = Math.max(0, Math.min(255, Math.floor(params.color.g * 255 + n)));
+          const b = Math.max(0, Math.min(255, Math.floor(params.color.b * 255 + n)));
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(x, y, 4, 4);
+        }
+      }
     } else {
-      // Full-grain leather has organic cell-like grain pattern
+      // Full-grain / top-grain / distressed leather has organic cell-like grain pattern
       for (let y = 0; y < size; y += 2) {
         for (let x = 0; x < size; x += 2) {
           const n1 = noise.perlin(x / 20, y / 20, 0) * params.grainIntensity * 30;
@@ -139,14 +189,42 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
     ctx.fillRect(0, 0, size, size);
 
     const noise = new Noise3D(rng.seed);
-    for (let y = 0; y < size; y += 4) {
-      for (let x = 0; x < size; x += 4) {
-        const nx = noise.perlin(x / 25, y / 25, 0) * params.grainIntensity * 25;
-        const ny = noise.perlin(x / 25, y / 25, 50) * params.grainIntensity * 25;
-        const r = Math.max(0, Math.min(255, 128 + nx));
-        const g = Math.max(0, Math.min(255, 128 + ny));
-        ctx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},255)`;
-        ctx.fillRect(x, y, 4, 4);
+
+    if (params.type === 'suede') {
+      // Fine directional grain for suede
+      for (let y = 0; y < size; y += 2) {
+        for (let x = 0; x < size; x += 2) {
+          const nx = noise.perlin(x / 15, y / 30, 0) * params.grainIntensity * 8;
+          const ny = noise.perlin(x / 15, y / 30, 50) * params.grainIntensity * 4;
+          const r = Math.max(0, Math.min(255, 128 + nx));
+          const g = Math.max(0, Math.min(255, 128 + ny));
+          ctx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},255)`;
+          ctx.fillRect(x, y, 2, 2);
+        }
+      }
+    } else if (params.type === 'patent') {
+      // Patent leather: very smooth, minimal normal perturbation
+      for (let y = 0; y < size; y += 8) {
+        for (let x = 0; x < size; x += 8) {
+          const nx = noise.perlin(x / 100, y / 100, 0) * params.grainIntensity * 3;
+          const ny = noise.perlin(x / 100, y / 100, 50) * params.grainIntensity * 3;
+          const r = Math.max(0, Math.min(255, 128 + nx));
+          const g = Math.max(0, Math.min(255, 128 + ny));
+          ctx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},255)`;
+          ctx.fillRect(x, y, 8, 8);
+        }
+      }
+    } else {
+      // Standard grain normal map
+      for (let y = 0; y < size; y += 4) {
+        for (let x = 0; x < size; x += 4) {
+          const nx = noise.perlin(x / 25, y / 25, 0) * params.grainIntensity * 25;
+          const ny = noise.perlin(x / 25, y / 25, 50) * params.grainIntensity * 25;
+          const r = Math.max(0, Math.min(255, 128 + nx));
+          const g = Math.max(0, Math.min(255, 128 + ny));
+          ctx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},255)`;
+          ctx.fillRect(x, y, 4, 4);
+        }
       }
     }
 
@@ -164,11 +242,15 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
     ctx.fillStyle = `rgb(${base},${base},${base})`;
     ctx.fillRect(0, 0, size, size);
 
+    // Patent leather: very smooth, minimal roughness variation
+    const noiseScale = params.type === 'patent' ? 120 : 40;
+    const variationAmount = params.type === 'patent' ? 5 : 25;
+
     // Add grain-based roughness variation
     const noise = new Noise3D(rng.seed);
     for (let y = 0; y < size; y += 4) {
       for (let x = 0; x < size; x += 4) {
-        const n = noise.perlin(x / 40, y / 40, 0) * 25;
+        const n = noise.perlin(x / noiseScale, y / noiseScale, 0) * variationAmount;
         const value = Math.max(0, Math.min(255, base + n));
         ctx.fillStyle = `rgb(${Math.floor(value)},${Math.floor(value)},${Math.floor(value)})`;
         ctx.fillRect(x, y, 4, 4);
@@ -180,8 +262,14 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
     return texture;
   }
 
-  private applyWear(material: MeshStandardMaterial, params: LeatherParams, rng: SeededRandom): void {
+  private applyWear(material: MeshStandardMaterial | MeshPhysicalMaterial, params: LeatherParams, rng: SeededRandom): void {
     material.roughness = Math.min(1.0, material.roughness + params.wearLevel * 0.2);
+
+    // Patent leather doesn't wear the same way - reduce clearcoat instead
+    if (params.type === 'patent' && material instanceof MeshPhysicalMaterial) {
+      material.clearcoat = Math.max(0, 1.0 - params.wearLevel * 0.5);
+      material.clearcoatRoughness = Math.min(1.0, 0.1 + params.wearLevel * 0.4);
+    }
 
     // Wear lightens the leather color at worn spots
     const size = 512;

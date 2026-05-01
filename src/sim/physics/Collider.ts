@@ -65,16 +65,46 @@ export class Collider {
 
   /**
    * Update the AABB based on the body's world transform
+   * For boxes, properly accounts for rotation by transforming all 8 corners.
    */
   updateAABB(position: Vector3, rotation: Matrix4): void {
     const worldPos = position.clone().add(this.offset);
 
     switch (this.shape) {
       case 'box': {
-        // Conservative AABB: use max half-extent for rotation
-        const maxExtent = Math.max(this.halfExtents.x, this.halfExtents.y, this.halfExtents.z);
-        this.aabbMin.set(worldPos.x - maxExtent, worldPos.y - maxExtent, worldPos.z - maxExtent);
-        this.aabbMax.set(worldPos.x + maxExtent, worldPos.y + maxExtent, worldPos.z + maxExtent);
+        // Transform all 8 corners of the box by the rotation matrix,
+        // then compute axis-aligned bounds from the rotated corners
+        const hx = this.halfExtents.x;
+        const hy = this.halfExtents.y;
+        const hz = this.halfExtents.z;
+
+        const corners = [
+          new Vector3(-hx, -hy, -hz),
+          new Vector3(-hx, -hy,  hz),
+          new Vector3(-hx,  hy, -hz),
+          new Vector3(-hx,  hy,  hz),
+          new Vector3( hx, -hy, -hz),
+          new Vector3( hx, -hy,  hz),
+          new Vector3( hx,  hy, -hz),
+          new Vector3( hx,  hy,  hz),
+        ];
+
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+        for (const corner of corners) {
+          corner.applyMatrix4(rotation);
+          corner.add(worldPos);
+          if (corner.x < minX) minX = corner.x;
+          if (corner.y < minY) minY = corner.y;
+          if (corner.z < minZ) minZ = corner.z;
+          if (corner.x > maxX) maxX = corner.x;
+          if (corner.y > maxY) maxY = corner.y;
+          if (corner.z > maxZ) maxZ = corner.z;
+        }
+
+        this.aabbMin.set(minX, minY, minZ);
+        this.aabbMax.set(maxX, maxY, maxZ);
         break;
       }
       case 'sphere': {
@@ -83,10 +113,36 @@ export class Collider {
         break;
       }
       case 'cylinder': {
+        // Conservative: treat as box with appropriate half-extents after rotation
         const halfH = this.height / 2;
         const r = this.radius;
-        this.aabbMin.set(worldPos.x - r, worldPos.y - halfH, worldPos.z - r);
-        this.aabbMax.set(worldPos.x + r, worldPos.y + halfH, worldPos.z + r);
+        const corners = [
+          new Vector3(-r, -halfH, -r),
+          new Vector3(-r, -halfH,  r),
+          new Vector3(-r,  halfH, -r),
+          new Vector3(-r,  halfH,  r),
+          new Vector3( r, -halfH, -r),
+          new Vector3( r, -halfH,  r),
+          new Vector3( r,  halfH, -r),
+          new Vector3( r,  halfH,  r),
+        ];
+
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+        for (const corner of corners) {
+          corner.applyMatrix4(rotation);
+          corner.add(worldPos);
+          if (corner.x < minX) minX = corner.x;
+          if (corner.y < minY) minY = corner.y;
+          if (corner.z < minZ) minZ = corner.z;
+          if (corner.x > maxX) maxX = corner.x;
+          if (corner.y > maxY) maxY = corner.y;
+          if (corner.z > maxZ) maxZ = corner.z;
+        }
+
+        this.aabbMin.set(minX, minY, minZ);
+        this.aabbMax.set(maxX, maxY, maxZ);
         break;
       }
     }

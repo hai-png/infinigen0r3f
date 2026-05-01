@@ -5,7 +5,11 @@
  * simulated annealing and greedy solvers.
  */
 
-// Move types and solver implementations
+// Canonical SA solver (consolidated from sa-solver.ts)
+export { SimulatedAnnealingSolver } from './sa-solver';
+export type { SimulatedAnnealingConfig } from './sa-solver';
+
+// Move types, Solver base, GreedySolver, and SolverState
 export {
   Move,
   TranslateMove,
@@ -17,9 +21,7 @@ export {
   PoseMoveConfig,
   SolverState,
   Solver,
-  SimulatedAnnealingSolver,
   GreedySolver,
-  SimulatedAnnealingConfig,
   GreedyConfig
 } from './moves';
 

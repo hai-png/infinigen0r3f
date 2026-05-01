@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../core/util/math/index';
 
 export interface RiverConfig {
   seed: number;
@@ -46,10 +47,11 @@ export class RiverNetwork {
   private config: RiverConfig;
   private noise: NoiseUtils;
   private flowData: FlowData[] | null = null;
+  private rng: SeededRandom;
   
   constructor(config?: Partial<RiverConfig>) {
     this.config = {
-      seed: Math.random() * 10000,
+      seed: 42,
       minElevation: 0.0,
       maxElevation: 500.0,
       riverDensity: 0.3,
@@ -64,6 +66,7 @@ export class RiverNetwork {
     };
     
     this.noise = new NoiseUtils(this.config.seed);
+    this.rng = new SeededRandom(this.config.seed);
   }
   
   /**
@@ -310,7 +313,7 @@ export class RiverNetwork {
       }
       
       // Chance to spawn tributary
-      if (Math.random() < this.config.tributaryProbability && 
+      if (this.rng.next() < this.config.tributaryProbability && 
           riverPoints.length > 10) {
         // Create a tributary that joins this river at the current point
         // The tributary flows in from a perpendicular direction and merges

@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { SDFOperations } from '../sdf/SDFOperations';
+import { SeededRandom } from '../../core/util/math/index';
 
 export interface CaveParams {
   /** Cave density (0-1) */
@@ -41,11 +42,41 @@ export interface CaveDecoration {
   material?: THREE.Material;
 }
 
+export interface CaveParams {
+  /** Cave density (0-1) */
+  density: number;
+  /** Average cave size in meters */
+  caveSize: number;
+  /** Cave complexity/noise scale */
+  complexity: number;
+  /** Enable stalactites (ceiling formations) */
+  enableStalactites: boolean;
+  /** Enable stalagmites (floor formations) */
+  enableStalagmites: boolean;
+  /** Stalactite density */
+  stalactiteDensity: number;
+  /** Stalagmite density */
+  stalagmiteDensity: number;
+  /** Enable cave decorations (crystals, rocks, etc.) */
+  enableDecorations: boolean;
+  /** Decoration density */
+  decorationDensity: number;
+  /** Enable cave lighting */
+  enableLighting: boolean;
+  /** Light intensity */
+  lightIntensity: number;
+  /** Light color */
+  lightColor: THREE.Color;
+  /** Random seed for reproducible generation */
+  seed: number;
+}
+
 export class CaveGenerator {
   private params: CaveParams;
   private sdfOps: SDFOperations;
   private decorations: CaveDecoration[] = [];
   private perm: number[] = [];
+  private rng: SeededRandom;
 
   constructor(params: Partial<CaveParams> = {}) {
     this.params = {
@@ -61,8 +92,10 @@ export class CaveGenerator {
       enableLighting: true,
       lightIntensity: 0.5,
       lightColor: new THREE.Color(0xffaa88),
+      seed: 42,
       ...params,
     };
+    this.rng = new SeededRandom(this.params.seed);
     this.sdfOps = new SDFOperations({ resolution: 1, bounds: new THREE.Box3(new THREE.Vector3(-50, -50, -50), new THREE.Vector3(50, 50, 50)) });
     this.initPerm();
   }
@@ -167,12 +200,12 @@ export class CaveGenerator {
     );
     
     for (let i = 0; i < count; i++) {
-      const x = bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x);
-      const z = bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z);
+      const x = bounds.min.x + this.rng.next() * (bounds.max.x - bounds.min.x);
+      const z = bounds.min.z + this.rng.next() * (bounds.max.z - bounds.min.z);
       const y = bounds.max.y - 0.1; // Near ceiling
       
-      const height = 0.5 + Math.random() * 2.0;
-      const radius = 0.1 + Math.random() * 0.3;
+      const height = 0.5 + this.rng.next() * 2.0;
+      const radius = 0.1 + this.rng.next() * 0.3;
       
       this.decorations.push({
         type: 'stalactite',
@@ -191,12 +224,12 @@ export class CaveGenerator {
     );
     
     for (let i = 0; i < count; i++) {
-      const x = bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x);
-      const z = bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z);
+      const x = bounds.min.x + this.rng.next() * (bounds.max.x - bounds.min.x);
+      const z = bounds.min.z + this.rng.next() * (bounds.max.z - bounds.min.z);
       const y = bounds.min.y + 0.1; // Near floor
       
-      const height = 0.3 + Math.random() * 1.5;
-      const radius = 0.1 + Math.random() * 0.4;
+      const height = 0.3 + this.rng.next() * 1.5;
+      const radius = 0.1 + this.rng.next() * 0.4;
       
       this.decorations.push({
         type: 'stalagmite',
@@ -213,20 +246,20 @@ export class CaveGenerator {
     const count = Math.floor(this.params.decorationDensity * totalArea);
     
     for (let i = 0; i < count; i++) {
-      const type = decorationTypes[Math.floor(Math.random() * decorationTypes.length)];
-      const x = bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x);
-      const z = bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z);
-      const y = bounds.min.y + 0.05 + Math.random() * (bounds.max.y - bounds.min.y - 0.1);
+      const type = decorationTypes[Math.floor(this.rng.next() * decorationTypes.length)];
+      const x = bounds.min.x + this.rng.next() * (bounds.max.x - bounds.min.x);
+      const z = bounds.min.z + this.rng.next() * (bounds.max.z - bounds.min.z);
+      const y = bounds.min.y + 0.05 + this.rng.next() * (bounds.max.y - bounds.min.y - 0.1);
       
-      const scale = 0.2 + Math.random() * 0.8;
+      const scale = 0.2 + this.rng.next() * 0.8;
       
       this.decorations.push({
         type,
         position: new THREE.Vector3(x, y, z),
         rotation: new THREE.Euler(
-          Math.random() * Math.PI,
-          Math.random() * Math.PI,
-          Math.random() * Math.PI
+          this.rng.next() * Math.PI,
+          this.rng.next() * Math.PI,
+          this.rng.next() * Math.PI
         ),
         scale: new THREE.Vector3(scale, scale, scale),
       });
@@ -253,16 +286,14 @@ export class CaveGenerator {
   }
 
   /**
-   * Create instanced mesh for all decorations
+   * Create instanced meshes for all decorations, grouped by type.
+   * Each decoration type gets its own InstancedMesh with the correct geometry.
    */
-  createInstancedMesh(scene: THREE.Scene): THREE.InstancedMesh {
+  createInstancedMesh(scene: THREE.Scene): THREE.Group {
+    const group = new THREE.Group();
     const totalDecorations = this.decorations.length;
     if (totalDecorations === 0) {
-      return new THREE.InstancedMesh(
-        new THREE.SphereGeometry(1, 8, 8),
-        new THREE.MeshStandardMaterial({ color: 0x888888 }),
-        0
-      );
+      return group;
     }
 
     // Group decorations by type for efficient instancing
@@ -275,28 +306,41 @@ export class CaveGenerator {
       byType.get(key)!.push(dec);
     }
 
-    // Create first type as main mesh (simplified - would need multiple meshes in production)
-    const firstType = Array.from(byType.entries())[0];
-    const geometry = this.createDecorationGeometry(firstType[1][0]);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x888888,
-      roughness: 0.9,
-      metalness: 0.1,
-    });
+    // Material colors per decoration type
+    const typeColors: Record<string, number> = {
+      stalactite: 0x8b7355,
+      stalagmite: 0x9b8b6b,
+      crystal: 0x88ccee,
+      rock: 0x777777,
+      puddle: 0x4488aa,
+    };
 
-    const mesh = new THREE.InstancedMesh(geometry, material, totalDecorations);
-    
-    let idx = 0;
-    for (const [type, decals] of byType) {
-      for (const dec of decals) {
+    // Create a separate InstancedMesh per decoration type
+    for (const [type, decs] of byType) {
+      const geometry = this.createDecorationGeometry(decs[0]);
+      const material = new THREE.MeshStandardMaterial({
+        color: typeColors[type] ?? 0x888888,
+        roughness: type === 'crystal' ? 0.1 : 0.9,
+        metalness: type === 'crystal' ? 0.3 : 0.1,
+        transparent: type === 'puddle',
+        opacity: type === 'puddle' ? 0.7 : 1.0,
+      });
+
+      const mesh = new THREE.InstancedMesh(geometry, material, decs.length);
+
+      for (let i = 0; i < decs.length; i++) {
+        const dec = decs[i];
         const matrix = new THREE.Matrix4();
         matrix.compose(dec.position, new THREE.Quaternion().setFromEuler(dec.rotation), dec.scale);
-        mesh.setMatrixAt(idx++, matrix);
+        mesh.setMatrixAt(i, matrix);
       }
+
+      mesh.instanceMatrix.needsUpdate = true;
+      group.add(mesh);
     }
 
-    scene.add(mesh);
-    return mesh;
+    scene.add(group);
+    return group;
   }
 
   /**
@@ -311,8 +355,8 @@ export class CaveGenerator {
     ));
 
     for (let i = 0; i < lightCount; i++) {
-      const x = bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x);
-      const z = bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z);
+      const x = bounds.min.x + this.rng.next() * (bounds.max.x - bounds.min.x);
+      const z = bounds.min.z + this.rng.next() * (bounds.max.z - bounds.min.z);
       const y = bounds.min.y + (bounds.max.y - bounds.min.y) * 0.7;
 
       const light = new THREE.PointLight(

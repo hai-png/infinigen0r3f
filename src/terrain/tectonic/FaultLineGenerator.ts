@@ -6,6 +6,7 @@
  */
 
 import { Vector3, Matrix4 } from 'three';
+import { SeededRandom } from '../../core/util/math/index';
 
 export interface FaultLineParams {
   // Fault geometry
@@ -31,6 +32,9 @@ export interface FaultLineParams {
   // Fracture zone
   fractureWidth: number;       // Width of fracture zone (km)
   fractureDensity: number;     // Density of secondary fractures (0-1)
+  
+  // Random seed
+  seed: number;
 }
 
 export interface FaultSegment {
@@ -58,6 +62,7 @@ export interface OffsetFeature {
 
 export class FaultLineGenerator {
   private params: FaultLineParams;
+  private rng: SeededRandom;
   
   constructor(params?: Partial<FaultLineParams>) {
     this.params = {
@@ -75,8 +80,10 @@ export class FaultLineGenerator {
       generateOffsetStreams: true,
       fractureWidth: 5,          // km
       fractureDensity: 0.4,
+      seed: 42,
       ...params
     };
+    this.rng = new SeededRandom(this.params.seed);
   }
   
   /**
@@ -84,6 +91,9 @@ export class FaultLineGenerator {
    */
   updateParams(params: Partial<FaultLineParams>): void {
     this.params = { ...this.params, ...params };
+    if (params.seed !== undefined) {
+      this.rng = new SeededRandom(params.seed);
+    }
   }
   
   /**
@@ -113,12 +123,12 @@ export class FaultLineGenerator {
     
     for (let i = 0; i < numSegments; i++) {
       // Add variation to segment properties
-      const variation = 1 + (Math.random() - 0.5) * 2 * segmentVariation;
-      const segmentDip = dipAngle * (1 + (Math.random() - 0.5) * segmentVariation);
+      const variation = 1 + (this.rng.next() - 0.5) * 2 * segmentVariation;
+      const segmentDip = dipAngle * (1 + (this.rng.next() - 0.5) * segmentVariation);
       const segmentSlip = (verticalSlip + horizontalSlip) * 0.5 * variation;
       
       // Calculate segment end position with slight random walk
-      const segmentStrike = strikeRad + (Math.random() - 0.5) * 0.2; // ±10 degrees variation
+      const segmentStrike = strikeRad + (this.rng.next() - 0.5) * 0.2; // ±10 degrees variation
       const endPoint = new Vector3(
         currentPosition.x + Math.sin(segmentStrike) * segmentLength,
         currentPosition.y,
@@ -202,7 +212,7 @@ export class FaultLineGenerator {
         const numFractures = Math.floor(fractureDensity * 10);
         
         for (let j = 0; j < numFractures; j++) {
-          const offset = (Math.random() - 0.5) * 2 * halfWidth;
+          const offset = (this.rng.next() - 0.5) * 2 * halfWidth;
           const fracturePoint = centerPoint.clone().add(perpDir.clone().multiplyScalar(offset));
           fracturePoints.push(fracturePoint);
         }

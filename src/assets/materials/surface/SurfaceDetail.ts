@@ -2,7 +2,7 @@
  * Microsurface Detail Generator - Bump, normal, displacement maps
  * Adds normal map detail to materials
  */
-import { Texture, CanvasTexture, RepeatWrapping } from 'three';
+import { Texture, CanvasTexture, RepeatWrapping, MeshStandardMaterial, MeshPhysicalMaterial } from 'three';
 import { SeededRandom } from '../../../core/util/MathUtils';
 import { Noise3D } from '../../../core/util/math/noise';
 
@@ -147,5 +147,57 @@ export class SurfaceDetailGenerator {
       detailFrequency: 1.0,
       detailAmplitude: 1.0,
     };
+  }
+
+  /**
+   * Apply surface detail to an existing material by blending the generated
+   * normal map with the material's existing normal map using canvas compositing.
+   */
+  applyToMaterial(
+    material: MeshStandardMaterial | MeshPhysicalMaterial,
+    params: SurfaceParams,
+    seed: number
+  ): void {
+    const detailNormal = this.generateNormalDetail(params, seed);
+    const existingNormal = material.normalMap;
+
+    if (!existingNormal) {
+      // No existing normal map — just assign the generated one
+      material.normalMap = detailNormal;
+      material.normalScale.set(params.normalStrength, params.normalStrength);
+      material.needsUpdate = true;
+      return;
+    }
+
+    // Blend the two normal maps using canvas compositing (overlay blend)
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Draw existing normal map first
+    const existingSource = existingNormal.image as HTMLCanvasElement | HTMLImageElement;
+    if (existingSource) {
+      ctx.drawImage(existingSource as CanvasImageSource, 0, 0, size, size);
+    } else {
+      ctx.fillStyle = '#8080ff';
+      ctx.fillRect(0, 0, size, size);
+    }
+
+    // Composite detail normal on top using overlay blending for proper normal combination
+    const detailSource = detailNormal.image as HTMLCanvasElement | HTMLImageElement;
+    if (detailSource) {
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.drawImage(detailSource as CanvasImageSource, 0, 0, size, size);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    const blendedTexture = new CanvasTexture(canvas);
+    blendedTexture.wrapS = blendedTexture.wrapT = RepeatWrapping;
+    material.normalMap = blendedTexture;
+    material.normalScale.set(params.normalStrength, params.normalStrength);
+    material.needsUpdate = true;
   }
 }

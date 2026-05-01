@@ -675,17 +675,23 @@ export class DataPipeline {
     return count;
   }
 
-  async runBatch(config: BatchConfig): Promise<BatchResult> {
-    return await this.batchProcessor.processBatch(config, async (job) => {
+  async runBatch(
+    jobConfigs: Array<Omit<import('./types').JobConfig, 'id' | 'status' | 'progress' | 'createdAt' | 'updatedAt' | 'retryCount'>>,
+    handler?: (job: any) => Promise<any>,
+    options?: { concurrency?: number; perJobTimeout?: number }
+  ): Promise<BatchResult> {
+    const defaultHandler = async (job: any) => {
       const jobScene = new THREE.Scene();
+      const jobSeed = job.sceneConfig?.seed ?? this.config.seed ?? 42;
       const jobConfig = {
         ...this.config,
         sceneId: `scene_${job.id}`,
-        seed: job.seed,
+        seed: jobSeed,
       };
       const pipeline = new DataPipeline(jobScene, jobConfig);
       return await pipeline.generateDataset();
-    });
+    };
+    return await this.batchProcessor.processBatch(jobConfigs, handler ?? defaultHandler, options);
   }
 
   getStatistics(): {

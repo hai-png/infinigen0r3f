@@ -1,15 +1,21 @@
 /**
  * CreatureBase - Abstract base class for all creature generators
- * Provides framework for procedural creature generation with anatomy, materials, and animation hooks
+ * Provides framework for procedural creature generation with anatomy, materials, animation hooks,
+ * skeleton rigging, and behavior tree for autonomous AI
  */
 
 import {
   Group, Mesh, Material, SphereGeometry, BoxGeometry, CylinderGeometry,
   MeshStandardMaterial, ConeGeometry, CapsuleGeometry, TorusGeometry,
-  BufferGeometry, Float32BufferAttribute, Vector3
+  BufferGeometry, Float32BufferAttribute, Vector3, Skeleton, Bone,
+  SkinnedMesh, AnimationClip, AnimationMixer
 } from 'three';
 import { SeededRandom } from '../../../core/util/math/index';
 import { BaseObjectGenerator, BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
+import { SkeletonBuilder, CreatureSkeletonConfig } from './skeleton/SkeletonBuilder';
+import { IdleAnimation, IdleBehavior } from './animation/IdleAnimation';
+import { WalkCycle, GaitType, WalkCycleParams } from './animation/WalkCycle';
+import { BehaviorTree, CreatureContext, BehaviorState, createDefaultContext } from './animation/BehaviorTree';
 
 export enum CreatureType {
   MAMMAL = 'mammal',
@@ -38,6 +44,18 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
   protected params: CreatureParams;
   protected rng: SeededRandom;
 
+  // Skeleton and animation system
+  protected skeletonBuilder: SkeletonBuilder;
+  protected idleAnimation: IdleAnimation;
+  protected walkCycle: WalkCycle;
+  protected behaviorTree: BehaviorTree;
+
+  // Stored results
+  protected skeleton: Skeleton | null = null;
+  protected idleClip: AnimationClip | null = null;
+  protected walkClip: AnimationClip | null = null;
+  protected animationMixer: AnimationMixer | null = null;
+
   constructor(params: Partial<CreatureParams> = {}) {
     super(0);
     this.params = {
@@ -51,6 +69,12 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
       ...params
     };
     this.rng = new SeededRandom(this.params.seed);
+
+    // Initialize subsystems
+    this.skeletonBuilder = new SkeletonBuilder(this.params.seed);
+    this.idleAnimation = new IdleAnimation(this.params.seed);
+    this.walkCycle = new WalkCycle(this.params.seed);
+    this.behaviorTree = new BehaviorTree(createDefaultContext());
   }
 
   getDefaultConfig(): CreatureParams {
@@ -75,12 +99,212 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
     const eyeGeo = this.createSphereGeometry(0.04);
     const leftEye = new Mesh(eyeGeo, eyeMat);
     leftEye.position.set(-0.08, 0.35, 0.58);
+    leftEye.name = 'leftEye';
     group.add(leftEye);
     const rightEye = new Mesh(eyeGeo, eyeMat);
     rightEye.position.set(0.08, 0.35, 0.58);
+    rightEye.name = 'rightEye';
     group.add(rightEye);
 
     return group;
+  }
+
+  // ── Skeleton System ──────────────────────────────────────────────
+
+  /**
+   * Build a skeleton for this creature type and store it
+   */
+  buildSkeleton(config?: CreatureSkeletonConfig): Skeleton {
+    const creatureType = this.getCreatureTypeString();
+    this.skeleton = this.skeletonBuilder.buildSkeleton(creatureType, {
+      size: this.params.size,
+      ...config,
+    });
+    return this.skeleton;
+  }
+
+  /**
+   * Get the current skeleton (builds one if none exists)
+   */
+  getSkeleton(config?: CreatureSkeletonConfig): Skeleton {
+    if (!this.skeleton) {
+      this.buildSkeleton(config);
+    }
+    return this.skeleton;
+  }
+
+  /**
+   * Create a skinned mesh using the creature's skeleton
+   */
+  createSkinnedMesh(geometry: BufferGeometry, material: Material): SkinnedMesh {
+    const skeleton = this.getSkeleton();
+    const mesh = new SkinnedMesh(geometry, material);
+    mesh.add(skeleton.bones[0]); // Add root bone
+    mesh.bind(skeleton);
+    mesh.name = 'skinnedBody';
+    return mesh;
+  }
+
+  // ── Animation System ─────────────────────────────────────────────
+
+  /**
+   * Build the idle animation clip for this creature
+   */
+  buildIdleAnimation(behaviors?: IdleBehavior[]): AnimationClip {
+    this.idleClip = this.idleAnimation.generate(behaviors ?? ['breathing', 'tailWagging']);
+    return this.idleClip;
+  }
+
+  /**
+   * Build the walk cycle animation clip for this creature
+   */
+  buildWalkAnimation(gait?: GaitType, speed?: number, params?: WalkCycleParams): AnimationClip {
+    const actualGait = gait ?? this.getDefaultGait();
+    this.walkClip = this.walkCycle.generate(actualGait, speed ?? 1.0, {
+      bodyScale: this.params.size,
+      ...params,
+    });
+    return this.walkClip;
+  }
+
+  /**
+   * Get all available animation clips
+   */
+  getAnimationClips(): AnimationClip[] {
+    const clips: AnimationClip[] = [];
+    if (this.idleClip) clips.push(this.idleClip);
+    if (this.walkClip) clips.push(this.walkClip);
+    return clips;
+  }
+
+  /**
+   * Set up the animation mixer on a group
+   */
+  setupAnimationMixer(group: Group): AnimationMixer {
+    this.animationMixer = new AnimationMixer(group);
+    return this.animationMixer;
+  }
+
+  /**
+   * Get the animation mixer
+   */
+  getAnimationMixer(): AnimationMixer | null {
+    return this.animationMixer;
+  }
+
+  // ── Behavior Tree System ─────────────────────────────────────────
+
+  /**
+   * Tick the behavior tree and return the current behavior
+   */
+  tickBehavior(deltaTime: number): BehaviorState {
+    return this.behaviorTree.execute(deltaTime);
+  }
+
+  /**
+   * Get the behavior tree context for external manipulation
+   */
+  getBehaviorContext(): CreatureContext {
+    return this.behaviorTree.context;
+  }
+
+  /**
+   * Update the behavior tree context
+   */
+  updateBehaviorContext(partial: Partial<CreatureContext>): void {
+    this.behaviorTree.updateContext(partial);
+  }
+
+  /**
+   * Get current behavior name
+   */
+  getCurrentBehavior(): string {
+    return this.behaviorTree.getCurrentBehavior();
+  }
+
+  // ── Full Creature Assembly ───────────────────────────────────────
+
+  /**
+   * Generate a fully rigged creature with skeleton, animations, and behavior
+   */
+  generateRigged(config?: CreatureSkeletonConfig): Group {
+    const group = this.generate();
+    group.name = `${this.params.species}_rigged`;
+
+    // Build and attach skeleton
+    const skeleton = this.buildSkeleton(config);
+
+    // Store skeleton reference in userData
+    group.userData.skeleton = skeleton;
+    group.userData.creatureType = this.getCreatureTypeString();
+
+    // Build animations
+    const idleClip = this.buildIdleAnimation();
+    const walkClip = this.buildWalkAnimation();
+
+    // Store animations in userData
+    group.userData.animations = [idleClip, walkClip];
+
+    // Set up behavior context from creature params
+    this.behaviorTree.updateContext({
+      health: this.params.health,
+      position: { x: 0, y: 0, z: 0 },
+      homePosition: { x: 0, y: 0, z: 0 },
+    });
+
+    // Store behavior tree reference
+    group.userData.behaviorTree = this.behaviorTree;
+
+    // Add skeleton bones to group
+    const rootBone = skeleton.bones[0];
+    group.add(rootBone);
+
+    // Set up animation mixer
+    this.setupAnimationMixer(group);
+    group.userData.animationMixer = this.animationMixer;
+
+    return group;
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Get the default gait type based on creature type
+   */
+  protected getDefaultGait(): GaitType {
+    const type = this.params.creatureType;
+    switch (type) {
+      case CreatureType.BIRD:
+        return 'biped';
+      case CreatureType.INSECT:
+        return 'hexapod';
+      case CreatureType.FISH:
+        return 'quadruped'; // Fish use a different motion, but quadruped is closest
+      default:
+        return 'quadruped';
+    }
+  }
+
+  /**
+   * Get creature type as a string for SkeletonBuilder
+   */
+  protected getCreatureTypeString(): 'mammal' | 'bird' | 'fish' | 'reptile' | 'insect' | 'amphibian' {
+    switch (this.params.creatureType) {
+      case CreatureType.MAMMAL:
+        return 'mammal';
+      case CreatureType.BIRD:
+        return 'bird';
+      case CreatureType.FISH:
+        return 'fish';
+      case CreatureType.REPTILE:
+        return 'reptile';
+      case CreatureType.INSECT:
+        return 'insect';
+      case CreatureType.AMPHIBIAN:
+        return 'amphibian';
+      default:
+        return 'mammal';
+    }
   }
 
   protected createEllipsoidGeometry(x: number, y: number, z: number): SphereGeometry {

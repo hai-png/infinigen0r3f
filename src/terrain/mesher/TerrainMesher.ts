@@ -60,13 +60,13 @@ export class TerrainMesher {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const h = heightMap[idx];
+        const h = heightMap.data[idx];
 
         vertices.push(x, h * 100, y); // Scale height
 
         // Add normals
         const nIdx = idx * 3;
-        normals.push(normalMap[nIdx], normalMap[nIdx + 1], normalMap[nIdx + 2]);
+        normals.push(normalMap.data[nIdx], normalMap.data[nIdx + 1], normalMap.data[nIdx + 2]);
 
         // Add UVs
         uvs.push(x / width, y / height);
@@ -167,11 +167,11 @@ export class TerrainMesher {
         const worldY = Math.min(startY + y, terrainData.height - 1);
         const idx = Math.floor(worldY) * width + Math.floor(worldX);
 
-        const h = heightMap[idx];
+        const h = heightMap.data[idx];
         vertices.push(worldX, h * 100, worldY);
 
         const nIdx = idx * 3;
-        normals.push(normalMap[nIdx], normalMap[nIdx + 1], normalMap[nIdx + 2]);
+        normals.push(normalMap.data[nIdx], normalMap.data[nIdx + 1], normalMap.data[nIdx + 2]);
 
         uvs.push(worldX / width, worldY / terrainData.height);
         vertexCount++;

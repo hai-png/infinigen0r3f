@@ -1,21 +1,22 @@
 /**
- * Enhanced Erosion System
+ * Enhanced Erosion System — Single Entry Point
  * 
  * Implements advanced erosion simulation including thermal, hydraulic, and river formation.
- * Extends the GPU-based hydraulic erosion with additional erosion types.
- * 
- * Features:
- * - Thermal erosion (scree/talus slopes)
- * - Hydraulic erosion (rainfall impact)
- * - River formation and meandering
- * - Sediment transport and deposition
- * - Cliff undercutting
- * - Multi-pass erosion for realism
+ * This is the consolidated entry point that delegates to specialized implementations:
+ *
+ * - Hydraulic erosion → ErosionEnhanced.ts (most complete implementation)
+ * - Thermal erosion   → ThermalErosion class (inline, below)
+ * - River formation   → RiverFormation class (inline, below)
+ *
+ * NOTE: The duplicate ThermalErosion that was in ErosionEnhanced.ts has been removed.
+ * This file is the canonical location for ThermalErosion and RiverFormation.
  * 
  * @see https://github.com/princeton-vl/infinigen
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
+import { ErosionEnhanced, type ErosionData, type ErosionConfig } from './ErosionEnhanced';
 
 export interface ErosionParams {
   // Thermal erosion
@@ -158,7 +159,7 @@ export class RiverFormation {
   private heightmap: Float32Array;
   private width: number;
   private height: number;
-  private rng: () => number;
+  private rng: SeededRandom;
   
   constructor(
     heightmap: Float32Array,
@@ -171,12 +172,8 @@ export class RiverFormation {
     this.height = height;
     this.params = { ...DEFAULT_EROSION_PARAMS, ...params };
     
-    // Simple seeded random
-    let seed = this.params.seed;
-    this.rng = () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
-    };
+    // Use canonical SeededRandom instead of inline LCG
+    this.rng = new SeededRandom(this.params.seed);
   }
   
   /**
@@ -195,8 +192,8 @@ export class RiverFormation {
       let bestX = 0, bestY = 0, bestHeight = -Infinity;
       
       for (let attempts = 0; attempts < 100; attempts++) {
-        const x = Math.floor(this.rng() * this.width);
-        const y = Math.floor(this.rng() * this.height);
+        const x = Math.floor(this.rng.next() * this.width);
+        const y = Math.floor(this.rng.next() * this.height);
         const h = this.heightmap[x + y * this.width];
         
         if (h > bestHeight) {
@@ -224,7 +221,7 @@ export class RiverFormation {
     let prevX = x;
     let prevY = y;
     
-    const riverWidth = 2 + Math.floor(this.rng() * 3);
+    const riverWidth = 2 + Math.floor(this.rng.next() * 3);
     
     for (let step = 0; step < length; step++) {
       // Find lowest neighbor
@@ -253,7 +250,7 @@ export class RiverFormation {
       // Move to lowest point or stop if at minimum
       if (lowestX === x && lowestY === y) {
         // Add some randomness to continue
-        const angle = this.rng() * Math.PI * 2;
+        const angle = this.rng.next() * Math.PI * 2;
         x += Math.floor(Math.cos(angle) * 2);
         y += Math.floor(Math.sin(angle) * 2);
       } else {
@@ -295,7 +292,12 @@ export class RiverFormation {
 }
 
 /**
- * Complete erosion system combining all erosion types
+ * Complete erosion system combining all erosion types.
+ *
+ * This is the single entry point for erosion. It delegates:
+ * - Hydraulic erosion → ErosionEnhanced (from ErosionEnhanced.ts)
+ * - Thermal erosion   → ThermalErosion (defined above)
+ * - River formation   → RiverFormation (defined above)
  */
 export class ErosionSystem {
   private params: ErosionParams;
@@ -305,6 +307,7 @@ export class ErosionSystem {
   
   private thermalErosion?: ThermalErosion;
   private riverFormation?: RiverFormation;
+  private hydraulicErosion?: ErosionEnhanced;
   
   constructor(
     heightmap: Float32Array,
@@ -341,6 +344,20 @@ export class ErosionSystem {
         this.params
       );
     }
+
+    if (this.params.hydraulicErosionEnabled) {
+      // Delegate hydraulic erosion to ErosionEnhanced
+      this.hydraulicErosion = new ErosionEnhanced({
+        hydraulicEnabled: true,
+        thermalEnabled: false, // Thermal is handled by ThermalErosion above
+        iterations: this.params.hydraulicIterations,
+        erodeSpeed: this.params.erodeSpeed,
+        depositSpeed: this.params.depositSpeed,
+        sedimentCapacityFactor: this.params.sedimentCapacityFactor,
+        minSedimentCapacity: this.params.minSedimentCapacity,
+        seed: this.params.seed,
+      });
+    }
   }
   
   /**
@@ -349,7 +366,19 @@ export class ErosionSystem {
   simulate(): void {
     console.log('Starting erosion simulation...');
     
-    // Thermal erosion first (slope stabilization)
+    // Hydraulic erosion first (most impactful)
+    if (this.params.hydraulicErosionEnabled && this.hydraulicErosion) {
+      console.log('Running hydraulic erosion...');
+      const erosionData: ErosionData = {
+        heightMap: this.heightmap,
+        width: this.width,
+        height: this.height,
+        scale: 1,
+      };
+      this.hydraulicErosion.erode(erosionData);
+    }
+    
+    // Thermal erosion (slope stabilization)
     if (this.params.thermalErosionEnabled && this.thermalErosion) {
       console.log('Running thermal erosion...');
       this.thermalErosion.simulate();
@@ -360,9 +389,6 @@ export class ErosionSystem {
       console.log('Carving rivers...');
       this.riverFormation.simulate();
     }
-    
-    // Hydraulic erosion is handled by GPU implementation
-    // This class focuses on CPU-based additional erosion
     
     console.log('Erosion simulation complete.');
   }
@@ -386,6 +412,20 @@ export class ErosionSystem {
     
     if (this.riverFormation) {
       this.riverFormation.updateParams(this.params);
+    }
+
+    // Re-initialize hydraulic if config changed
+    if (this.params.hydraulicErosionEnabled) {
+      this.hydraulicErosion = new ErosionEnhanced({
+        hydraulicEnabled: true,
+        thermalEnabled: false,
+        iterations: this.params.hydraulicIterations,
+        erodeSpeed: this.params.erodeSpeed,
+        depositSpeed: this.params.depositSpeed,
+        sedimentCapacityFactor: this.params.sedimentCapacityFactor,
+        minSedimentCapacity: this.params.minSedimentCapacity,
+        seed: this.params.seed,
+      });
     }
   }
   

@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { Vector3 } from 'three';
 import { NoiseUtils } from '../utils/NoiseUtils';
 import { RiverPoint } from './RiverNetwork';
+import { SeededRandom } from '../../core/util/math/index';
 
 export interface WaterfallConfig {
   seed: number;
@@ -54,10 +55,11 @@ export interface PlungePool {
 export class WaterfallGenerator {
   private config: WaterfallConfig;
   private noise: NoiseUtils;
+  private rng: SeededRandom;
   
   constructor(config?: Partial<WaterfallConfig>) {
     this.config = {
-      seed: Math.random() * 10000,
+      seed: 42,
       minHeight: 5.0,
       maxHeight: 100.0,
       minSlope: 1.5,
@@ -69,6 +71,7 @@ export class WaterfallGenerator {
     };
     
     this.noise = new NoiseUtils(this.config.seed);
+    this.rng = new SeededRandom(this.config.seed);
   }
   
   /**
@@ -141,7 +144,7 @@ export class WaterfallGenerator {
     const heightPerTier = remainingHeight / numTiers;
     
     for (let i = 0; i < numTiers; i++) {
-      const tierHeight = heightPerTier * (0.8 + Math.random() * 0.4);
+      const tierHeight = heightPerTier * (0.8 + this.rng.next() * 0.4);
       const tierWidth = riverPoint.width * (1.5 - i * 0.2);
       const overhang = this.computeOverhang(tierHeight, tierWidth);
       
@@ -153,8 +156,8 @@ export class WaterfallGenerator {
       });
       
       currentY -= tierHeight;
-      currentX += (Math.random() - 0.5) * tierWidth * 0.3;
-      currentZ += (Math.random() - 0.5) * tierWidth * 0.3;
+      currentX += (this.rng.next() - 0.5) * tierWidth * 0.3;
+      currentZ += (this.rng.next() - 0.5) * tierWidth * 0.3;
     }
     
     // Generate plunge pool
@@ -185,9 +188,9 @@ export class WaterfallGenerator {
    */
   private determineNumTiers(height: number): number {
     if (height < 15) return 1;
-    if (height < 30) return Math.random() < this.config.tierProbability ? 2 : 1;
-    if (height < 60) return Math.random() < 0.5 ? 2 : 3;
-    return 3 + Math.floor(Math.random() * 2);
+    if (height < 30) return this.rng.next() < this.config.tierProbability ? 2 : 1;
+    if (height < 60) return this.rng.next() < 0.5 ? 2 : 3;
+    return 3 + Math.floor(this.rng.next() * 2);
   }
   
   /**
@@ -268,12 +271,12 @@ export class WaterfallGenerator {
       const impactY = tier.position.y - tier.height;
       
       for (let i = 0; i < particleCount / tiers.length; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * tier.width * 1.5;
+        const angle = this.rng.next() * Math.PI * 2;
+        const radius = this.rng.next() * tier.width * 1.5;
         
         particles.push(new Vector3(
           impactX + Math.cos(angle) * radius,
-          impactY + Math.random() * tier.height * 0.5,
+          impactY + this.rng.next() * tier.height * 0.5,
           impactZ + Math.sin(angle) * radius
         ));
       }
@@ -281,12 +284,12 @@ export class WaterfallGenerator {
     
     // Mist from plunge pool
     for (let i = 0; i < particleCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * plungePool.radius;
+      const angle = this.rng.next() * Math.PI * 2;
+      const radius = this.rng.next() * plungePool.radius;
       
       particles.push(new Vector3(
         plungePool.position.x + Math.cos(angle) * radius,
-        plungePool.position.y + Math.random() * plungePool.depth * 0.3,
+        plungePool.position.y + this.rng.next() * plungePool.depth * 0.3,
         plungePool.position.z + Math.sin(angle) * radius
       ));
     }

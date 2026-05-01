@@ -4,7 +4,7 @@
  * Smooth glazed surface
  */
 
-import { Color, Texture, CanvasTexture, MeshStandardMaterial, RepeatWrapping } from 'three';
+import { Color, Texture, CanvasTexture, MeshStandardMaterial, MeshPhysicalMaterial, RepeatWrapping } from 'three';
 import { BaseMaterialGenerator, MaterialOutput } from '../../BaseMaterialGenerator';
 import { SeededRandom } from '../../../../core/util/MathUtils';
 import { Noise3D } from '../../../../core/util/math/noise';
@@ -55,18 +55,33 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
     });
   }
 
+  /**
+   * Override to return MeshPhysicalMaterial for glazed ceramic with clearcoat support
+   */
+  protected createPhysicalMaterial(): MeshPhysicalMaterial {
+    return new MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.15,
+      metalness: 0.0,
+      clearcoat: 0.0,
+      clearcoatRoughness: 0.0,
+    });
+  }
+
   generate(params: Partial<CeramicParams> = {}, seed?: number): MaterialOutput {
     const finalParams = this.mergeParams(CeramicGenerator.DEFAULT_PARAMS, params);
     const rng = seed !== undefined ? new SeededRandom(seed) : this.rng;
 
-    const material = this.createBaseMaterial();
+    // Use MeshPhysicalMaterial for glossy or satin glaze (supports clearcoat)
+    const usePhysical = finalParams.glazeType === 'glossy' || finalParams.glazeType === 'satin';
+    const material = usePhysical ? this.createPhysicalMaterial() : this.createBaseMaterial();
 
     // Generate base ceramic color with subtle variations
     const baseColor = this.generateBaseColor(finalParams.color, finalParams.type, rng);
     material.map = this.createTextureFromColor(baseColor);
 
     // Apply glaze effects
-    this.applyGlaze(material, finalParams, rng);
+    this.applyGlaze(material, finalParams, rng, usePhysical);
 
     // Add patterns if requested
     if (finalParams.patternType !== 'none') {
@@ -131,7 +146,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
     return new Color(r, g, b);
   }
 
-  private applyGlaze(material: MeshStandardMaterial, params: CeramicParams, rng: SeededRandom): void {
+  private applyGlaze(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom, isPhysical: boolean = false): void {
     let roughness: number;
     let metalness = 0.0;
 
@@ -160,10 +175,21 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
     material.metalness = metalness;
     material.color = params.color;
 
+    // Apply clearcoat for glossy and satin glazes when using MeshPhysicalMaterial
+    if (isPhysical && material instanceof MeshPhysicalMaterial) {
+      if (params.glazeType === 'glossy') {
+        material.clearcoat = 1.0;
+        material.clearcoatRoughness = 0.05;
+      } else if (params.glazeType === 'satin') {
+        material.clearcoat = 0.6;
+        material.clearcoatRoughness = 0.2;
+      }
+    }
+
     material.roughnessMap = this.createRoughnessTexture(params, rng);
   }
 
-  private applyCrackleEffect(material: MeshStandardMaterial, params: CeramicParams, rng: SeededRandom): void {
+  private applyCrackleEffect(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const size = 512;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -212,7 +238,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
     material.displacementScale = 0.01;
   }
 
-  private applyPattern(material: MeshStandardMaterial, params: CeramicParams, rng: SeededRandom): void {
+  private applyPattern(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const size = 1024;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -327,7 +353,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
     }
   }
 
-  private generateRoughnessMap(material: MeshStandardMaterial, params: CeramicParams, rng: SeededRandom): void {
+  private generateRoughnessMap(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const size = 512;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -356,17 +382,17 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
     material.roughnessMap = new CanvasTexture(canvas);
   }
 
-  private applyEdgeWear(material: MeshStandardMaterial, params: CeramicParams, rng: SeededRandom): void {
+  private applyEdgeWear(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     material.roughness = Math.min(1.0, material.roughness + params.edgeWear * 0.3);
   }
 
-  private applyDirt(material: MeshStandardMaterial, params: CeramicParams, rng: SeededRandom): void {
+  private applyDirt(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const dirtColor = new Color(0x3d2817);
     const baseColor = params.color.clone().lerp(dirtColor, params.dirtAccumulation * 0.3);
     material.color = baseColor;
   }
 
-  private applyTileGrout(material: MeshStandardMaterial, params: CeramicParams, rng: SeededRandom): void {
+  private applyTileGrout(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const size = 1024;
     const canvas = document.createElement('canvas');
     canvas.width = size;

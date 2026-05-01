@@ -6,19 +6,9 @@
  */
 
 import * as THREE from 'three';
+import type { HeightMap, NormalMap } from '../types';
 
-export interface HeightMap {
-  data: Float32Array;
-  width: number;
-  height: number;
-  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
-}
-
-export interface NormalMap {
-  data: Float32Array;
-  width: number;
-  height: number;
-}
+export type { HeightMap, NormalMap } from '../types';
 
 export interface TerrainData {
   heightMap: HeightMap;

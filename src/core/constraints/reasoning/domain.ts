@@ -472,8 +472,13 @@ function toVec3(value: any): [number, number, number] {
 
 function sampleRange(min: number, max: number, seed: number): number {
   if (!isFinite(max - min)) return 0;
-  const t = Math.abs(Math.sin(seed * 9301 + 49297)) % 1;
-  return min + t * (max - min);
+  // Mulberry32 seeded PRNG - much better than the previous sin-based approach
+  let t = (seed + 0x6D2B79F5) | 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  const t32 = ((t ^ (t >>> 14)) >>> 0);
+  const t01 = t32 / 4294967296; // Normalize to [0, 1)
+  return min + t01 * (max - min);
 }
 
 function surfaceDistance(surface: SurfaceDomain, point: [number, number, number]): number {

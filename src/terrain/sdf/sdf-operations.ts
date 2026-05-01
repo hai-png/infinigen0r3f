@@ -8,6 +8,7 @@
  */
 
 import * as THREE from 'three';
+import { EDGE_TABLE, TRIANGLE_TABLE, EDGE_VERTICES, CORNER_OFFSETS } from '../mesher/MarchingCubesLUTs';
 
 export interface SDFConfig {
   resolution: number;
@@ -136,6 +137,45 @@ export class SignedDistanceField {
     const v1 = v10 * (1 - dy) + v11 * dy;
 
     return v0 * (1 - dz) + v1 * dz;
+  }
+
+  /**
+   * Get SDF value at grid coordinates (integer indices)
+   */
+  getValueAtGrid(gx: number, gy: number, gz: number): number {
+    return this.getSafeValue(gx, gy, gz);
+  }
+
+  /**
+   * Set SDF value at grid coordinates (integer indices)
+   */
+  setValueAtGrid(gx: number, gy: number, gz: number, value: number): void {
+    if (gx < 0 || gx >= this.gridSize[0] ||
+        gy < 0 || gy >= this.gridSize[1] ||
+        gz < 0 || gz >= this.gridSize[2]) {
+      return;
+    }
+    const idx = gz * this.gridSize[0] * this.gridSize[1] +
+                gy * this.gridSize[0] +
+                gx;
+    this.data[idx] = value;
+  }
+
+  /**
+   * Compute SDF gradient at grid coordinates using central differences.
+   * Returns the gradient as a unit normal vector.
+   */
+  getGradientAtGrid(gx: number, gy: number, gz: number): THREE.Vector3 {
+    const eps = 1;
+    const dx = this.getSafeValue(gx + eps, gy, gz) - this.getSafeValue(gx - eps, gy, gz);
+    const dy = this.getSafeValue(gx, gy + eps, gz) - this.getSafeValue(gx, gy - eps, gz);
+    const dz = this.getSafeValue(gx, gy, gz + eps) - this.getSafeValue(gx, gy, gz - eps);
+
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (len < 1e-10) {
+      return new THREE.Vector3(0, 1, 0); // default up
+    }
+    return new THREE.Vector3(dx / len, dy / len, dz / len);
   }
 
   private getSafeValue(gx: number, gy: number, gz: number): number {
@@ -432,21 +472,186 @@ export function sdfOffset(
 
 /**
  * Extract isosurface from SDF using Marching Cubes
+ *
+ * Standard Paul Bourke marching cubes algorithm:
+ * 1. For each cell in the SDF grid, compute the 8 corner values
+ * 2. Determine the case index (0-255) from which corners are inside/outside
+ * 3. Use the edge table to find which edges are intersected
+ * 4. Compute intersection points on edges via linear interpolation
+ * 5. Use the triangle table to generate triangles from intersection points
+ * 6. Compute vertex normals from SDF gradient (central difference)
+ *
+ * @param sdf      The signed distance field to extract from
+ * @param isolevel The iso-surface threshold (default 0)
+ * @returns        THREE.BufferGeometry with position, normal, and uv attributes
  */
 export function extractIsosurface(
   sdf: SignedDistanceField,
   isolevel: number = 0
 ): THREE.BufferGeometry {
-  // Simplified marching cubes implementation
-  const vertices: THREE.Vector3[] = [];
-  const indices: number[] = [];
-  
-  // This would need a full marching cubes implementation
-  // For now, return empty geometry as placeholder
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+
+  // We iterate over cells, which are (gridSize-1) in each dimension
+  const cellsX = sdf.gridSize[0] - 1;
+  const cellsY = sdf.gridSize[1] - 1;
+  const cellsZ = sdf.gridSize[2] - 1;
+
+  if (cellsX <= 0 || cellsY <= 0 || cellsZ <= 0) {
+    const emptyGeom = new THREE.BufferGeometry();
+    emptyGeom.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+    return emptyGeom;
+  }
+
+  // Total bounds for UV mapping
+  const boundsSize = sdf.bounds.getSize(new THREE.Vector3());
+  const boundsMin = sdf.bounds.min;
+
+  // Process each cell
+  for (let cz = 0; cz < cellsZ; cz++) {
+    for (let cy = 0; cy < cellsY; cy++) {
+      for (let cx = 0; cx < cellsX; cx++) {
+
+        // Compute the 8 corner values of this cell
+        const cornerValues = new Float64Array(8);
+        for (let i = 0; i < 8; i++) {
+          cornerValues[i] = sdf.getValueAtGrid(
+            cx + CORNER_OFFSETS[i][0],
+            cy + CORNER_OFFSETS[i][1],
+            cz + CORNER_OFFSETS[i][2]
+          );
+        }
+
+        // Determine the case index: bit i is set if corner i is inside (below isolevel)
+        let caseIndex = 0;
+        for (let i = 0; i < 8; i++) {
+          if (cornerValues[i] < isolevel) {
+            caseIndex |= (1 << i);
+          }
+        }
+
+        // Skip if entirely inside or entirely outside
+        if (caseIndex === 0 || caseIndex === 255) continue;
+
+        // Get edge flags from lookup table
+        const edgeFlags = EDGE_TABLE[caseIndex];
+        if (edgeFlags === 0) continue;
+
+        // Compute intersection points on edges that are crossed by the isosurface
+        // edgeVertexPositions[i] holds the world position if edge i is intersected
+        const edgeVertexPositions = new Array(12);
+        const edgeVertexNormals = new Array(12);
+
+        for (let edge = 0; edge < 12; edge++) {
+          if ((edgeFlags & (1 << edge)) === 0) continue;
+
+          // Get the two corner vertices of this edge
+          const v0 = EDGE_VERTICES[edge * 2];
+          const v1 = EDGE_VERTICES[edge * 2 + 1];
+
+          // Interpolation factor based on SDF values
+          const d0 = cornerValues[v0];
+          const d1 = cornerValues[v1];
+          const diff = d0 - d1;
+          const t = Math.abs(diff) > 1e-10 ? (d0 - isolevel) / diff : 0.5;
+
+          // World position of intersection point
+          const p0x = sdf.bounds.min.x + (cx + CORNER_OFFSETS[v0][0]) * sdf.voxelSize.x;
+          const p0y = sdf.bounds.min.y + (cy + CORNER_OFFSETS[v0][1]) * sdf.voxelSize.y;
+          const p0z = sdf.bounds.min.z + (cz + CORNER_OFFSETS[v0][2]) * sdf.voxelSize.z;
+
+          const p1x = sdf.bounds.min.x + (cx + CORNER_OFFSETS[v1][0]) * sdf.voxelSize.x;
+          const p1y = sdf.bounds.min.y + (cy + CORNER_OFFSETS[v1][1]) * sdf.voxelSize.y;
+          const p1z = sdf.bounds.min.z + (cz + CORNER_OFFSETS[v1][2]) * sdf.voxelSize.z;
+
+          edgeVertexPositions[edge] = new THREE.Vector3(
+            p0x + t * (p1x - p0x),
+            p0y + t * (p1y - p0y),
+            p0z + t * (p1z - p0z)
+          );
+
+          // Compute normal via SDF gradient (central difference)
+          const eps = 0.5;
+          const ex = edgeVertexPositions[edge].x;
+          const ey = edgeVertexPositions[edge].y;
+          const ez = edgeVertexPositions[edge].z;
+          const sx = eps * sdf.voxelSize.x;
+          const sy = eps * sdf.voxelSize.y;
+          const sz = eps * sdf.voxelSize.z;
+          const ndx = sdf.sample(new THREE.Vector3(ex + sx, ey, ez))
+                    - sdf.sample(new THREE.Vector3(ex - sx, ey, ez));
+          const ndy = sdf.sample(new THREE.Vector3(ex, ey + sy, ez))
+                    - sdf.sample(new THREE.Vector3(ex, ey - sy, ez));
+          const ndz = sdf.sample(new THREE.Vector3(ex, ey, ez + sz))
+                    - sdf.sample(new THREE.Vector3(ex, ey, ez - sz));
+
+          const nlen = Math.sqrt(ndx * ndx + ndy * ndy + ndz * ndz);
+          if (nlen > 1e-10) {
+            edgeVertexNormals[edge] = new THREE.Vector3(ndx / nlen, ndy / nlen, ndz / nlen);
+          } else {
+            edgeVertexNormals[edge] = new THREE.Vector3(0, 1, 0);
+          }
+        }
+
+        // Generate triangles from the triangle table
+        const base = caseIndex * 16;
+        for (let i = 0; i < 16; i += 3) {
+          const e0 = TRIANGLE_TABLE[base + i];
+          if (e0 === -1) break;
+
+          const e1 = TRIANGLE_TABLE[base + i + 1];
+          const e2 = TRIANGLE_TABLE[base + i + 2];
+
+          const p0 = edgeVertexPositions[e0];
+          const p1 = edgeVertexPositions[e1];
+          const p2 = edgeVertexPositions[e2];
+          const n0 = edgeVertexNormals[e0];
+          const n1 = edgeVertexNormals[e1];
+          const n2 = edgeVertexNormals[e2];
+
+          if (!p0 || !p1 || !p2) continue;
+
+          // Position
+          positions.push(p0.x, p0.y, p0.z);
+          positions.push(p1.x, p1.y, p1.z);
+          positions.push(p2.x, p2.y, p2.z);
+
+          // Normal
+          normals.push(n0.x, n0.y, n0.z);
+          normals.push(n1.x, n1.y, n1.z);
+          normals.push(n2.x, n2.y, n2.z);
+
+          // UV: map world position to [0,1] range based on bounds
+          uvs.push(
+            (p0.x - boundsMin.x) / boundsSize.x,
+            (p0.z - boundsMin.z) / boundsSize.z
+          );
+          uvs.push(
+            (p1.x - boundsMin.x) / boundsSize.x,
+            (p1.z - boundsMin.z) / boundsSize.z
+          );
+          uvs.push(
+            (p2.x - boundsMin.x) / boundsSize.x,
+            (p2.z - boundsMin.z) / boundsSize.z
+          );
+        }
+      }
+    }
+  }
+
+  // Build BufferGeometry
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
-  geometry.setIndex([]);
-  
+
+  if (positions.length === 0) {
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+    return geometry;
+  }
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+
   return geometry;
 }
 

@@ -21,6 +21,7 @@ import {
   BatchCompletedEvent,
 } from './types';
 import { JobManager } from './JobManager';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 export interface BatchProcessorOptions {
   maxConcurrentBatches: number;
@@ -33,6 +34,7 @@ export class BatchProcessor extends EventEmitter {
   private batches: Map<string, BatchJob>;
   private jobManager: JobManager;
   private activeBatches: Set<string>;
+  private batchIdRng: SeededRandom;
   
   private maxConcurrentBatches: number;
   private maxJobsPerBatch: number;
@@ -48,6 +50,7 @@ export class BatchProcessor extends EventEmitter {
     this.batches = new Map();
     this.jobManager = jobManager;
     this.activeBatches = new Set();
+    this.batchIdRng = new SeededRandom(Date.now());
     
     this.maxConcurrentBatches = options.maxConcurrentBatches ?? 10;
     this.maxJobsPerBatch = options.maxJobsPerBatch ?? 1000;
@@ -552,25 +555,121 @@ ${batch.completedAt ? `Completed: ${batch.completedAt.toISOString()}` : ''}
   }
 
   private generateBatchId(): string {
-    return `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `batch_${Date.now()}_${this.batchIdRng.next().toString(36).substr(2, 9)}`;
   }
 
   /**
-   * Process a batch of jobs with a handler function
+   * Process a batch of jobs with a handler function.
+   * Creates jobs, runs them with concurrency limit, tracks progress,
+   * and returns a proper BatchResult.
    */
-  async processBatch(config: BatchProcessorOptions, handler: (job: any) => Promise<any>): Promise<BatchResult> {
-    const batchId = this.createBatch('auto_batch', []);
+  async processBatch(
+    jobConfigs: Array<Omit<JobConfig, 'id' | 'status' | 'progress' | 'createdAt' | 'updatedAt' | 'retryCount'>>,
+    handler: (job: any) => Promise<any>,
+    options?: { concurrency?: number; perJobTimeout?: number }
+  ): Promise<BatchResult> {
     const startTime = Date.now();
-    
-    // In a real implementation, this would process the batch using the handler
-    return {
+    const concurrency = options?.concurrency ?? this.maxConcurrentBatches;
+    const perJobTimeout = options?.perJobTimeout ?? 60000;
+
+    // Create a batch from the job configs
+    const batchId = this.createBatch('processBatch', jobConfigs);
+    const batch = this.batches.get(batchId)!;
+
+    // Start the batch
+    this.startBatch(batchId);
+
+    const totalJobs = batch.jobConfigs.length;
+    let completedJobs = 0;
+    let failedJobs = 0;
+
+    // Process jobs with concurrency limit
+    const jobQueue = [...batch.jobConfigs];
+
+    const processJob = async (jobConfig: JobConfig): Promise<void> => {
+      try {
+        // Execute the handler with a timeout
+        const result = await Promise.race([
+          handler(jobConfig),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Job ${jobConfig.id} timed out after ${perJobTimeout}ms`)), perJobTimeout)
+          ),
+        ]);
+
+        completedJobs++;
+
+        // Notify job manager of completion
+        this.emit('job_completed', {
+          jobId: jobConfig.id,
+          result: { data: result, metadata: { batchId } },
+        });
+      } catch (error) {
+        failedJobs++;
+
+        // Notify job manager of failure
+        this.emit('job_failed', {
+          jobId: jobConfig.id,
+          error: { message: error instanceof Error ? error.message : String(error), code: 'JOB_FAILED' },
+        });
+      }
+    };
+
+    // Worker pool pattern: maintain up to `concurrency` active workers
+    const workers: Promise<void>[] = [];
+
+    while (jobQueue.length > 0 || workers.length > 0) {
+      // Fill up workers to concurrency limit
+      while (workers.length < concurrency && jobQueue.length > 0) {
+        const jobConfig = jobQueue.shift()!;
+        const worker = processJob(jobConfig).then(() => {
+          // Remove this worker from the active list
+          const idx = workers.indexOf(worker);
+          if (idx >= 0) workers.splice(idx, 1);
+        });
+        workers.push(worker);
+      }
+
+      // Wait for at least one worker to finish
+      if (workers.length > 0) {
+        await Promise.race(workers);
+      }
+    }
+
+    // Determine final status
+    let status: BatchStatus;
+    if (failedJobs === 0) {
+      status = 'completed';
+    } else if (completedJobs === 0) {
+      status = 'failed';
+    } else {
+      status = 'partial';
+    }
+
+    // Update batch record
+    batch.status = status;
+    batch.completedAt = new Date();
+
+    const result: BatchResult = {
       batchId,
-      status: 'completed',
-      totalJobs: 0,
-      completedJobs: 0,
-      failedJobs: 0,
+      status,
+      totalJobs,
+      completedJobs,
+      failedJobs,
       duration: Date.now() - startTime,
     };
+
+    // Emit batch completion event
+    const completedEvent: BatchCompletedEvent = {
+      type: 'batch_completed',
+      batchId,
+      timestamp: new Date(),
+      successCount: completedJobs,
+      failureCount: failedJobs,
+    };
+    this.emit('batch_completed', completedEvent);
+    this.emit('event', completedEvent);
+
+    return result;
   }
 
   /**

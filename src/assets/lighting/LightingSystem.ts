@@ -258,8 +258,11 @@ export class LightingSystem {
 
   /**
    * Setup HDRI environment lighting
+   * @param path Path to the HDR file
+   * @param renderer Optional WebGLRenderer needed for PMREMGenerator. If not provided,
+   *                 the HDRI texture is used directly without PMREM preprocessing.
    */
-  async setupHDRI(path: string): Promise<void> {
+  async setupHDRI(path: string, renderer?: THREE.WebGLRenderer): Promise<void> {
     try {
       // Use RGBELoader for equirectangular HDR files (.hdr)
       const { RGBELoader } = await import('three/examples/jsm/loaders/RGBELoader.js');
@@ -274,15 +277,25 @@ export class LightingSystem {
         );
       });
       
-      // Convert equirectangular texture to environment map
-      const pmremGenerator = new THREE.PMREMGenerator(
-        // Will be set up when renderer is available
-        null as any
-      );
+      // Set proper mapping for equirectangular HDR textures
+      texture.mapping = THREE.EquirectangularReflectionMapping;
       
-      this.hdriTexture = texture;
-      this.scene.environment = texture as THREE.Texture;
-      this.scene.background = texture as THREE.Texture;
+      // Convert equirectangular texture to environment map using PMREMGenerator
+      if (renderer) {
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+        this.hdriTexture = envMap;
+        this.scene.environment = envMap;
+        this.scene.background = envMap;
+        // Dispose the original texture since PMREM created a new one
+        texture.dispose();
+        pmremGenerator.dispose();
+      } else {
+        // No renderer available, use texture directly
+        this.hdriTexture = texture;
+        this.scene.environment = texture;
+        this.scene.background = texture;
+      }
       
     } catch (error) {
       console.warn('Failed to load HDRI:', error);

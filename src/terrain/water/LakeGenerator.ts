@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { Vector3 } from 'three';
 import { TerrainMesher } from '../mesher/TerrainMesher';
 import { NoiseUtils } from '../utils/NoiseUtils';
+import { SeededRandom } from '../../core/util/math/index';
 
 export interface LakeConfig {
   seed: number;
@@ -91,7 +92,7 @@ export class LakeGenerator {
   
   constructor(config?: Partial<LakeConfig>) {
     this.config = {
-      seed: Math.random() * 10000,
+      seed: 42,
       minElevation: 0.0,
       maxElevation: 200.0,
       targetArea: 5000.0,

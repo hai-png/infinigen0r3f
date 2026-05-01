@@ -8,6 +8,7 @@
  */
 
 import { BufferGeometry, Vector3, Vector2, BufferAttribute } from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 export interface OptimizationConfig {
   targetFaceCount: number;
@@ -18,6 +19,7 @@ export interface OptimizationConfig {
   removeDegenerateFaces: boolean;
   weldVertices: boolean;
   weldThreshold: number;
+  seed?: number;
 }
 
 const DEFAULT_OPTIMIZATION_CONFIG: OptimizationConfig = {
@@ -29,6 +31,7 @@ const DEFAULT_OPTIMIZATION_CONFIG: OptimizationConfig = {
   removeDegenerateFaces: true,
   weldVertices: true,
   weldThreshold: 0.0001,
+  seed: 42,
 };
 
 interface Face {
@@ -49,9 +52,11 @@ interface Vertex {
  */
 export class MeshOptimizer {
   private config: OptimizationConfig;
+  private rng: SeededRandom;
 
   constructor(config: Partial<OptimizationConfig> = {}) {
     this.config = { ...DEFAULT_OPTIMIZATION_CONFIG, ...config };
+    this.rng = new SeededRandom(this.config.seed ?? 42);
   }
 
   /**
@@ -237,7 +242,7 @@ export class MeshOptimizer {
     
     const keptIndices: number[] = [];
     for (let i = 0; i < index.count; i += 3) {
-      if (Math.random() < sampleRate) {
+      if (this.rng.next() < sampleRate) {
         keptIndices.push(
           index.getX(i),
           index.getX(i + 1),

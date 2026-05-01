@@ -34,6 +34,9 @@ export class WaterMaterial {
   private config: WaterMaterialConfig;
   private material: THREE.MeshPhysicalMaterial;
   private time: number = 0;
+  private dirty: boolean = true;
+  private lastRegenTime: number = 0;
+  private static readonly REGEN_INTERVAL_MS = 100;
 
   constructor(config?: Partial<WaterMaterialConfig>) {
     this.config = {
@@ -114,7 +117,21 @@ export class WaterMaterial {
 
   update(deltaTime: number): void {
     this.time += deltaTime * this.config.waveSpeed;
-    this.generateWaterSurface(this.material);
+
+    // Only regenerate the canvas texture when dirty or at throttled intervals
+    const now = performance.now();
+    if (this.dirty || (now - this.lastRegenTime) >= WaterMaterial.REGEN_INTERVAL_MS) {
+      this.generateWaterSurface(this.material);
+      this.dirty = false;
+      this.lastRegenTime = now;
+    }
+  }
+
+  /**
+   * Mark the water surface as needing regeneration (e.g., after config changes)
+   */
+  markDirty(): void {
+    this.dirty = true;
   }
 
   getMaterial(): THREE.MeshPhysicalMaterial {

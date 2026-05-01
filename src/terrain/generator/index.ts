@@ -4,8 +4,9 @@
 
 export {
   TerrainGenerator,
-  type HeightMap,
   type MaskMap,
   type TerrainConfig,
   type TerrainData
 } from '../core/TerrainGenerator';
+
+export type { HeightMap, NormalMap } from '../types';

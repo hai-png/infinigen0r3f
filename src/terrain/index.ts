@@ -17,14 +17,21 @@
  * - Tectonic: Plate tectonics simulation
  * - Utils: Terrain utility functions
  * - Water: Water body generation and simulation
+ * 
+ * Shared types (HeightMap, NormalMap) are in ./types.ts
  */
 
+// Export shared terrain types first (authoritative source)
+export type { HeightMap, NormalMap } from './types';
+export { heightMapFromFloat32Array, sampleHeightAt, getHeightValueAt, setHeightValueAt } from './types';
+
+// Sub-modules (these may re-export HeightMap/NormalMap from ../types for convenience,
+// but the canonical source is ./types above)
 export * from './biomes';
 export * from './caves';
 export * from './core';
 export * from './elements';
 export * from './erosion';
-export * from './generator';
 export * from './gpu';
 export * from './land-process';
 export * from './mesher';

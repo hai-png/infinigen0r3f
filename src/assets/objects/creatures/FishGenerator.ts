@@ -1,7 +1,8 @@
 /**
  * FishGenerator - Procedural fish generation
- * Generates fish with tapered body, tail fin, dorsal fin, pectoral fins, and eyes
+ * Generates fish with tapered body, head with eyes/mouth, tail fin, dorsal fin, pectoral fins
  */
+import * as THREE from 'three';
 import { Group, Mesh, Material, MeshStandardMaterial } from 'three';
 import { CreatureBase, CreatureParams, CreatureType } from './CreatureBase';
 
@@ -44,24 +45,9 @@ export class FishGenerator extends CreatureBase {
     const body = this.generateBody(parameters);
     fish.add(body);
 
-    // Head / mouth
-    const mouth = new Mesh(
-      this.createSphereGeometry(s * 0.05),
-      new MeshStandardMaterial({ color: 0x880000 })
-    );
-    mouth.position.set(0, 0, s * 0.45);
-    mouth.scale.set(1, 0.6, 0.5);
-    fish.add(mouth);
-
-    // Eyes
-    const eyeMat = new MeshStandardMaterial({ color: 0x111111 });
-    const eyeGeo = this.createSphereGeometry(s * 0.03);
-    const leftEye = new Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-s * 0.1, s * 0.06, s * 0.3);
-    fish.add(leftEye);
-    const rightEye = new Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(s * 0.1, s * 0.06, s * 0.3);
-    fish.add(rightEye);
+    // Head (tapered front with eyes and mouth)
+    const head = this.generateHead();
+    fish.add(head);
 
     // Tail fin
     const tailFin = this.generateTailFin(parameters);
@@ -84,8 +70,50 @@ export class FishGenerator extends CreatureBase {
     return this.generateBody(this.getDefaultConfig());
   }
 
+  /**
+   * Generate the head of the fish: a tapered front section with eyes and mouth
+   */
   generateHead(): Mesh {
-    return this.generateBody(this.getDefaultConfig());
+    const params = this.getDefaultConfig();
+    const s = params.size;
+    const headGroup = new Group();
+    headGroup.name = 'headGroup';
+
+    // Tapered front section - more pointed than the body
+    const headGeo = this.createEllipsoidGeometry(s * 0.1, s * 0.1, s * 0.15);
+    const headMat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.5 });
+    const headMesh = new Mesh(headGeo, headMat);
+    headMesh.name = 'head';
+    headMesh.position.set(0, 0, s * 0.4);
+    headGroup.add(headMesh);
+
+    // Mouth - small dark opening at the front
+    const mouthGeo = this.createSphereGeometry(s * 0.03);
+    const mouthMat = new MeshStandardMaterial({ color: 0x880000 });
+    const mouth = new Mesh(mouthGeo, mouthMat);
+    mouth.position.set(0, -s * 0.02, s * 0.54);
+    mouth.scale.set(1.2, 0.6, 0.8);
+    mouth.name = 'mouth';
+    headGroup.add(mouth);
+
+    // Eyes
+    const eyeMat = new MeshStandardMaterial({ color: 0x111111 });
+    const eyeGeo = this.createSphereGeometry(s * 0.025);
+    // White of eye
+    const scleraMat = new MeshStandardMaterial({ color: 0xeeeeee });
+    const scleraGeo = this.createSphereGeometry(s * 0.035);
+
+    for (const side of [-1, 1]) {
+      const sclera = new Mesh(scleraGeo, scleraMat);
+      sclera.position.set(side * s * 0.08, s * 0.04, s * 0.42);
+      headGroup.add(sclera);
+
+      const eye = new Mesh(eyeGeo, eyeMat);
+      eye.position.set(side * s * 0.095, s * 0.04, s * 0.44);
+      headGroup.add(eye);
+    }
+
+    return headGroup as unknown as Mesh;
   }
 
   generateLimbs(): Mesh[] {
@@ -120,7 +148,6 @@ export class FishGenerator extends CreatureBase {
     const s = params.size;
     // Tapered body: wider at front, narrower at back
     const geo = this.createEllipsoidGeometry(s * 0.15, s * 0.12, s * 0.35);
-    geo.scale(1, 1, 1);
     const mat = new MeshStandardMaterial({ color: params.primaryColor, roughness: 0.5 });
     const mesh = new Mesh(geo, mat);
     mesh.name = 'body';
@@ -134,7 +161,7 @@ export class FishGenerator extends CreatureBase {
       transparent: true,
       opacity: 0.85,
       roughness: 0.4,
-      side: 2,
+      side: THREE.DoubleSide,
     });
     const finGroup = new Group();
     finGroup.name = 'tailFin';
@@ -171,7 +198,7 @@ export class FishGenerator extends CreatureBase {
       transparent: true,
       opacity: 0.85,
       roughness: 0.4,
-      side: 2,
+      side: THREE.DoubleSide,
     });
     const finGeo = this.createFinGeometry(s * 0.08, s * 0.12, s * 0.01);
     const fin = new Mesh(finGeo, finMat);
@@ -188,7 +215,7 @@ export class FishGenerator extends CreatureBase {
       transparent: true,
       opacity: 0.8,
       roughness: 0.4,
-      side: 2,
+      side: THREE.DoubleSide,
     });
     const fins: Mesh[] = [];
 

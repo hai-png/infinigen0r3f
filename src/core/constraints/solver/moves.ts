@@ -12,12 +12,20 @@
  * 
  * Defines the move abstraction for constraint-based scene optimization.
  * Moves represent transformations applied to objects during solving.
+ *
+ * NOTE: SimulatedAnnealingSolver has been consolidated into sa-solver.ts.
+ * Import it from there instead of this file. This file re-exports it
+ * for backward compatibility.
  */
 
 import { Vector3 } from '../../util/math/index';
 import { State, ObjectState } from '../evaluator/state';
 import { Problem } from '../language/constants';
 import { Semantics, TagSet, Tag } from '../tags/index';
+
+// Re-export the canonical SA solver for backward compatibility
+export { SimulatedAnnealingSolver } from './sa-solver';
+export type { SimulatedAnnealingConfig } from './sa-solver';
 
 /**
  * Base Move abstraction
@@ -443,229 +451,6 @@ export abstract class Solver {
     // This would call the evaluator
     // For now, delegate to external evaluator
     throw new Error('evaluateState must be implemented with evaluator integration');
-  }
-}
-
-/**
- * Simulated Annealing configuration
- */
-export interface SimulatedAnnealingConfig {
-  initialTemperature: number;
-  coolingRate: number;
-  minTemperature: number;
-  maxIterations: number;
-  movesPerIteration: number;
-}
-
-/**
- * Simulated Annealing Solver
- * 
- * Ports: infinigen/core/constraints/example_solver/annealing.py
- * 
- * Uses simulated annealing to optimize scene configurations
- */
-export class SimulatedAnnealingSolver extends Solver {
-  private config: SimulatedAnnealingConfig;
-  private currentScore: number;
-  private bestScore: number;
-  private bestState: State;
-  private currentTemperature: number;
-  private currentIteration: number;
-  
-  constructor(
-    problem?: Problem,
-    initialState?: State,
-    config: Partial<SimulatedAnnealingConfig> = {}
-  ) {
-    super(problem ?? new Problem(), initialState ?? new State());
-    
-    this.config = {
-      initialTemperature: 100.0,
-      coolingRate: 0.95,
-      minTemperature: 0.01,
-      maxIterations: 1000,
-      movesPerIteration: 10,
-      ...config
-    };
-    
-    this.currentScore = 0;
-    this.bestScore = Infinity;
-    this.bestState = initialState ?? new State();
-    this.currentTemperature = this.config.initialTemperature;
-    this.currentIteration = 0;
-  }
-
-  /**
-   * Perform a single step of simulated annealing.
-   *
-   * Applies the Metropolis criterion:
-   *  1. Evaluate current state energy
-   *  2. Evaluate proposed state energy (apply proposal temporarily)
-   *  3. Accept if energy decreases, otherwise accept with probability
-   *     exp(-deltaE / T)
-   *  4. Update state if accepted
-   *  5. Cool down temperature
-   */
-  step(state: SolverState, proposal: any): SolverState {
-    this.currentIteration++;
-
-    // 1. Current energy
-    const currentEnergy = state.energy;
-
-    // 2. Proposed energy – if proposal carries a score use it, otherwise
-    //    fall back to evaluating the state with the proposed move applied
-    let proposedEnergy = currentEnergy;
-    if (proposal && proposal.score !== undefined && proposal.score !== 0) {
-      proposedEnergy = proposal.score;
-    } else if (proposal && proposal.newState) {
-      // Try to evaluate the proposed state
-      try {
-        proposedEnergy = this.evaluateState(proposal.newState instanceof State ? proposal.newState : this.initialState);
-      } catch {
-        proposedEnergy = currentEnergy; // fallback
-      }
-    }
-
-    // 3. Metropolis criterion
-    const deltaE = proposedEnergy - currentEnergy;
-    let accepted = false;
-    if (deltaE <= 0) {
-      accepted = true; // always accept improvements
-    } else if (this.currentTemperature > 0) {
-      accepted = Math.random() < Math.exp(-deltaE / this.currentTemperature);
-    }
-
-    // 4. Update state
-    let newEnergy = currentEnergy;
-    const newAssignments = new Map(state.assignments);
-    if (accepted) {
-      newEnergy = proposedEnergy;
-      if (proposal && proposal.variableId) {
-        newAssignments.set(proposal.variableId, proposal.newValue);
-      }
-    }
-
-    // Track best
-    const newBestScore = (newEnergy < state.bestScore || state.bestScore === -Infinity)
-      ? newEnergy : state.bestScore;
-
-    // 5. Cool down
-    this.currentTemperature = Math.max(
-      this.currentTemperature * this.config.coolingRate,
-      0.01
-    );
-
-    return {
-      ...state,
-      iteration: this.currentIteration,
-      temperature: this.currentTemperature,
-      energy: newEnergy,
-      currentScore: -newEnergy,
-      bestScore: newBestScore,
-      assignments: newAssignments,
-      lastMove: proposal ?? null,
-      lastMoveAccepted: accepted,
-    };
-  }
-  
-  async solve(maxIterations?: number): Promise<SolverState> {
-    let temperature = this.config.initialTemperature;
-    let iteration = 0;
-    let currentState = this.initialState;
-    
-    const iterations = maxIterations || this.config.maxIterations;
-    
-    while (temperature > this.config.minTemperature && iteration < iterations) {
-      // Generate and evaluate moves
-      const moves = this.generateMoves(currentState, this.config.movesPerIteration);
-      
-      for (const move of moves) {
-        if (!move.isValid(currentState)) continue;
-        
-        const newState = move.apply(currentState);
-        const newScore = this.evaluateState(newState);
-        
-        // Accept or reject based on Metropolis criterion
-        const deltaE = newScore - this.currentScore;
-        
-        if (deltaE < 0 || Math.random() < Math.exp(-deltaE / temperature)) {
-          currentState = newState;
-          this.currentScore = newScore;
-          
-          // Track best solution
-          if (newScore < this.bestScore) {
-            this.bestScore = newScore;
-            this.bestState = newState;
-          }
-        }
-      }
-      
-      // Cool down
-      temperature *= this.config.coolingRate;
-      iteration++;
-      
-      // Yield control for async operation
-      if (iteration % 10 === 0) {
-        await Promise.resolve();
-      }
-    }
-    
-    return {
-      state: this.bestState,
-      score: this.bestScore,
-      iteration,
-      temperature,
-      energy: this.bestScore,
-      currentScore: this.bestScore,
-      bestScore: this.bestScore,
-      assignments: new Map(),
-      lastMove: null,
-      lastMoveAccepted: false
-    };
-  }
-  
-  generateMoves(state: State, count: number): Move[] {
-    const moves: Move[] = [];
-    const objects = Array.from(state.objects.values());
-    
-    for (let i = 0; i < count && objects.length > 0; i++) {
-      const obj = objects[Math.floor(Math.random() * objects.length)];
-      const moveType = Math.random();
-      
-      if (moveType < 0.4) {
-        // Translation move
-        const translation = new Vector3(
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5,
-          (Math.random() - 0.5) * 0.5
-        );
-        moves.push(new TranslateMove(obj.name, translation, this.currentScore));
-      } else if (moveType < 0.7) {
-        // Rotation move
-        const rotation = new Vector3(
-          (Math.random() - 0.5) * 0.3,
-          (Math.random() - 0.5) * 0.3,
-          (Math.random() - 0.5) * 0.3
-        );
-        moves.push(new RotateMove(obj.name, rotation, this.currentScore));
-      } else if (moveType < 0.9 && objects.length > 1) {
-        // Swap move
-        const otherObj = objects.find(o => o.name !== obj.name);
-        if (otherObj) {
-          moves.push(new SwapMove(obj.name, otherObj.name, this.currentScore));
-        }
-      } else {
-        // Small perturbation
-        const translation = new Vector3(
-          (Math.random() - 0.5) * 0.1,
-          (Math.random() - 0.5) * 0.1,
-          (Math.random() - 0.5) * 0.1
-        );
-        moves.push(new TranslateMove(obj.name, translation, this.currentScore));
-      }
-    }
-    
-    return moves;
   }
 }
 

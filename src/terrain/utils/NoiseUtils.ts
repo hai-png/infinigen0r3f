@@ -13,7 +13,7 @@ export class NoiseUtils {
   private seed: number;
   private noiseInstance: Noise3D;
 
-  constructor(seed: number = Math.random() * 1000) {
+  constructor(seed: number = 42) {
     this.seed = seed;
     this.noiseInstance = new Noise3D(seed);
   }

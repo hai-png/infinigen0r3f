@@ -1,11 +1,16 @@
 /**
  * Infinigen R3F Port - Hydraulic Erosion System
- * GPU-Accelerated Particle-Based Erosion Simulation
+ * CPU-Based Particle-Based Erosion Simulation
  * 
+ * NOTE: Despite the filename "HydraulicErosionGPU", this implementation
+ * is entirely CPU-based. The name was kept for backward compatibility,
+ * but all computation runs on the CPU.
+ *
  * Based on original Infinigen hydraulic erosion implementation
  */
 
 import { Vector2, Vector3 } from 'three';
+import { SeededRandom } from '../../core/util/MathUtils';
 
 export interface ErosionConfig {
   seed: number;
@@ -31,11 +36,11 @@ export class HydraulicErosionGPU {
   private config: ErosionConfig;
   private width: number;
   private height: number;
-  private rng: SeededRandom;
+  private rng: SeededRandom; // Uses canonical SeededRandom (Mulberry32) from core/util/MathUtils
 
   constructor(config: Partial<ErosionConfig> = {}) {
     this.config = {
-      seed: Math.floor(Math.random() * 10000),
+      seed: 42,
       iterations: 50000,
       inertia: 0.05,
       sedimentCapacityFactor: 4,
@@ -265,29 +270,5 @@ export class HydraulicErosionGPU {
     if (config.seed !== undefined) {
       this.rng = new SeededRandom(config.seed);
     }
-  }
-}
-
-/**
- * Simple seeded random number generator
- */
-class SeededRandom {
-  private seed: number;
-
-  constructor(seed: number) {
-    this.seed = seed;
-  }
-
-  public next(): number {
-    this.seed = (this.seed * 9301 + 49297) % 233280;
-    return this.seed / 233280;
-  }
-
-  public range(min: number, max: number): number {
-    return min + this.next() * (max - min);
-  }
-
-  public int(min: number, max: number): number {
-    return Math.floor(this.range(min, max + 1));
   }
 }

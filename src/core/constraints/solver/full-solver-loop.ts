@@ -7,7 +7,7 @@
 
 import { ConstraintSystem } from '../language/constraint-system';
 import { Variable, Domain } from '../language/types';
-import { evaluateNode } from '../evaluator/evaluate';
+import { evaluateNode, violCount } from '../evaluator/evaluate';
 import { 
   ContinuousProposalGenerator as ContinuousProposer, 
   DiscreteProposalGenerator as DiscreteProposer,
@@ -208,8 +208,35 @@ export class FullSolverLoop {
       variable.value = proposal.newValue;
     }
 
-    // Calculate total constraint violation (energy)
-    const newEnergy = (evaluateNode as any).evaluateAll?.(this.constraintSystem) ?? 0;
+    // Calculate total constraint violation (energy) by summing all constraint violations
+    let newEnergy = 0;
+    const problem = this.constraintSystem.buildProblem();
+    const memo = new Map<any, any>();
+    const state = (this.state as any)?.state;
+    
+    if (problem && state) {
+      // Use the proper violation counting from the evaluator
+      for (const constraint of problem.constraints.values()) {
+        try {
+          newEnergy += violCount(constraint as any, state, memo);
+        } catch {
+          // If a constraint can't be evaluated, count it as a violation
+          newEnergy += 1;
+        }
+      }
+    } else {
+      // Fallback: compute a simple energy based on variable assignment violations
+      // Sum squared distance from domain constraints for each assigned variable
+      const variables = this.constraintSystem.getVariables();
+      for (const [id, v] of variables) {
+        if (v.value !== undefined) {
+          const domain = this.constraintSystem.getDomain(id);
+          if (domain && !domain.contains(v.value)) {
+            newEnergy += 1; // Variable outside its domain
+          }
+        }
+      }
+    }
     
     // Restore old value
     if (variable && oldValue !== undefined) {

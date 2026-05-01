@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import type { BiomeDefinition, BiomeBlend } from './BiomeSystem';
 import type { AssetMetadata } from '../../../assets/core/AssetTypes';
+import { SeededRandom } from '../../../core/util/MathUtils';
 
 export interface BiomeTransitionZone {
   startBiome: string;
@@ -32,6 +33,7 @@ export interface BiomeScatterConfig {
   alignmentToNormal: boolean;
   randomRotation: boolean;
   scaleVariation: [number, number];
+  seed?: number;
 }
 
 export class BiomeInterpolator {
@@ -167,6 +169,8 @@ export class BiomeScatterer {
   private config: Required<BiomeScatterConfig>;
   private assetPool: Map<string, AssetMetadata>;
 
+  private rng: SeededRandom;
+
   constructor(config: Partial<BiomeScatterConfig> = {}) {
     this.config = {
       density: 0.5,
@@ -175,9 +179,10 @@ export class BiomeScatterer {
       alignmentToNormal: true,
       randomRotation: true,
       scaleVariation: [0.8, 1.2],
+      seed: 42,
       ...config,
     };
-    
+    this.rng = new SeededRandom(this.config.seed ?? 42);
     this.assetPool = new Map();
   }
 
@@ -200,8 +205,8 @@ export class BiomeScatterer {
 
     // Generate candidate positions
     for (let i = 0; i < targetCount * 3; i++) {
-      const x = area.min.x + Math.random() * width;
-      const z = area.min.z + Math.random() * depth;
+      const x = area.min.x + this.rng.next() * width;
+      const z = area.min.z + this.rng.next() * depth;
       const y = heightMap ? heightMap(x, z) : 0;
       
       const position = new THREE.Vector3(x, y, z);
@@ -235,11 +240,11 @@ export class BiomeScatterer {
       
       if (selectedAsset) {
         const [minScale, maxScale] = this.config.scaleVariation;
-        const scale = minScale + Math.random() * (maxScale - minScale);
+        const scale = minScale + this.rng.next() * (maxScale - minScale);
         
         const rotation = new THREE.Euler(
           this.config.alignmentToNormal ? Math.atan2(normal.x, normal.y) : 0,
-          this.config.randomRotation ? Math.random() * Math.PI * 2 : 0,
+          this.config.randomRotation ? this.rng.next() * Math.PI * 2 : 0,
           this.config.alignmentToNormal ? Math.atan2(normal.z, normal.y) : 0
         );
 
@@ -293,7 +298,7 @@ export class BiomeScatterer {
 
     // Roulette wheel selection
     const totalWeight = weightedAssets.reduce((sum, item) => sum + item.weight, 0);
-    let random = Math.random() * totalWeight;
+    let random = this.rng.next() * totalWeight;
     
     for (const { asset, weight } of weightedAssets) {
       random -= weight;

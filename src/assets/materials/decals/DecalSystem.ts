@@ -1,7 +1,7 @@
 /**
  * Decal Application System - Logo placement, labels, projected decals
  */
-import { Texture, CanvasTexture, Color, Vector3 } from 'three';
+import { Texture, CanvasTexture, Color, Vector3, Mesh, BufferGeometry, Float32BufferAttribute, Matrix4, Quaternion, Euler, MeshStandardMaterial, DoubleSide, Uint16BufferAttribute } from 'three';
 import { SeededRandom } from '../../../core/util/MathUtils';
 
 export interface DecalParams {
@@ -18,6 +18,14 @@ export interface DecalPlacement {
   normal: Vector3;
   rotation: number;
   scale: number;
+}
+
+export interface DecalConfig {
+  position: Vector3;
+  rotation: Vector3;
+  scale: Vector3;
+  texture: Texture;
+  opacity?: number;
 }
 
 export class DecalSystem {
@@ -173,5 +181,129 @@ export class DecalSystem {
       scale: new Vector3(1, 1, 1),
       rotation: 0,
     };
+  }
+
+  /**
+   * Project a decal onto a target mesh using a Three.js DecalGeometry approach.
+   * Computes a projection matrix from the decal's position/rotation/scale,
+   * transforms vertices into the decal's local space, clips those within
+   * the projection volume, and creates a clipped geometry with the decal texture.
+   */
+  projectDecal(decal: DecalConfig, targetMesh: Mesh): Mesh {
+    // Build the projection matrix: world -> decal local space
+    const decalWorldMatrix = new Matrix4();
+    decalWorldMatrix.compose(
+      decal.position,
+      new Quaternion().setFromEuler(
+        new Euler(decal.rotation.x, decal.rotation.y, decal.rotation.z)
+      ),
+      decal.scale
+    );
+
+    const inverseProjection = new Matrix4().copy(decalWorldMatrix).invert();
+
+    // Get the target mesh geometry in world space
+    const sourceGeometry = targetMesh.geometry as BufferGeometry;
+    const sourcePosition = sourceGeometry.attributes.position;
+    const sourceNormal = sourceGeometry.attributes.normal;
+    const sourceUV = sourceGeometry.attributes.uv;
+    const sourceIndex = sourceGeometry.index;
+
+    // Get world matrix of target mesh
+    const meshWorldMatrix = targetMesh.matrixWorld;
+
+    // Transform vertices to decal local space and collect those inside the unit cube [-0.5, 0.5]
+    const clippedPositions: number[] = [];
+    const clippedNormals: number[] = [];
+    const clippedUVs: number[] = [];
+    const clippedIndices: number[] = [];
+    const vertexMap = new Map<number, number>(); // original index -> clipped index
+    let nextIndex = 0;
+
+    const v = new Vector3();
+    const n = new Vector3();
+
+    // Process triangles
+    const triCount = sourceIndex ? sourceIndex.count / 3 : sourcePosition.count / 3;
+    for (let t = 0; t < triCount; t++) {
+      const i0 = sourceIndex ? sourceIndex.getX(t * 3) : t * 3;
+      const i1 = sourceIndex ? sourceIndex.getX(t * 3 + 1) : t * 3 + 1;
+      const i2 = sourceIndex ? sourceIndex.getX(t * 3 + 2) : t * 3 + 2;
+
+      const indices = [i0, i1, i2];
+      const triVerts: Vector3[] = [];
+      const triNormals: Vector3[] = [];
+      const inside = [false, false, false];
+
+      for (let vi = 0; vi < 3; vi++) {
+        const idx = indices[vi];
+        v.set(sourcePosition.getX(idx), sourcePosition.getY(idx), sourcePosition.getZ(idx));
+        v.applyMatrix4(meshWorldMatrix); // world space
+        v.applyMatrix4(inverseProjection); // decal local space
+        triVerts.push(v.clone());
+
+        // Check if inside unit cube [-0.5, 0.5]
+        inside[vi] = (
+          v.x >= -0.5 && v.x <= 0.5 &&
+          v.y >= -0.5 && v.y <= 0.5 &&
+          v.z >= -0.5 && v.z <= 0.5
+        );
+
+        if (sourceNormal) {
+          n.set(sourceNormal.getX(idx), sourceNormal.getY(idx), sourceNormal.getZ(idx));
+          // Transform normal to decal local space (use normalMatrix)
+          const normalMatrix = new Matrix4().copy(inverseProjection).transpose();
+          n.applyMatrix4(normalMatrix).normalize();
+          triNormals.push(n.clone());
+        } else {
+          triNormals.push(new Vector3(0, 0, 1));
+        }
+      }
+
+      // If any vertex of the triangle is inside, include it
+      if (inside[0] || inside[1] || inside[2]) {
+        for (let vi = 0; vi < 3; vi++) {
+          const idx = indices[vi];
+          if (!vertexMap.has(idx)) {
+            vertexMap.set(idx, nextIndex);
+            const vert = triVerts[vi];
+            clippedPositions.push(vert.x, vert.y, vert.z);
+            const norm = triNormals[vi];
+            clippedNormals.push(norm.x, norm.y, norm.z);
+            // Map position in decal space to UV [0,1]
+            clippedUVs.push(vert.x + 0.5, 1.0 - (vert.y + 0.5));
+            nextIndex++;
+          }
+          clippedIndices.push(vertexMap.get(idx)!);
+        }
+      }
+    }
+
+    // Create the decal geometry
+    const decalGeometry = new BufferGeometry();
+    decalGeometry.setAttribute('position', new Float32BufferAttribute(clippedPositions, 3));
+    decalGeometry.setAttribute('normal', new Float32BufferAttribute(clippedNormals, 3));
+    decalGeometry.setAttribute('uv', new Float32BufferAttribute(clippedUVs, 2));
+    if (clippedIndices.length > 0) {
+      decalGeometry.setIndex(new Uint16BufferAttribute(clippedIndices, 1));
+    }
+
+    // Create material with the decal texture
+    const decalMaterial = new MeshStandardMaterial({
+      map: decal.texture,
+      transparent: true,
+      opacity: decal.opacity ?? 1.0,
+      depthWrite: false,
+      side: DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    });
+
+    // Transform decal geometry back to world space
+    decalGeometry.applyMatrix4(decalWorldMatrix);
+
+    const decalMesh = new Mesh(decalGeometry, decalMaterial);
+    return decalMesh;
   }
 }

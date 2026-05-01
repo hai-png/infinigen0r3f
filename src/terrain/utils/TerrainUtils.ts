@@ -4,7 +4,8 @@
  */
 
 import { Vector3, Raycaster, Plane, Box3 } from 'three';
-import { HeightMap, TerrainData } from '../core/TerrainGenerator';
+import type { HeightMap } from '../types';
+import { sampleHeightAt } from '../types';
 
 export interface WaterConfig {
   level: number;
@@ -18,6 +19,7 @@ export interface WaterConfig {
 export class TerrainUtils {
   /**
    * Sample height at specific coordinates with bilinear interpolation
+   * Uses the unified HeightMap type from terrain/types.ts
    */
   public static sampleHeight(
     heightMap: HeightMap,
@@ -25,31 +27,8 @@ export class TerrainUtils {
     x: number,
     y: number
   ): number {
-    const xi = Math.floor(x);
-    const yi = Math.floor(y);
-
-    if (xi < 0 || xi >= width - 1 || yi < 0 || yi >= heightMap.length / width - 1) {
-      return 0;
-    }
-
-    const xf = x - xi;
-    const yf = y - yi;
-
-    const idx00 = yi * width + xi;
-    const idx10 = yi * width + (xi + 1);
-    const idx01 = (yi + 1) * width + xi;
-    const idx11 = (yi + 1) * width + (xi + 1);
-
-    // Bilinear interpolation
-    const h00 = heightMap[idx00];
-    const h10 = heightMap[idx10];
-    const h01 = heightMap[idx01];
-    const h11 = heightMap[idx11];
-
-    const h0 = h00 * (1 - xf) + h10 * xf;
-    const h1 = h01 * (1 - xf) + h11 * xf;
-
-    return h0 * (1 - yf) + h1 * yf;
+    // Delegate to the shared helper for bilinear interpolation
+    return sampleHeightAt(heightMap, x, y);
   }
 
   /**
@@ -63,15 +42,16 @@ export class TerrainUtils {
   ): number {
     const xi = Math.floor(x);
     const yi = Math.floor(y);
+    const hmHeight = heightMap.height;
 
-    if (xi <= 0 || xi >= width - 1 || yi <= 0 || yi >= heightMap.length / width - 1) {
+    if (xi <= 0 || xi >= width - 1 || yi <= 0 || yi >= hmHeight - 1) {
       return 0;
     }
 
-    const left = heightMap[yi * width + (xi - 1)];
-    const right = heightMap[yi * width + (xi + 1)];
-    const top = heightMap[(yi - 1) * width + xi];
-    const bottom = heightMap[(yi + 1) * width + xi];
+    const left = heightMap.data[yi * width + (xi - 1)];
+    const right = heightMap.data[yi * width + (xi + 1)];
+    const top = heightMap.data[(yi - 1) * width + xi];
+    const bottom = heightMap.data[(yi + 1) * width + xi];
 
     const dx = (right - left) / 2;
     const dy = (bottom - top) / 2;
@@ -91,14 +71,14 @@ export class TerrainUtils {
   ): Vector3 {
     const idx = Math.floor(y) * width + Math.floor(x);
     
-    if (idx < 0 || idx * 3 + 2 >= normalMap.length) {
+    if (idx < 0 || idx * 3 + 2 >= normalMap.data.length) {
       return new Vector3(0, 1, 0);
     }
 
     return new Vector3(
-      normalMap[idx * 3],
-      normalMap[idx * 3 + 1],
-      normalMap[idx * 3 + 2]
+      normalMap.data[idx * 3],
+      normalMap.data[idx * 3 + 1],
+      normalMap.data[idx * 3 + 2]
     );
   }
 
@@ -152,7 +132,7 @@ export class TerrainUtils {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x;
-        const h = heightMap[idx];
+        const h = heightMap.data[idx];
 
         // Check if near water level
         if (Math.abs(h - waterLevel) < 0.05) {
@@ -168,7 +148,7 @@ export class TerrainUtils {
               
               if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                 const nIdx = ny * width + nx;
-                if (heightMap[nIdx] < waterLevel) {
+                if (heightMap.data[nIdx] < waterLevel) {
                   hasWaterNeighbor = true;
                 }
               }
@@ -197,7 +177,7 @@ export class TerrainUtils {
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const h = heightMap[y * width + x] * verticalScale;
+        const h = heightMap.data[y * width + x] * verticalScale;
         
         minX = Math.min(minX, x);
         minY = Math.min(minY, h);
@@ -269,7 +249,7 @@ export class TerrainUtils {
       for (let x = 0; x < size; x++) {
         const srcX = Math.floor(x * scaleX);
         const srcY = Math.floor(y * scaleY);
-        const h = heightMap[srcY * width + srcX];
+        const h = heightMap.data[srcY * width + srcX];
 
         const idx = (y * size + x) * 4;
         
@@ -319,7 +299,7 @@ export class TerrainUtils {
     height: number,
     iterations: number = 1
   ): HeightMap {
-    const result = new Float32Array(heightMap);
+    const result = new Float32Array(heightMap.data);
 
     for (let iter = 0; iter < iterations; iter++) {
       const temp = new Float32Array(result);
@@ -345,6 +325,11 @@ export class TerrainUtils {
       }
     }
 
-    return result;
+    return {
+      data: result,
+      width,
+      height,
+      bounds: heightMap.bounds,
+    };
   }
 }

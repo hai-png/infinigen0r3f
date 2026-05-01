@@ -5,6 +5,7 @@
 export { LakeGenerator } from './LakeGenerator';
 export { RiverNetwork } from './RiverNetwork';
 export { WaterfallGenerator } from './WaterfallGenerator';
+export { OceanSurface, OceanSystem } from './OceanSystem';
 
 export type { 
   LakeConfig, 
@@ -17,3 +18,5 @@ export type {
 } from './LakeGenerator';
 
 export type { FlowData } from './RiverNetwork';
+
+export type { OceanConfig, GerstnerWave } from './OceanSystem';

@@ -64,10 +64,64 @@ export class MaterialBlender {
       opacity: blendedOpacity,
     }) as MeshStandardMaterial;
 
-    // Use material1's maps for the base, blend map controls the mix
-    if (mat1.map) blended.map = mat1.map;
-    if (mat1.normalMap) blended.normalMap = mat1.normalMap;
-    if (mat1.roughnessMap) blended.roughnessMap = mat1.roughnessMap;
+    // Generate a combined texture where each pixel uses the blend map value
+    // to pick between mat1 and mat2's texture colors via lerp
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx && (mat1.map || mat2.map)) {
+      // Draw mat1's texture as the base
+      if (mat1.map?.image) {
+        ctx.drawImage(mat1.map.image as CanvasImageSource, 0, 0, size, size);
+      } else {
+        // Fill with mat1's solid color
+        ctx.fillStyle = `#${mat1.color?.getHexString() || 'ffffff'}`;
+        ctx.fillRect(0, 0, size, size);
+      }
+
+      // Draw mat2's texture on top with alpha from blend map
+      if (mat2.map?.image || mat2.color) {
+        // Create a temporary canvas for the blend mask composite
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = size;
+        tempCanvas.height = size;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx) {
+          // Draw mat2's texture or solid color
+          if (mat2.map?.image) {
+            tempCtx.drawImage(mat2.map.image as CanvasImageSource, 0, 0, size, size);
+          } else {
+            tempCtx.fillStyle = `#${mat2.color?.getHexString() || 'ffffff'}`;
+            tempCtx.fillRect(0, 0, size, size);
+          }
+
+          // Use the blend map as alpha mask: multiply alpha by blend map brightness
+          tempCtx.globalCompositeOperation = 'destination-in';
+          const blendSrc = blendMap.image as HTMLCanvasElement | HTMLImageElement;
+          if (blendSrc) {
+            tempCtx.drawImage(blendSrc as CanvasImageSource, 0, 0, size, size);
+          } else {
+            // Fallback: uniform blend
+            tempCtx.fillStyle = `rgba(255,255,255,${factor})`;
+            tempCtx.fillRect(0, 0, size, size);
+          }
+          tempCtx.globalCompositeOperation = 'source-over';
+        }
+
+        // Composite mat2 (masked by blend map) on top of mat1
+        ctx.drawImage(tempCanvas as CanvasImageSource, 0, 0, size, size);
+      }
+
+      const blendedTexture = new CanvasTexture(canvas);
+      blendedTexture.wrapS = blendedTexture.wrapT = RepeatWrapping;
+      blended.map = blendedTexture;
+    } else {
+      // Fallback: use mat1's map if available
+      if (mat1.map) blended.map = mat1.map;
+    }
 
     // For MeshPhysicalMaterial properties
     if (blended instanceof MeshPhysicalMaterial) {
