@@ -40,6 +40,19 @@ export type { PatternParams } from './patterns/PatternGenerator';
 export { MaterialBlender } from './blending/MaterialBlender';
 export type { BlendParams } from './blending/MaterialBlender';
 
+// Phase 3.3 — Material & Texture Pipeline
+export { MaterialPresetLibrary } from './MaterialPresetLibrary';
+export type { MaterialPreset as PBRMaterialPreset, MaterialCategory as PresetMaterialCategory, PresetVariation } from './MaterialPresetLibrary';
+
+export { MaterialBlendingSystem } from './blending/MaterialBlendingSystem';
+export type { BlendConfig, BlendMaskType, BlendedResult, SlopeMaskParams, AltitudeMaskParams, NoiseMaskParams } from './blending/MaterialBlendingSystem';
+
+export { ProceduralTextureGraph } from './textures/ProceduralTextureGraph';
+export type { TextureChannel, TextureGraph, TextureGraphOutput, GraphNode, GraphLink } from './textures/ProceduralTextureGraph';
+
+export { TextureBakePipeline } from './textures/TextureBakePipeline';
+export type { BakeResolution, PBRTextureSet, MaterialPBRParams } from './textures/TextureBakePipeline';
+
 export { DecalSystem } from './decals/DecalSystem';
 export type { DecalParams, DecalPlacement } from './decals/DecalSystem';
 

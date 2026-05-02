@@ -20,3 +20,7 @@ export type { CubeSphericalConfig } from './CubeSphericalMesher';
 
 export { LODMesher } from './LODMesher';
 export type { LODConfig, LODChunk } from './LODMesher';
+
+// Chunked terrain system with LOD management
+export { ChunkedTerrainSystem, LODLevel } from './ChunkedTerrainSystem';
+export type { ChunkedTerrainConfig, TerrainChunk } from './ChunkedTerrainSystem';

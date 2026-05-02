@@ -34,6 +34,7 @@ export * from './elements';
 export * from './erosion';
 export * from './gpu';
 export * from './land-process';
+export * from './materials';
 export * from './mesher';
 export * from './sdf';
 export * from './snow';

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 /**
  * Configuration for lava material properties

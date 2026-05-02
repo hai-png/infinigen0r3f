@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Fabric Material Generator
  * Generates procedural fabric materials including cotton, linen, wool, velvet, denim
@@ -113,7 +114,7 @@ export class FabricGenerator extends BaseMaterialGenerator<FabricParams> {
 
   private generateWeavePattern(params: FabricParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -196,7 +197,7 @@ export class FabricGenerator extends BaseMaterialGenerator<FabricParams> {
 
   private applyPattern(material: MeshStandardMaterial, params: FabricParams, rng: SeededRandom): void {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -279,7 +280,7 @@ export class FabricGenerator extends BaseMaterialGenerator<FabricParams> {
 
   private generateRoughnessMap(params: FabricParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -308,7 +309,7 @@ export class FabricGenerator extends BaseMaterialGenerator<FabricParams> {
 
   private generateNormalMap(params: FabricParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');

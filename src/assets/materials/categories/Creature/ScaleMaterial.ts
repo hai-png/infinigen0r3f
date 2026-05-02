@@ -1,5 +1,6 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 import * as THREE from 'three';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 /**
  * Configuration for scale material properties
@@ -95,7 +96,7 @@ export class ScaleMaterial {
 
   private generateScalePattern(material: THREE.MeshPhysicalMaterial): void {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;
@@ -216,7 +217,7 @@ export class ScaleMaterial {
   private addBioluminescence(material: THREE.MeshPhysicalMaterial): void {
     // Create emissive pattern for bioluminescence
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;

@@ -1,3 +1,4 @@
+import { createCanvas } from '../utils/CanvasUtils';
 import * as THREE from 'three';
 import { SeededRandom } from '../../core/util/MathUtils';
 
@@ -106,7 +107,7 @@ export class WoodMaterialGenerator {
     // Note: In a full implementation, we would use custom shaders
     // For now, we'll create a canvas-based texture for the grain
     
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');

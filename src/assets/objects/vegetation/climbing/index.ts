@@ -7,3 +7,12 @@
 
 export { VineGenerator, VineSpeciesPresets, type VineSpeciesConfig } from './VineGenerator';
 export { IvyGenerator, type IvyConfig } from './IvyGenerator';
+
+// Ivy Climbing System (new)
+export {
+  IvyClimbingSystem,
+  ClimbingPlantPresets,
+  type ClimbingPlantType,
+  type IvyGrowthConfig,
+  type IvyPathPoint,
+} from './IvyClimbingSystem';

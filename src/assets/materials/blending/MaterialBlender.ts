@@ -1,3 +1,4 @@
+import { createCanvas } from '../../utils/CanvasUtils';
 /**
  * Material Blending System - Multi-material mixing, gradient blends, mask-based blending
  * Blends two materials by interpolating their properties
@@ -67,7 +68,7 @@ export class MaterialBlender {
     // Generate a combined texture where each pixel uses the blend map value
     // to pick between mat1 and mat2's texture colors via lerp
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -85,7 +86,7 @@ export class MaterialBlender {
       // Draw mat2's texture on top with alpha from blend map
       if (mat2.map?.image || mat2.color) {
         // Create a temporary canvas for the blend mask composite
-        const tempCanvas = document.createElement('canvas');
+        const tempCanvas = createCanvas();
         tempCanvas.width = size;
         tempCanvas.height = size;
         const tempCtx = tempCanvas.getContext('2d');
@@ -151,7 +152,7 @@ export class MaterialBlender {
 
   private generateBlendMap(params: BlendParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);

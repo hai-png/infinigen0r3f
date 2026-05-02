@@ -1,8 +1,8 @@
 /**
  * Rendering Module Index for Infinigen R3F
- * 
+ *
  * Central export point for all rendering-related functionality.
- * 
+ *
  * @module rendering
  */
 
@@ -17,6 +17,8 @@ export { SSAOPass, type SSAOConfig } from './postprocess/SSAOPass';
 
 // Shadow system
 export { PCSSShadow, type PCSSConfig } from './shadows/PCSSShadow';
+export { CascadedShadowMap, type CSMConfig, type CascadeInfo } from './shadows/CascadedShadowMap';
 
-// Re-export Three.js postprocessing for convenience
-export { EffectComposer } from '@react-three/postprocessing';
+// Lighting system
+export { LightProbeSystem, type LightProbeConfig, type SH9, type SH9RGB } from './lighting/LightProbeSystem';
+export { ExposureControl, type ExposureConfig, type ToneMappingPreset, TONE_MAPPING_SHADERS, TONE_MAPPING_THREEJS } from './lighting/ExposureControl';

@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Leather Material Generator - Full-grain, top-grain, suede, distressed, patent
  * FIX: Patent leather now uses MeshPhysicalMaterial with clearcoat=1.0, clearcoatRoughness=0.1
@@ -123,7 +124,7 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
 
   private generateGrainTexture(params: LeatherParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -180,7 +181,7 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
 
   private generateNormalMap(params: LeatherParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -233,7 +234,7 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
 
   private generateRoughnessMap(params: LeatherParams, rng: SeededRandom): Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -273,7 +274,7 @@ export class LeatherGenerator extends BaseMaterialGenerator<LeatherParams> {
 
     // Wear lightens the leather color at worn spots
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
 

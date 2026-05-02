@@ -22,6 +22,7 @@ export interface PhysicsConfig {
   sceneId: string;
   objects: Array<{
     id: string;
+    name?: string;
     mesh: MeshData;
     mass: number;
     friction: number;
@@ -31,10 +32,13 @@ export interface PhysicsConfig {
       rotation: [number, number, number, number]; // Quaternion [x,y,z,w]
     };
     joints?: Array<{
+      name?: string;
       type: 'hinge' | 'slider' | 'ball' | 'fixed';
       axis?: [number, number, number];
       limits?: { min: number; max: number };
       damping?: number;
+      parentLink?: string;
+      childLink?: string;
     }>;
   }>;
   gravity?: [number, number, number];

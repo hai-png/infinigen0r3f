@@ -1,3 +1,4 @@
+import { createCanvas } from '../../utils/CanvasUtils';
 /**
  * Weathering Effects - Rust, oxidation, moss, water stains, UV damage, dirt/fading
  */
@@ -26,7 +27,7 @@ export class WeatheringGenerator {
 
   private generateColorWeathering(params: WeatheringParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -128,7 +129,7 @@ export class WeatheringGenerator {
 
   private generateRoughnessWeathering(params: WeatheringParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -155,7 +156,7 @@ export class WeatheringGenerator {
 
   private generateNormalWeathering(params: WeatheringParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -247,7 +248,7 @@ export class WeatheringGenerator {
     // Composite weathering color onto existing material color map
     if (material.map) {
       const size = 512;
-      const canvas = document.createElement('canvas');
+      const canvas = createCanvas();
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
@@ -274,7 +275,7 @@ export class WeatheringGenerator {
     // Composite weathering roughness onto existing roughness map
     if (material.roughnessMap) {
       const size = 512;
-      const canvas = document.createElement('canvas');
+      const canvas = createCanvas();
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
@@ -302,7 +303,7 @@ export class WeatheringGenerator {
     // Composite weathering normal onto existing normal map
     if (material.normalMap) {
       const size = 512;
-      const canvas = document.createElement('canvas');
+      const canvas = createCanvas();
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');

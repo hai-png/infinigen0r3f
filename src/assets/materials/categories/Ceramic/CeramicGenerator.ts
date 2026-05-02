@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Ceramic Material Generator
  * Generates procedural ceramic materials including porcelain, stoneware, earthenware, and tiles
@@ -191,7 +192,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
 
   private applyCrackleEffect(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -240,7 +241,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
 
   private applyPattern(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -355,7 +356,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
 
   private generateRoughnessMap(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -394,7 +395,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
 
   private applyTileGrout(material: MeshStandardMaterial | MeshPhysicalMaterial, params: CeramicParams, rng: SeededRandom): void {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -435,7 +436,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
 
   private generateNormalMap(params: CeramicParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -462,7 +463,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
 
   private generateAOMap(params: CeramicParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -489,7 +490,7 @@ export class CeramicGenerator extends BaseMaterialGenerator<CeramicParams> {
 
   private createRoughnessTexture(params: CeramicParams, rng: SeededRandom): Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');

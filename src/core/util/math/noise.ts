@@ -803,6 +803,231 @@ export class Noise3D {
  */
 export type NoiseFunction = (x: number, y: number, z: number, scale?: number) => number;
 
+// ============================================================================
+// NoiseUtils — Unified convenience class (consolidated from duplicates)
+// ============================================================================
+
+/**
+ * NoiseUtils class for procedural noise generation.
+ * Compatible with original InfiniGen Python API.
+ * Wraps SeededNoiseGenerator for a simpler, unified interface.
+ *
+ * Provides both instance and static methods for 2D/3D Perlin noise,
+ * FBM, octave noise, and coordinate-seeded random values.
+ */
+export class NoiseUtils {
+  private seed: number;
+  private generator: SeededNoiseGenerator;
+
+  constructor(seed: number = 42) {
+    this.seed = seed;
+    this.generator = new SeededNoiseGenerator(seed);
+  }
+
+  /**
+   * Evaluate Perlin noise at given coordinates
+   */
+  perlin(x: number, y: number, z: number = 0): number {
+    return this.generator.perlin3D(x, y, z);
+  }
+
+  /**
+   * Alias for perlin - evaluate noise at coordinates
+   */
+  evaluate(x: number, y: number, z: number = 0): number {
+    return this.generator.perlin3D(x, y, z);
+  }
+
+  /**
+   * 2D Perlin noise
+   */
+  perlin2D(x: number, y: number): number {
+    return this.generator.perlin2D(x, y);
+  }
+
+  /**
+   * 3D Perlin noise
+   */
+  perlin3D(x: number, y: number, z: number): number {
+    return this.generator.perlin3D(x, y, z);
+  }
+
+  /**
+   * Set the seed for noise generation
+   */
+  setSeed(seed: number): void {
+    this.seed = seed;
+    this.generator = new SeededNoiseGenerator(seed);
+  }
+
+  /**
+   * Get the current seed
+   */
+  getSeed(): number {
+    return this.seed;
+  }
+
+  /**
+   * Generate noise value with octaves (fractal Brownian motion)
+   */
+  fbm(x: number, y: number, z: number = 0, octaves: number = 4): number {
+    let value = 0;
+    let amplitude = 1;
+    let frequency = 1;
+    let maxValue = 0;
+
+    for (let i = 0; i < octaves; i++) {
+      value += this.generator.perlin3D(x * frequency, y * frequency, z * frequency) * amplitude;
+      maxValue += amplitude;
+      amplitude *= 0.5;
+      frequency *= 2;
+    }
+
+    return value / maxValue;
+  }
+
+  /**
+   * Generate multi-octave noise for more natural patterns (2D)
+   */
+  octaveNoise(
+    x: number,
+    y: number,
+    octaves: number = 4,
+    persistence: number = 0.5,
+    lacunarity: number = 2.0
+  ): number {
+    let total = 0;
+    let frequency = 1;
+    let amplitude = 1;
+    let maxValue = 0;
+
+    for (let i = 0; i < octaves; i++) {
+      total += this.generator.perlin2D(x * frequency, y * frequency) * amplitude;
+      maxValue += amplitude;
+      amplitude *= persistence;
+      frequency *= lacunarity;
+    }
+
+    return total / maxValue;
+  }
+
+  /**
+   * Generate random value seeded by coordinates
+   * @param x - X coordinate
+   * @param y - Y coordinate
+   * @returns Random value in range [0, 1]
+   */
+  seededRandom(x: number, y: number): number {
+    const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return n - Math.floor(n);
+  }
+
+  /**
+   * Clamp value between min and max
+   */
+  clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  /**
+   * Remap value from one range to another
+   */
+  remap(
+    value: number,
+    inMin: number,
+    inMax: number,
+    outMin: number,
+    outMax: number
+  ): number {
+    return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+  }
+
+  /**
+   * Static method for 2D Perlin noise without instantiation
+   */
+  static perlin2D(x: number, y: number, _octaves?: number): number {
+    return _defaultNoiseUtils.perlin2D(x, y);
+  }
+
+  /**
+   * Static method for 3D Perlin noise without instantiation
+   */
+  static perlin3D(x: number, y: number, z: number, _octaves?: number): number {
+    return _defaultNoiseUtils.perlin3D(x, y, z);
+  }
+}
+
+/** Internal default NoiseUtils instance for static methods */
+const _defaultNoiseUtils = new NoiseUtils();
+
+// ============================================================================
+// Additional convenience functions (consolidated from terrain/utils/NoiseUtils)
+// ============================================================================
+
+/**
+ * Sample noise at given coordinates using the default generator.
+ */
+export function sampleNoise(x: number, y: number, z: number = 0): number {
+  return defaultNoiseGenerator.perlin3D(x, y, z);
+}
+
+/**
+ * Standalone octave noise function using the default generator (seed 0).
+ * 2D multi-octave Perlin noise.
+ */
+export function octaveNoise(
+  x: number,
+  y: number,
+  octaves: number = 4,
+  persistence: number = 0.5,
+  lacunarity: number = 2.0
+): number {
+  return _defaultNoiseUtils.octaveNoise(x, y, octaves, persistence, lacunarity);
+}
+
+/**
+ * Standalone seeded random function using a deterministic hash.
+ * @returns Random value in range [0, 1]
+ */
+export function seededRandom(x: number, y: number): number {
+  const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+/**
+ * Generate a 2D noise map (Float32Array) of the given dimensions.
+ */
+export function generateNoiseMap(
+  width: number,
+  height: number,
+  scale: number = 1.0,
+  octaves: number = 4
+): Float32Array {
+  const map = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let value = 0;
+      let amplitude = 1;
+      let frequency = 1;
+      let maxValue = 0;
+
+      for (let i = 0; i < octaves; i++) {
+        value += defaultNoiseGenerator.perlin3D(
+          (x / width) * scale * frequency,
+          (y / height) * scale * frequency,
+          0
+        ) * amplitude;
+        maxValue += amplitude;
+        amplitude *= 0.5;
+        frequency *= 2;
+      }
+
+      map[y * width + x] = value / maxValue;
+    }
+  }
+  return map;
+}
+
 // Re-export seeded noise functions from MathUtils for convenience
 export {
   seededNoise2D,

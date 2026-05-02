@@ -15,3 +15,7 @@ export type { GlacierConfig } from './GlacialErosion';
 // Coastal erosion: sea cliffs, wave-cut platforms, beaches, sea stacks
 export { CoastalErosion } from './CoastalErosion';
 export type { CoastalConfig } from './CoastalErosion';
+
+// Erosion visualization: visual overlay for erosion effects
+export { ErosionVisualization, ErosionType } from './ErosionVisualization';
+export type { ErosionVisualizationConfig } from './ErosionVisualization';

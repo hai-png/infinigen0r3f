@@ -11,6 +11,21 @@ export { BatchProcessor, type BatchProcessorOptions } from './BatchProcessor';
 export { GroundTruthGenerator, type GroundTruthOptions, type GroundTruthResult } from './GroundTruthGenerator';
 export { ConfigParser, type SceneConfig } from './SceneConfigSystem';
 
+// Phase 4.2 — Ground Truth Rendering & Annotation
+export {
+  GroundTruthRenderer,
+  type GTRenderConfig,
+  type GTChannel,
+  type GTRenderResult,
+} from './GroundTruthRenderer';
+
+export {
+  AnnotationExporter,
+  type AnnotationExportConfig,
+  type AnnotationFormat,
+  type AnnotationExportResult,
+} from './AnnotationExporter';
+
 // Task Execution Framework (Sprint 2.1)
 export {
   TaskRegistry,

@@ -15,7 +15,7 @@ import {
   MathUtils
 } from 'three';
 import { BaseObjectGenerator, BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 export type ClockStyle = 'wall' | 'mantel' | 'grandfather' | 'digital' | 'cuckoo' | 'pendulum' | 'alarm';
 export type ClockMaterialType = 'wood' | 'metal' | 'plastic' | 'glass' | 'ceramic' | 'brass';

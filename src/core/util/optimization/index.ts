@@ -5,11 +5,10 @@
 export * from './GPUAcceleration';
 export * from './DrawCallOptimizer';
 export * from './MemoryProfiler';
-
-// Future optimization modules can be added here:
-// export * from './MemoryOptimizer';
-// export * from './PerformanceProfiler';
-// export * from './BundleAnalyzer';
+export * from './GPUComputeManager';
+export * from './WorkerPool';
+export * from './FrameBudgetManager';
+export * from './ShaderVariantCache';
 
 import GPUAcceleration, {
   initGPUContext,

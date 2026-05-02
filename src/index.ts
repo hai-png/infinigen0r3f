@@ -209,8 +209,24 @@ export * from './core/constraints/tags';
 
 // Rendering IO
 export * from './core/rendering/io';
-// Optimization
-export * from './core/util/optimization';
+// Optimization - exclude GPUComputeConfig (conflicts with terrain/gpu)
+export {
+  GPUComputeManager,
+  FrameBudgetManager,
+  ShaderVariantCache,
+  WorkerPool,
+  MemoryProfiler,
+  DrawCallOptimizer,
+  isGPUAvailable,
+  type ComputeJob,
+  type ComputeJobResult,
+  type GPUComputeCapabilities,
+  type QualityPreset,
+  type FrameBudgetConfig,
+  type ShaderVariantKey,
+  type WorkerPoolConfig,
+  type MemoryStats,
+} from './core/util/optimization';
 // LOD - export selectively to avoid LODConfig conflict with terrain
 export {
   LODManager,

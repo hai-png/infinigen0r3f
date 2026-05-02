@@ -1,5 +1,6 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 import * as THREE from 'three';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 export interface LeafParams {
   baseColor: THREE.Color;
@@ -125,7 +126,7 @@ export class LeafMaterial {
 
   private generateLeafTexture(material: THREE.MeshPhysicalMaterial): void {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;
@@ -226,7 +227,7 @@ export class LeafMaterial {
 
   private generateSimpleLeafTexture(material: THREE.MeshPhysicalMaterial): void {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;

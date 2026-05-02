@@ -314,3 +314,41 @@ export * from './groups';
 
 // Helpers
 export * from './helpers';
+
+// Execution Layer - Node evaluation pipeline
+export {
+  NodeEvaluator,
+  EvaluationMode,
+  CyclicDependencyError,
+  MissingConnectionError,
+  SocketTypeMismatchError,
+  NodeShaderCompiler,
+  MaterialFactory,
+  TextureNodeExecutor,
+} from './execution';
+
+export type {
+  NodeEvaluationResult,
+  NodeGraph,
+  ShaderCompileResult,
+  TerrainMaterialParams,
+  BarkMaterialParams,
+  StoneMaterialParams,
+  MetalMaterialParams,
+  GlassMaterialParams,
+  FabricMaterialParams,
+  WaterMaterialParams,
+  FoliageMaterialParams,
+  SkinMaterialParams,
+  NoiseType,
+  GradientType,
+  PatternType,
+  TextureExecParams,
+} from './execution';
+
+// Shader utilities (also from shader module)
+export {
+  createMaterialFromShader,
+  parseColor,
+} from './shader';
+

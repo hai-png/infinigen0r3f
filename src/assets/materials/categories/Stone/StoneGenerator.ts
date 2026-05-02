@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Stone Material Generator - Marble, granite, limestone, slate, concrete, travertine
  * Uses MeshPhysicalMaterial when clearcoat (polish) is needed.
@@ -113,7 +114,7 @@ export class StoneGenerator extends BaseMaterialGenerator<StoneParams> {
 
   private generateMarbleTexture(params: StoneParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -153,7 +154,7 @@ export class StoneGenerator extends BaseMaterialGenerator<StoneParams> {
 
   private generateGraniteTexture(params: StoneParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -193,7 +194,7 @@ export class StoneGenerator extends BaseMaterialGenerator<StoneParams> {
   /** Limestone: sedimentary layers + fossil spots */
   private generateLimestoneTexture(params: StoneParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -239,7 +240,7 @@ export class StoneGenerator extends BaseMaterialGenerator<StoneParams> {
   /** Slate: diagonal cleavage lines */
   private generateSlateTexture(params: StoneParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -284,7 +285,7 @@ export class StoneGenerator extends BaseMaterialGenerator<StoneParams> {
 
   private generateConcreteTexture(params: StoneParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -331,7 +332,7 @@ export class StoneGenerator extends BaseMaterialGenerator<StoneParams> {
   /** Travertine: pitted surface + horizontal layering */
   private generateTravertineTexture(params: StoneParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -382,7 +383,7 @@ export class StoneGenerator extends BaseMaterialGenerator<StoneParams> {
 
   private generateNormalMap(params: StoneParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -440,7 +441,7 @@ export class StoneGenerator extends BaseMaterialGenerator<StoneParams> {
 
   private generateRoughnessMap(params: StoneParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);

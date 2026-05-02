@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Tile Material Generator - Tile grid with grout lines
  * Supports ceramic, stone, and mosaic tiles with various patterns
@@ -79,7 +80,7 @@ export class TileGenerator extends BaseMaterialGenerator<TileParams> {
 
   private generateTileTexture(params: TileParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -235,7 +236,7 @@ export class TileGenerator extends BaseMaterialGenerator<TileParams> {
 
   private generateTileNormalMap(params: TileParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -275,7 +276,7 @@ export class TileGenerator extends BaseMaterialGenerator<TileParams> {
 
   private generateTileRoughnessMap(params: TileParams, rng: SeededRandom): Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');

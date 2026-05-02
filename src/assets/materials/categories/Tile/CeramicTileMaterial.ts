@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 import * as THREE from 'three';
 import { SeededRandom, noise2D as perlin2D } from '../../../../core/util/MathUtils';
 import { Noise3D } from '../../../../core/util/math/noise';
@@ -51,7 +52,7 @@ export class CeramicTileMaterial {
 
   private generateTileTexture(material: THREE.MeshStandardMaterial): void {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;

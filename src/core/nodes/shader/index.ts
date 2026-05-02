@@ -35,6 +35,10 @@ export {
   executeTextureCoordinate,
   MappingDefinition,
   executeMapping,
+  
+  // Material creation
+  createMaterialFromShader,
+  parseColor,
 } from './PrincipledNodes';
 
 export type {

@@ -1,5 +1,6 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 import * as THREE from 'three';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 /**
  * Configuration for skin material properties
@@ -92,7 +93,7 @@ export class SkinMaterial {
 
   private generateSubsurfaceMap(material: THREE.MeshPhysicalMaterial): void {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;
@@ -124,7 +125,7 @@ export class SkinMaterial {
 
   private generateSkinDetailMap(material: THREE.MeshPhysicalMaterial): void {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;

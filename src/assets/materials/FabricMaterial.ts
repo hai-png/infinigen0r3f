@@ -1,3 +1,4 @@
+import { createCanvas } from '../utils/CanvasUtils';
 import * as THREE from 'three';
 import { SeededRandom } from '../../core/util/MathUtils';
 
@@ -109,7 +110,7 @@ export class FabricMaterialGenerator {
     material: THREE.MeshStandardMaterial,
     config: FabricMaterialConfig
   ): void {
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = 256;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
@@ -168,7 +169,7 @@ export class FabricMaterialGenerator {
     material: THREE.MeshStandardMaterial,
     config: FabricMaterialConfig
   ): void {
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = 256;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
@@ -333,7 +334,7 @@ export class FabricMaterialGenerator {
     const material = this.generate(config);
     
     // Create quilted pattern
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');

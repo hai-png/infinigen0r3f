@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Metal Material Generator - Steel, aluminum, brass, copper, iron with patina/rust
  * Uses MeshStandardMaterial with high metalness
@@ -81,7 +82,7 @@ export class MetalGenerator extends BaseMaterialGenerator<MetalParams> {
 
   private generateMetalColorMap(params: MetalParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -110,7 +111,7 @@ export class MetalGenerator extends BaseMaterialGenerator<MetalParams> {
 
   private generateBrushedNormal(params: MetalParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -141,7 +142,7 @@ export class MetalGenerator extends BaseMaterialGenerator<MetalParams> {
 
   private generateNormalMap(params: MetalParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -170,7 +171,7 @@ export class MetalGenerator extends BaseMaterialGenerator<MetalParams> {
 
     // Generate rust overlay on the color map
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
 
@@ -213,7 +214,7 @@ export class MetalGenerator extends BaseMaterialGenerator<MetalParams> {
 
   private generateRoughnessMap(params: MetalParams, rng: SeededRandom): Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);

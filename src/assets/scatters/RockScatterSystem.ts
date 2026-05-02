@@ -30,7 +30,7 @@
 import * as THREE from 'three';
 import { RockGenerator, RockConfig, RockType, RockInstance } from './ground/RockGenerator';
 import { InstanceScatterSystem, ScatterConfig, ScatterRules, Biome } from './InstanceScatterSystem';
-import { NoiseUtils } from '../../terrain/utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 import { SeededRandom } from '../../core/util/math/index';
 
 // ============================================================================

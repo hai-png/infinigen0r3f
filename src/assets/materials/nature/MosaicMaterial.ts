@@ -1,6 +1,7 @@
+import { createCanvas } from '../../utils/CanvasUtils';
 import { SeededRandom } from '../../../core/util/MathUtils';
 import * as THREE from 'three';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 /**
  * Configuration for mosaic material properties
@@ -47,7 +48,7 @@ export class MosaicMaterial {
     const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
 
     const size = 2048;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -68,7 +69,7 @@ export class MosaicMaterial {
     texture.repeat.set(tilesPerTexture, tilesPerTexture);
 
     // Generate normal map for tile surface detail
-    const normalCanvas = document.createElement('canvas');
+    const normalCanvas = createCanvas();
     normalCanvas.width = size;
     normalCanvas.height = size;
     const normalCtx = normalCanvas.getContext('2d');

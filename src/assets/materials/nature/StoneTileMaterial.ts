@@ -1,6 +1,7 @@
+import { createCanvas } from '../../utils/CanvasUtils';
 import { SeededRandom } from '../../../core/util/MathUtils';
 import * as THREE from 'three';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 /**
  * Configuration for stone tile material properties
@@ -43,7 +44,7 @@ export class StoneTileMaterial {
     const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
 
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
@@ -61,7 +62,7 @@ export class StoneTileMaterial {
     texture.repeat.set(2, 2);
 
     // Generate normal map for tile surface detail
-    const normalCanvas = document.createElement('canvas');
+    const normalCanvas = createCanvas();
     normalCanvas.width = size;
     normalCanvas.height = size;
     const normalCtx = normalCanvas.getContext('2d');
@@ -76,7 +77,7 @@ export class StoneTileMaterial {
     normalTexture.repeat.set(2, 2);
 
     // Generate roughness map
-    const roughnessCanvas = document.createElement('canvas');
+    const roughnessCanvas = createCanvas();
     roughnessCanvas.width = size;
     roughnessCanvas.height = size;
     const roughnessCtx = roughnessCanvas.getContext('2d');

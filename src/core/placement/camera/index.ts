@@ -11,11 +11,11 @@ export {
   type ShotSize,
   type CameraAngle,
   type CameraMovement,
-  type CameraProperties,
+  type CameraProperties as CameraPropertiesType,
   type CompositionRule,
   type CameraPlacementConfig,
   type TrajectoryKeyframe,
-  type TrajectoryConfig,
+  type TrajectoryConfig as TrajectoryConfigType,
   
   // Constants
   DEFAULT_CAMERA_PROPERTIES,
@@ -35,24 +35,93 @@ export {
   FollowsSubject,
 } from './CameraSystem';
 
-// Auto-placement algorithms (to be implemented)
-// export {
-//   AutoPlacementEngine,
-//   ViewpointScorer,
-//   ObstructionDetector,
-// } from './AutoPlacement';
+// Camera pose proposer (Phase 4.1)
+export {
+  CameraPoseProposer,
+  type CameraPoseProposerConfig,
+  type CameraPose,
+  type PoseScoreBreakdown,
+  DEFAULT_POSE_PROPOSER_CONFIG,
+} from './CameraPoseProposer';
 
-// Cinematography rules (to be implemented)
-// export {
-//   RuleOfThirdsComposer,
-//   LeadingLinesAnalyzer,
-//   FramingAssistant,
-// } from './Cinematography';
+// Camera parameter exporter (Phase 4.1)
+export {
+  CameraParameterExporter,
+  type CameraIntrinsics,
+  type CameraExtrinsics,
+  type PerFrameCameraParams,
+  type StereoBaselineConfig,
+  type CameraExportOptions,
+} from './CameraParameterExporter';
 
-// Trajectory generators (to be implemented)
-// export {
-//   DollyShotGenerator,
-//   OrbitShotGenerator,
-//   TrackingShotGenerator,
-//   HandheldSimulator,
-// } from './Trajectories';
+// Depth of field (Phase 4.1)
+export {
+  DepthOfField,
+  type DepthOfFieldConfig,
+  type DepthOfFieldResult,
+  type BokehShape,
+  DEFAULT_DOF_CONFIG,
+} from './DepthOfField';
+
+// Camera types (physical camera)
+export {
+  CameraType as PhysicalCameraType,
+  type BaseCameraConfig,
+  type PerspectiveCameraConfig,
+  type OrthographicCameraConfig,
+  type StereoCameraConfig,
+  type PanoramicCameraConfig,
+  type FisheyeCameraConfig,
+  type CameraConfig,
+  type TypedCamera,
+  createCamera,
+  createPerspectiveCamera,
+  createOrthographicCamera,
+  createStereoCamera,
+  createPanoramicCamera,
+  createFisheyeCamera,
+  getCameraFOV,
+  isPerspective,
+  isOrthographic,
+  cloneCamera,
+  lookAt,
+  setPosition,
+} from './CameraTypes';
+
+// Camera properties (physical)
+export {
+  FilmFormat,
+  SENSOR_DIMENSIONS,
+  type CameraProperties,
+  DEFAULT_CAMERA_PROPERTIES as DEFAULT_PHYSICAL_CAMERA_PROPERTIES,
+  calculateDepthOfField,
+  calculateHorizontalFOV,
+  calculateVerticalFOV,
+  getSensorDimensions,
+  calculateEquivalentFocalLength,
+  calculateExposureValue,
+  applyCameraProperties,
+  CAMERA_PRESETS,
+} from './CameraProperties';
+
+// Trajectories (consolidated implementations)
+export {
+  OrbitShot,
+  PanTilt,
+  DollyShot as DollyShotImpl,
+  TrackingShot,
+  CraneShot as CraneShotImpl,
+  HandheldSim,
+  GoToProposals,
+  createTrajectory,
+  type TrajectoryTypeName,
+  type TrajectoryBaseConfig,
+  type CameraKeyframe,
+  type OrbitShotConfig,
+  type PanTiltConfig,
+  type DollyConfig,
+  type TrackingConfig,
+  type CraneConfig,
+  type HandheldConfig,
+  type GoToProposalsConfig,
+} from './trajectories/TrajectoryImplementations';

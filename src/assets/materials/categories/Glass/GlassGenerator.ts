@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Glass Material Generator - Clear, frosted, tinted, patterned glass
  * CRITICAL: Must use MeshPhysicalMaterial (not MeshStandardMaterial) for transmission/IOR
@@ -89,7 +90,7 @@ export class GlassGenerator extends BaseMaterialGenerator<GlassParams> {
 
   private generatePatternNormal(patternType: string, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -130,7 +131,7 @@ export class GlassGenerator extends BaseMaterialGenerator<GlassParams> {
 
   private generateTexturedNormal(params: GlassParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -156,7 +157,7 @@ export class GlassGenerator extends BaseMaterialGenerator<GlassParams> {
 
   private generateFrostedRoughness(params: GlassParams, rng: SeededRandom): Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);

@@ -94,6 +94,17 @@ export class AtmosphericSky {
     this.createSunDisc();
     this.createMoonDisc();
   }
+
+  /**
+   * Get viewport dimensions with SSR guard.
+   * Returns default 1920x1080 when window is not available (e.g. during SSR).
+   */
+  private getViewportSize(): { width: number; height: number } {
+    if (typeof window !== 'undefined') {
+      return { width: window.innerWidth, height: window.innerHeight };
+    }
+    return { width: 1920, height: 1080 };
+  }
   
   /**
    * Create the sky dome with atmospheric scattering shader
@@ -283,8 +294,8 @@ export class AtmosphericSky {
         sunDiscSize: { value: this.params.sunDiscSize },
         sunColor: { value: new THREE.Color(1.0, 0.95, 0.9) },
         sunIntensity: { value: this.params.sunIntensity },
-        resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-        aspectRatio: { value: window.innerWidth / window.innerHeight },
+        resolution: { value: new THREE.Vector2(this.getViewportSize().width, this.getViewportSize().height) },
+        aspectRatio: { value: this.getViewportSize().width / this.getViewportSize().height },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -342,8 +353,8 @@ export class AtmosphericSky {
         moonDiscSize: { value: this.params.sunDiscSize * 1.1 },
         moonColor: { value: new THREE.Color(0.9, 0.95, 1.0) },
         moonIntensity: { value: this.params.moonIntensity },
-        resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-        aspectRatio: { value: window.innerWidth / window.innerHeight },
+        resolution: { value: new THREE.Vector2(this.getViewportSize().width, this.getViewportSize().height) },
+        aspectRatio: { value: this.getViewportSize().width / this.getViewportSize().height },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -405,18 +416,20 @@ export class AtmosphericSky {
     }
     
     if (this.sunMaterial) {
+      const vp = this.getViewportSize();
       this.sunMaterial.uniforms.sunPosition.value.copy(this.sunPosition);
       this.sunMaterial.uniforms.sunIntensity.value = this.params.sunIntensity;
-      this.sunMaterial.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
-      this.sunMaterial.uniforms.aspectRatio.value = window.innerWidth / window.innerHeight;
+      this.sunMaterial.uniforms.resolution.value.set(vp.width, vp.height);
+      this.sunMaterial.uniforms.aspectRatio.value = vp.width / vp.height;
       this.sunMaterial.needsUpdate = true;
     }
     
     if (this.moonMaterial) {
+      const vp = this.getViewportSize();
       this.moonMaterial.uniforms.moonPosition.value.copy(this.moonPosition);
       this.moonMaterial.uniforms.moonIntensity.value = this.params.moonIntensity;
-      this.moonMaterial.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
-      this.moonMaterial.uniforms.aspectRatio.value = window.innerWidth / window.innerHeight;
+      this.moonMaterial.uniforms.resolution.value.set(vp.width, vp.height);
+      this.moonMaterial.uniforms.aspectRatio.value = vp.width / vp.height;
       this.moonMaterial.needsUpdate = true;
     }
   }

@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Plastic Material Generator - Matte, glossy, textured, translucent, metallic
  * Uses MeshPhysicalMaterial for translucent/metallic types that require
@@ -135,7 +136,7 @@ export class PlasticGenerator extends BaseMaterialGenerator<PlasticParams> {
 
   private generateTexture(params: PlasticParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -177,7 +178,7 @@ export class PlasticGenerator extends BaseMaterialGenerator<PlasticParams> {
 
   private generateNormalMap(params: PlasticParams, rng: SeededRandom): Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -209,7 +210,7 @@ export class PlasticGenerator extends BaseMaterialGenerator<PlasticParams> {
 
   private generateRoughnessMap(params: PlasticParams, rng: SeededRandom): Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);

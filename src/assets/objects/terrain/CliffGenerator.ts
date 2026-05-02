@@ -11,7 +11,7 @@ import { SeededRandom } from '@/core/util/MathUtils';
  */
 
 import * as THREE from 'three';
-import { NoiseUtils } from '../../../terrain/utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 import { RockGenerator, RockType, RockMaterial } from './RockGenerator';
 
 // ============================================================================

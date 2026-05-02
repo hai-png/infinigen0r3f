@@ -20,7 +20,7 @@ import {
   MathUtils
 } from 'three';
 import { BaseObjectGenerator } from '../utils/BaseObjectGenerator';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 export type MirrorStyle = 'wall' | 'standing' | 'vanity' | 'decorative' | 'round' | 'oval' | 'sunburst';
 export type MirrorFrameStyle = 'simple' | 'ornate' | 'modern' | 'vintage' | 'rustic' | 'gilded';

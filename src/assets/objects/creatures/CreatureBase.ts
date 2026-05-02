@@ -1,14 +1,17 @@
 /**
  * CreatureBase - Abstract base class for all creature generators
  * Provides framework for procedural creature generation with anatomy, materials, animation hooks,
- * skeleton rigging, and behavior tree for autonomous AI
+ * skeleton rigging, and behavior tree for autonomous AI.
+ *
+ * Phase 3.2: Now integrates BodyPlanSystem for template-based creature generation,
+ * CreatureSkinSystem for procedural skinning, and LocomotionSystem for body-plan-specific gaits.
  */
 
 import {
   Object3D, Group, Mesh, Material, SphereGeometry, BoxGeometry, CylinderGeometry,
   MeshStandardMaterial, ConeGeometry, CapsuleGeometry, TorusGeometry,
   BufferGeometry, Float32BufferAttribute, Vector3, Skeleton, Bone,
-  SkinnedMesh, AnimationClip, AnimationMixer
+  SkinnedMesh, AnimationClip, AnimationMixer, Color,
 } from 'three';
 import { SeededRandom } from '@/core/util/MathUtils';
 import { BaseObjectGenerator, BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
@@ -18,6 +21,10 @@ import { WalkCycle, GaitType, WalkCycleParams } from './animation/WalkCycle';
 import { BehaviorTree, CreatureContext, BehaviorState, createDefaultContext } from './animation/BehaviorTree';
 import { SkinnedMeshBuilder } from './skeleton/SkinnedMeshBuilder';
 import { IKController, IKChain, IKEffector } from './animation/IKController';
+import { BodyPlanSystem, BodyPlanType, ResolvedBodyPlan } from './BodyPlanSystem';
+import { HeadGenerator, TorsoGenerator, LimbGenerator, TailGenerator } from './parts/PartGenerators';
+import { CreatureSkinSystem, CreatureSkinConfig } from './skin/CreatureSkinSystem';
+import { LocomotionSystem, LocomotionConfig, SpeedLevel } from './animation/LocomotionSystem';
 
 export enum CreatureType {
   MAMMAL = 'mammal',
@@ -62,10 +69,20 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
   protected walkClip: AnimationClip | null = null;
   protected animationMixer: AnimationMixer | null = null;
 
+  // Phase 3.2: Body plan and skin systems
+  protected bodyPlanSystem: BodyPlanSystem;
+  protected resolvedBodyPlan: ResolvedBodyPlan | null = null;
+  protected skinSystem: CreatureSkinSystem;
+  protected skinConfig: CreatureSkinConfig | null = null;
+  protected headGenerator: HeadGenerator;
+  protected torsoGenerator: TorsoGenerator;
+  protected limbGenerator: LimbGenerator;
+  protected tailGenerator: TailGenerator;
+
   constructor(params: Partial<CreatureParams> = {}) {
     super(0);
     this.params = {
-      seed: params.seed ?? Math.floor(Date.now() * this.rng.next()) % 10000,
+      seed: params.seed ?? Math.floor(Date.now() * Math.random()) % 10000,
       species: 'unknown',
       size: 1.0,
       age: 'adult',
@@ -82,38 +99,200 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
     this.idleAnimation = new IdleAnimation(this.params.seed);
     this.walkCycle = new WalkCycle(this.params.seed);
     this.behaviorTree = new BehaviorTree(createDefaultContext());
+
+    // Phase 3.2: Initialize new systems
+    this.bodyPlanSystem = new BodyPlanSystem(this.params.seed);
+    this.skinSystem = new CreatureSkinSystem(this.params.seed);
+    this.headGenerator = new HeadGenerator(this.params.seed);
+    this.torsoGenerator = new TorsoGenerator(this.params.seed);
+    this.limbGenerator = new LimbGenerator(this.params.seed);
+    this.tailGenerator = new TailGenerator(this.params.seed);
   }
 
   getDefaultConfig(): CreatureParams {
     return this.params;
   }
 
+  /**
+   * Resolve the body plan type from CreatureType
+   */
+  protected getBodyPlanType(): BodyPlanType {
+    switch (this.params.creatureType) {
+      case CreatureType.MAMMAL:     return 'quadruped';
+      case CreatureType.BIRD:       return 'avian';
+      case CreatureType.FISH:       return 'aquatic';
+      case CreatureType.REPTILE:    return 'serpentine';
+      case CreatureType.INSECT:     return 'insectoid';
+      case CreatureType.AMPHIBIAN:  return 'quadruped';
+      default:                      return 'quadruped';
+    }
+  }
+
+  /**
+   * Generate a creature using the BodyPlanSystem framework.
+   * This replaces the old simple ellipsoid+sphere generate().
+   */
   generate(): Group {
     const group = new Group();
-    // Base creature: visible ellipsoid body + sphere head
-    const bodyMat = this.createStandardMaterial({ color: 0x8b7355, roughness: 0.8 });
-    const body = new Mesh(this.createEllipsoidGeometry(0.4, 0.35, 0.5), bodyMat);
-    body.name = 'body';
-    group.add(body);
+    group.name = `Creature_${this.params.species}`;
 
-    const head = new Mesh(this.createSphereGeometry(0.2), bodyMat);
-    head.position.set(0, 0.3, 0.4);
-    head.name = 'head';
+    const s = this.params.size;
+    const bodyPlanType = this.getBodyPlanType();
+
+    // 1. Resolve body plan
+    this.resolvedBodyPlan = this.bodyPlanSystem.createBodyPlan(bodyPlanType, s);
+
+    // 2. Generate skin config
+    this.skinConfig = this.skinSystem.createSkinConfig(bodyPlanType);
+    const primaryColor = this.skinConfig.primaryColor.clone();
+    const secondaryColor = this.skinConfig.secondaryColor.clone();
+
+    // 3. Generate torso
+    const torso = this.torsoGenerator.generate(this.resolvedBodyPlan, primaryColor);
+    group.add(torso);
+
+    // 4. Generate head
+    const head = this.headGenerator.generate(this.resolvedBodyPlan, primaryColor, secondaryColor);
     group.add(head);
 
-    // Eyes
-    const eyeMat = new MeshStandardMaterial({ color: 0x111111 });
-    const eyeGeo = this.createSphereGeometry(0.04);
-    const leftEye = new Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.08, 0.35, 0.58);
-    leftEye.name = 'leftEye';
-    group.add(leftEye);
-    const rightEye = new Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.08, 0.35, 0.58);
-    rightEye.name = 'rightEye';
-    group.add(rightEye);
+    // 5. Generate legs
+    const legs = this.limbGenerator.generateLegs(this.resolvedBodyPlan, primaryColor);
+    legs.forEach(leg => group.add(leg));
+
+    // 6. Generate wings (avian)
+    if (this.resolvedBodyPlan.hasWings && bodyPlanType === 'avian') {
+      const wings = this.limbGenerator.generateWings(this.resolvedBodyPlan, secondaryColor);
+      wings.forEach(w => group.add(w));
+    }
+
+    // 7. Generate fins (aquatic)
+    if (bodyPlanType === 'aquatic') {
+      const fins = this.limbGenerator.generateFins(this.resolvedBodyPlan, secondaryColor);
+      fins.forEach(f => group.add(f));
+    }
+
+    // 8. Generate tail
+    if (this.resolvedBodyPlan.hasTail) {
+      const tail = this.tailGenerator.generate(this.resolvedBodyPlan, primaryColor, secondaryColor);
+      group.add(tail);
+    }
+
+    // 9. Apply skin material to all meshes
+    this.applySkinToGroup(group, this.skinConfig);
+
+    // Store body plan and skin config in userData
+    group.userData.bodyPlan = this.resolvedBodyPlan;
+    group.userData.skinConfig = this.skinConfig;
+    group.userData.creatureType = this.params.creatureType;
 
     return group;
+  }
+
+  /**
+   * Generate a fully rigged creature with skeleton, animations, and behavior.
+   * Uses BodyPlanSystem for skeleton-driven mesh deformation.
+   */
+  generateRigged(config?: CreatureSkeletonConfig): Group {
+    const group = this.generate();
+    group.name = `${this.params.species}_rigged`;
+
+    // Build and attach skeleton
+    const skeleton = this.buildSkeleton(config);
+    group.userData.skeleton = skeleton;
+    group.userData.creatureType = this.getCreatureTypeString();
+
+    // Build animations using LocomotionSystem
+    const idleClip = this.buildIdleAnimation();
+    const walkClip = this.buildWalkAnimationWithLocomotion();
+    group.userData.animations = [idleClip, walkClip];
+
+    // Set up behavior context
+    this.behaviorTree.updateContext({
+      health: this.params.health,
+      position: { x: 0, y: 0, z: 0 },
+      homePosition: { x: 0, y: 0, z: 0 },
+    });
+    group.userData.behaviorTree = this.behaviorTree;
+
+    // Add skeleton bones to group
+    const rootBone = skeleton.bones[0];
+    group.add(rootBone);
+
+    // Set up animation mixer
+    this.setupAnimationMixer(group);
+    group.userData.animationMixer = this.animationMixer;
+
+    return group;
+  }
+
+  /**
+   * Apply skin material to all meshes in a group
+   */
+  protected applySkinToGroup(group: Group, skinConfig: CreatureSkinConfig): void {
+    const material = this.skinSystem.generateMaterial(skinConfig);
+
+    group.traverse((child) => {
+      if (child instanceof Mesh) {
+        // Keep eye, pupil, nose, fang, and beak materials as-is
+        const name = child.name.toLowerCase();
+        const isSpecialPart = name.includes('eye') || name.includes('pupil') ||
+          name.includes('sclera') || name.includes('nostril') ||
+          name.includes('fang') || name.includes('beak') ||
+          name.includes('horn') || name.includes('mouth') ||
+          name.includes('foot') || name.includes('inner');
+
+        if (!isSpecialPart && child.material instanceof MeshStandardMaterial) {
+          // Blend the original color with the skin pattern
+          const oldMat = child.material as MeshStandardMaterial;
+          const newMat = material.clone();
+          // Preserve the original geometry color if it was set
+          if (oldMat.color) {
+            newMat.color.copy(oldMat.color);
+          }
+          child.material = newMat;
+        }
+      }
+    });
+  }
+
+  /**
+   * Build walk animation using the LocomotionSystem
+   */
+  protected buildWalkAnimationWithLocomotion(speed: SpeedLevel = 'walk'): AnimationClip {
+    if (!this.resolvedBodyPlan) {
+      return this.buildWalkAnimation();
+    }
+
+    const config: LocomotionConfig = {
+      bodyPlanType: this.resolvedBodyPlan.type,
+      locomotionType: this.resolvedBodyPlan.locomotionType,
+      size: this.resolvedBodyPlan.size,
+      speed,
+      speedMultiplier: 1.0,
+      strideLength: 0.3,
+      bodyScale: this.params.size,
+      spineSegments: this.resolvedBodyPlan.spineSegments,
+      tailSegments: this.resolvedBodyPlan.tailSegments,
+    };
+
+    this.walkClip = LocomotionSystem.generateWalkClip(config);
+    return this.walkClip;
+  }
+
+  /**
+   * Build idle animation using the LocomotionSystem
+   */
+  protected buildIdleAnimationWithLocomotion(): AnimationClip {
+    if (!this.resolvedBodyPlan) {
+      return this.buildIdleAnimation();
+    }
+
+    this.idleClip = LocomotionSystem.generateIdleClip(
+      this.resolvedBodyPlan.type,
+      this.params.size,
+      this.resolvedBodyPlan.tailSegments,
+    );
+    return this.idleClip;
   }
 
   // ── Skeleton System ──────────────────────────────────────────────
@@ -155,25 +334,20 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
   /**
    * Build the full skeleton, compute skin weights, create a SkinnedMesh,
    * and initialize the IK controller for this creature.
-   *
-   * Call this after setting creatureType in params.
    */
   buildSkeletonAndSkin(
     bodyGeometry?: BufferGeometry,
     bodyMaterial?: Material,
     skeletonConfig?: CreatureSkeletonConfig,
   ): SkinnedMesh {
-    // 1. Build the bone hierarchy via SkeletonBuilder
     const skeleton = this.buildSkeleton(skeletonConfig);
 
-    // 2. Create body geometry if not provided
     const geometry = bodyGeometry ?? this.createEllipsoidGeometry(
       this.params.size * 0.4,
       this.params.size * 0.35,
       this.params.size * 0.5,
     );
 
-    // 3. Compute skin weights and create SkinnedMesh via SkinnedMeshBuilder
     const boneWeights = new Map<string, number[]>();
     const material = bodyMaterial ?? this.createStandardMaterial({
       color: 0x8b7355,
@@ -181,7 +355,6 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
       skinning: true,
     });
 
-    // Ensure the material supports skinning
     if (material instanceof MeshStandardMaterial) {
       (material as any).skinning = true;
     }
@@ -193,10 +366,7 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
       material,
     );
 
-    // 4. Store the skeleton reference
     this.skeleton = skeleton;
-
-    // 5. Build default IK chains from the skeleton's limb bones
     this.ikController = new IKController();
     this.buildDefaultIKChains(skeleton);
 
@@ -219,66 +389,47 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
 
   /**
    * Build default IK chains from the skeleton by detecting limb patterns.
-   * Looks for common bone naming patterns (femur, tibia, humerus, radius, etc.)
    */
   protected buildDefaultIKChains(skeleton: Skeleton): void {
     if (!this.ikController) return;
 
     const bones = skeleton.bones;
 
-    // Detect limb chains by looking for known bone name patterns
     const limbPatterns = [
-      // Mammal front legs
       { root: /^scapula_(L|R)$/, upper: /^humerus_front_(L|R)$/, lower: /^radius_front_(L|R)$/, end: /^hand_front_(L|R)$/ },
-      // Mammal hind legs
       { root: /^pelvis$/, upper: /^femur_hind_(L|R)$/, lower: /^tibia_hind_(L|R)$/, end: /^foot_hind_(L|R)$/ },
-      // Reptile splayed legs
       { root: /^leg_(front|hind)_(L|R)$/, upper: /^upper_(front|hind)_(L|R)$/, lower: /^lower_(front|hind)_(L|R)$/, end: /^foot_(front|hind)_(L|R)$/ },
-      // Bird legs
       { root: /^pelvis$/, upper: /^femur_(L|R)$/, lower: /^tibiotarsus_(L|R)$/, end: /^tarsometatarsus_(L|R)$/ },
-      // Insect legs
       { root: /^coxa_(pro|meso|meta)_(L|R)$/, upper: /^femur_(pro|meso|meta)_(L|R)$/, lower: /^tibia_(pro|meso|meta)_(L|R)$/, end: /^tarsus_(pro|meso|meta)_(L|R)$/ },
     ];
 
-    // Build a name → bone map
     const boneMap = new Map<string, Bone>();
     for (const bone of bones) {
       boneMap.set(bone.name, bone);
     }
 
-    // Find all matching limb chains
     for (const pattern of limbPatterns) {
-      // Collect all bones matching the "upper" pattern
       for (const bone of bones) {
         const match = bone.name.match(pattern.upper);
         if (!match) continue;
 
-        const side = match[match.length - 1]; // L or R or the last capture group
-
-        // Try to find the chain: root → upper → lower → end
+        const side = match[match.length - 1];
         const chainBones: Bone[] = [];
 
-        // Find root (may be shared between sides)
         const rootBone = this.findBoneByPattern(bones, pattern.root, side);
         if (rootBone) chainBones.push(rootBone);
-
-        // Upper
         chainBones.push(bone);
 
-        // Lower
         const lowerBone = this.findBoneInHierarchy(bone, pattern.lower);
         if (lowerBone) chainBones.push(lowerBone);
 
-        // End effector
         const endBone = lowerBone
           ? this.findBoneInHierarchy(lowerBone, pattern.end)
           : null;
         if (endBone) chainBones.push(endBone);
 
-        // Need at least 2 bones for a chain
         if (chainBones.length < 2) continue;
 
-        // Create the effector on the last bone (or end bone)
         const effectorBone = endBone ?? lowerBone ?? bone;
         const effectorPos = new Vector3();
         effectorBone.getWorldPosition(effectorPos);
@@ -299,9 +450,6 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
     }
   }
 
-  /**
-   * Find a bone by pattern and side (L/R)
-   */
   private findBoneByPattern(bones: Bone[], pattern: RegExp, side: string): Bone | null {
     for (const bone of bones) {
       const match = bone.name.match(pattern);
@@ -312,16 +460,12 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
     return null;
   }
 
-  /**
-   * Find a descendant bone matching the given pattern
-   */
   private findBoneInHierarchy(bone: Bone, pattern: RegExp): Bone | null {
     for (const child of bone.children) {
       if (child instanceof Bone) {
         if (pattern.test(child.name)) {
           return child;
         }
-        // Recurse
         const found = this.findBoneInHierarchy(child, pattern);
         if (found) return found;
       }
@@ -378,83 +522,24 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
 
   // ── Behavior Tree System ─────────────────────────────────────────
 
-  /**
-   * Tick the behavior tree and return the current behavior
-   */
   tickBehavior(deltaTime: number): BehaviorState {
     return this.behaviorTree.execute(deltaTime);
   }
 
-  /**
-   * Get the behavior tree context for external manipulation
-   */
   getBehaviorContext(): CreatureContext {
     return this.behaviorTree.context;
   }
 
-  /**
-   * Update the behavior tree context
-   */
   updateBehaviorContext(partial: Partial<CreatureContext>): void {
     this.behaviorTree.updateContext(partial);
   }
 
-  /**
-   * Get current behavior name
-   */
   getCurrentBehavior(): string {
     return this.behaviorTree.getCurrentBehavior();
   }
 
-  // ── Full Creature Assembly ───────────────────────────────────────
-
-  /**
-   * Generate a fully rigged creature with skeleton, animations, and behavior
-   */
-  generateRigged(config?: CreatureSkeletonConfig): Group {
-    const group = this.generate();
-    group.name = `${this.params.species}_rigged`;
-
-    // Build and attach skeleton
-    const skeleton = this.buildSkeleton(config);
-
-    // Store skeleton reference in userData
-    group.userData.skeleton = skeleton;
-    group.userData.creatureType = this.getCreatureTypeString();
-
-    // Build animations
-    const idleClip = this.buildIdleAnimation();
-    const walkClip = this.buildWalkAnimation();
-
-    // Store animations in userData
-    group.userData.animations = [idleClip, walkClip];
-
-    // Set up behavior context from creature params
-    this.behaviorTree.updateContext({
-      health: this.params.health,
-      position: { x: 0, y: 0, z: 0 },
-      homePosition: { x: 0, y: 0, z: 0 },
-    });
-
-    // Store behavior tree reference
-    group.userData.behaviorTree = this.behaviorTree;
-
-    // Add skeleton bones to group
-    const rootBone = skeleton.bones[0];
-    group.add(rootBone);
-
-    // Set up animation mixer
-    this.setupAnimationMixer(group);
-    group.userData.animationMixer = this.animationMixer;
-
-    return group;
-  }
-
   // ── Helpers ──────────────────────────────────────────────────────
 
-  /**
-   * Get the default gait type based on creature type
-   */
   protected getDefaultGait(): GaitType {
     const type = this.params.creatureType;
     switch (type) {
@@ -463,31 +548,21 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
       case CreatureType.INSECT:
         return 'hexapod';
       case CreatureType.FISH:
-        return 'quadruped'; // Fish use a different motion, but quadruped is closest
+        return 'quadruped';
       default:
         return 'quadruped';
     }
   }
 
-  /**
-   * Get creature type as a string for SkeletonBuilder
-   */
   protected getCreatureTypeString(): 'mammal' | 'bird' | 'fish' | 'reptile' | 'insect' | 'amphibian' {
     switch (this.params.creatureType) {
-      case CreatureType.MAMMAL:
-        return 'mammal';
-      case CreatureType.BIRD:
-        return 'bird';
-      case CreatureType.FISH:
-        return 'fish';
-      case CreatureType.REPTILE:
-        return 'reptile';
-      case CreatureType.INSECT:
-        return 'insect';
-      case CreatureType.AMPHIBIAN:
-        return 'amphibian';
-      default:
-        return 'mammal';
+      case CreatureType.MAMMAL:     return 'mammal';
+      case CreatureType.BIRD:       return 'bird';
+      case CreatureType.FISH:       return 'fish';
+      case CreatureType.REPTILE:    return 'reptile';
+      case CreatureType.INSECT:     return 'insect';
+      case CreatureType.AMPHIBIAN:  return 'amphibian';
+      default:                      return 'mammal';
     }
   }
 
@@ -521,32 +596,23 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
     return new MeshStandardMaterial({ roughness: 0.7, metalness: 0.0, ...params });
   }
 
-  /**
-   * Create a fin-shaped geometry - a tapered flat shape
-   */
   protected createFinGeometry(width: number, height: number, depth: number): BufferGeometry {
     const vertices = new Float32Array([
-      // Front face - triangular fin
-      0, height, 0,       // tip
-      -width / 2, 0, -depth / 2,  // base left back
-      width / 2, 0, -depth / 2,   // base right back
-      // Back face
+      0, height, 0,
+      -width / 2, 0, -depth / 2,
+      width / 2, 0, -depth / 2,
       0, height, 0,
       width / 2, 0, depth / 2,
       -width / 2, 0, depth / 2,
-      // Left side
       0, height, 0,
       -width / 2, 0, -depth / 2,
       -width / 2, 0, depth / 2,
-      // Right side
       0, height, 0,
       width / 2, 0, depth / 2,
       width / 2, 0, -depth / 2,
-      // Bottom
       -width / 2, 0, -depth / 2,
       width / 2, 0, -depth / 2,
       width / 2, 0, depth / 2,
-
       -width / 2, 0, -depth / 2,
       width / 2, 0, depth / 2,
       -width / 2, 0, depth / 2,
@@ -557,19 +623,12 @@ export abstract class CreatureBase extends BaseObjectGenerator<CreatureParams> {
     return geom;
   }
 
-  /**
-   * Create an ear-shaped geometry - a curved pointed/cone shape
-   */
   protected createEarGeometry(width: number, height: number, depth: number): BufferGeometry {
-    // Create a tapered cone-like ear shape
     const geo = new ConeGeometry(width / 2, height, 8);
     geo.scale(1, 1, depth / width);
     return geo;
   }
 
-  /**
-   * Create a shell-shaped geometry - a dome/hemisphere
-   */
   protected createShellGeometry(radius: number, domeHeight: number): SphereGeometry {
     const geo = new SphereGeometry(radius, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.6);
     geo.scale(1, domeHeight / radius, 1);

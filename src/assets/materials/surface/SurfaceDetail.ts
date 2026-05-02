@@ -1,3 +1,4 @@
+import { createCanvas } from '../../utils/CanvasUtils';
 /**
  * Microsurface Detail Generator - Bump, normal, displacement maps
  * Adds normal map detail to materials
@@ -31,7 +32,7 @@ export class SurfaceDetailGenerator {
   generateNormalDetail(params: SurfaceParams, seed: number): Texture {
     const rng = new SeededRandom(seed);
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -67,7 +68,7 @@ export class SurfaceDetailGenerator {
 
   private generateBumpMap(params: SurfaceParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -91,7 +92,7 @@ export class SurfaceDetailGenerator {
 
   private generateNormalMap(params: SurfaceParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -118,7 +119,7 @@ export class SurfaceDetailGenerator {
 
   private generateDisplacementMap(params: SurfaceParams, rng: SeededRandom): Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -171,7 +172,7 @@ export class SurfaceDetailGenerator {
 
     // Blend the two normal maps using canvas compositing (overlay blend)
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');

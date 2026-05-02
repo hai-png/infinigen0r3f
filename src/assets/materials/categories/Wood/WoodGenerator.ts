@@ -1,3 +1,4 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 /**
  * Wood Material Generator - Hardwood, softwood, plywood, reclaimed
  * Procedural wood grain via canvas texture
@@ -84,7 +85,7 @@ export class WoodGenerator extends BaseMaterialGenerator<WoodParams> {
 
   private generateGrainTexture(params: WoodParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -135,7 +136,7 @@ export class WoodGenerator extends BaseMaterialGenerator<WoodParams> {
 
   private generatePlywoodTexture(params: WoodParams, rng: SeededRandom): Texture {
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -172,7 +173,7 @@ export class WoodGenerator extends BaseMaterialGenerator<WoodParams> {
 
   private generateNormalMap(params: WoodParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);
@@ -198,7 +199,7 @@ export class WoodGenerator extends BaseMaterialGenerator<WoodParams> {
 
   private generateRoughnessMap(params: WoodParams, rng: SeededRandom): Texture {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);

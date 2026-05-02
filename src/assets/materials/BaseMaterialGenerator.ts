@@ -1,3 +1,4 @@
+import { createCanvas } from '../utils/CanvasUtils';
 /**
  * Base Material Generator
  * Abstract base class for all material generators following Infinigen's pattern
@@ -59,7 +60,7 @@ export abstract class BaseMaterialGenerator<T extends Record<string, unknown>> {
    * Create a texture from a color
    */
   protected createTextureFromColor(color: Color | number, size: number = 256): Texture {
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');

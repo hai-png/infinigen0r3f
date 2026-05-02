@@ -171,7 +171,7 @@ export class SimulatedAnnealing {
         break;
 
       case MoveType.ADD:
-        move.objectId = `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        move.objectId = `obj_${Date.now()}_${this.rng.nextInt(0, 0xffffff).toString(36)}`;
         move.position = new Vector3(
           (this.rng.next() - 0.5) * 20,
           0,

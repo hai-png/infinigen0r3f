@@ -1,3 +1,4 @@
+import { createCanvas } from '../../utils/CanvasUtils';
 /**
  * Procedural Pattern Generator - Stripes, checks, dots, geometric, organic
  */
@@ -17,7 +18,7 @@ export class PatternGenerator {
   generate(params: PatternParams, seed: number): Texture {
     const rng = new SeededRandom(seed);
     const size = 1024;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);

@@ -18,8 +18,34 @@ export type {
   TextureExportSettings,
 } from './ExportToolkit';
 
+// Phase 4.3 — Advanced export pipeline
+export {
+  SceneExporter,
+  exportSceneToBlob,
+  TextureBaker,
+  SimulationExporter,
+  MeshSimplifier,
+  simplifyGeometry,
+} from './export';
+
+export type {
+  ExportFormat as SceneExportFormat,
+  ExportScope,
+  SceneExportOptions,
+  SceneExportResult,
+  TextureBakeOptions,
+  TextureBakeResult,
+  TextureSize,
+  UVProjection,
+  SimulationExportOptions,
+  SimulationExportResult,
+  ArticulatedBody,
+  JointDefinition,
+  SimplificationOptions,
+} from './export';
+
 // Version info
-export const TOOLS_VERSION = '0.2.0';
+export const TOOLS_VERSION = '0.3.0';
 
 export default {
   ExportToolkit,

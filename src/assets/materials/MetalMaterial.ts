@@ -1,3 +1,4 @@
+import { createCanvas } from '../utils/CanvasUtils';
 import * as THREE from 'three';
 import { SeededRandom } from '../../core/util/MathUtils';
 
@@ -122,7 +123,7 @@ export class MetalMaterialGenerator {
     material: THREE.MeshStandardMaterial,
     config: MetalMaterialConfig
   ): void {
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
@@ -171,7 +172,7 @@ export class MetalMaterialGenerator {
     material: THREE.MeshStandardMaterial,
     config: MetalMaterialConfig
   ): void {
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
@@ -217,7 +218,7 @@ export class MetalMaterialGenerator {
     // Create anisotropic effect via texture
     const material = this.generate(config);
     
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');

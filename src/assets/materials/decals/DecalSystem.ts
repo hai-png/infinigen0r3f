@@ -1,3 +1,4 @@
+import { createCanvas } from '../../utils/CanvasUtils';
 /**
  * Decal Application System - Logo placement, labels, projected decals
  */
@@ -32,7 +33,7 @@ export class DecalSystem {
   generateDecal(params: DecalParams, seed: number): Texture {
     const rng = new SeededRandom(seed);
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new CanvasTexture(canvas);

@@ -8,6 +8,11 @@ export { WaterfallGenerator } from './WaterfallGenerator';
 export { OceanSurface, OceanSystem } from './OceanSystem';
 export { CausticsRenderer } from './CausticsRenderer';
 export { FFTOceanSpectrum } from './FFTOceanSpectrum';
+export { RiverMeshRenderer } from './RiverMeshRenderer';
+export { LakeMeshRenderer } from './LakeMeshRenderer';
+export { WaterfallMeshRenderer } from './WaterfallMeshRenderer';
+export { UnderwaterEffects } from './UnderwaterEffects';
+export { WaterSystemManager } from './WaterSystemManager';
 
 export type { 
   LakeConfig, 
@@ -26,3 +31,13 @@ export type { OceanConfig, GerstnerWave } from './OceanSystem';
 export type { CausticsConfig } from './CausticsRenderer';
 
 export type { FFTOceanConfig } from './FFTOceanSpectrum';
+
+export type { RiverMeshConfig } from './RiverMeshRenderer';
+
+export type { LakeMeshConfig, LakeDefinition } from './LakeMeshRenderer';
+
+export type { WaterfallMeshConfig } from './WaterfallMeshRenderer';
+
+export type { UnderwaterEffectsConfig } from './UnderwaterEffects';
+
+export type { WaterSystemConfig } from './WaterSystemManager';

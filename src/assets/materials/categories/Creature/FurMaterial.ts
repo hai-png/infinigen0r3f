@@ -1,5 +1,6 @@
+import { createCanvas } from '../../../utils/CanvasUtils';
 import * as THREE from 'three';
-import { NoiseUtils } from '../../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 /**
  * Configuration for fur material properties
@@ -88,7 +89,7 @@ export class FurMaterial {
 
   private generateFurGradient(material: THREE.MeshStandardMaterial): void {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;
@@ -140,7 +141,7 @@ export class FurMaterial {
 
   private addStripes(material: THREE.MeshStandardMaterial): void {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;
@@ -187,7 +188,7 @@ export class FurMaterial {
 
   private addSpots(material: THREE.MeshStandardMaterial): void {
     const size = 512;
-    const canvas = document.createElement('canvas');
+    const canvas = createCanvas();
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d')!;

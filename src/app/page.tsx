@@ -79,7 +79,17 @@ export default function Home() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="text-right">
+              <a
+                href="/scene"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-emerald-600/25 flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                </svg>
+                Launch 3D Scene
+              </a>
+              <div className="text-right hidden sm:block">
                 <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{averageParity}%</div>
                 <div className="text-xs text-gray-500">Avg. Parity</div>
               </div>
@@ -97,6 +107,33 @@ export default function Home() {
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        {/* 3D Scene CTA Banner */}
+        <section className="mb-8">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 p-6 sm:p-8 text-white shadow-xl">
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 left-1/4 w-64 h-64 bg-white rounded-full blur-3xl" />
+              <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-white rounded-full blur-3xl" />
+            </div>
+            <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold mb-1">Explore the Procedural World</h2>
+                <p className="text-emerald-100 text-sm sm:text-base max-w-lg">
+                  Launch an interactive 3D scene with procedurally generated terrain, ocean waves, atmospheric sky, and dynamic lighting — all running in your browser.
+                </p>
+              </div>
+              <a
+                href="/scene"
+                className="shrink-0 px-6 py-3 bg-white text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-50 transition-colors shadow-lg flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                </svg>
+                Launch 3D Scene
+              </a>
+            </div>
+          </div>
+        </section>
+
         {/* Hero Stats */}
         <section className="mb-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

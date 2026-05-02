@@ -48,3 +48,53 @@ export {
   type BehaviorState,
   createDefaultContext,
 } from './animation/BehaviorTree';
+
+// Phase 3.2: Body plan system
+export {
+  BodyPlanSystem,
+  type BodyPlanType,
+  type LocomotionType,
+  type ResolvedBodyPlan,
+  type BoneChainNode,
+  type PartAttachment,
+  type BodyProportions,
+  type ProportionRange,
+} from './BodyPlanSystem';
+
+// Phase 3.2: Part generators
+export {
+  HeadGenerator,
+  TorsoGenerator,
+  LimbGenerator,
+  TailGenerator as BodyTailGenerator,
+  type HeadShape,
+  type PupilShape,
+  type EarType,
+  type MouthType,
+  type TorsoShape,
+  type FootType,
+  type WingType,
+  type TailShape,
+} from './parts/PartGenerators';
+
+// Phase 3.2: Skin system
+export {
+  CreatureSkinSystem,
+  type CreatureSkinConfig,
+  type SkinType,
+  type PatternType,
+  type ColorPalette,
+} from './skin/CreatureSkinSystem';
+
+// Phase 3.2: Locomotion system
+export {
+  LocomotionSystem,
+  type LocomotionConfig,
+  type SpeedLevel,
+} from './animation/LocomotionSystem';
+
+// Phase 3.2: Swarm system
+export {
+  SwarmSystem,
+  type SwarmConfig,
+} from './swarm/SwarmSystem';

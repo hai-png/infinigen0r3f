@@ -10,6 +10,9 @@
  * - Wind-driven animation
  * - LOD-based performance optimization
  * 
+ * BUG-02 FIX: Cloud layer parameters are now passed as flat uniform arrays
+ * instead of GLSL struct arrays, which WebGL cannot bind from JS objects.
+ * 
  * @see https://github.com/princeton-vl/infinigen
  */
 
@@ -17,6 +20,9 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
+
+/** Maximum number of cloud layers supported by the shader */
+const MAX_CLOUD_LAYERS = 4;
 
 export interface CloudParams {
   // Layer configuration
@@ -132,6 +138,28 @@ export class CloudLayer {
       windOffset: this.windOffset.toArray(),
     };
   }
+}
+
+/**
+ * Helper to create a padded float array of MAX_CLOUD_LAYERS length
+ */
+function padFloatArray(values: number[], defaultValue: number = 0): number[] {
+  const result = new Array(MAX_CLOUD_LAYERS).fill(defaultValue);
+  for (let i = 0; i < Math.min(values.length, MAX_CLOUD_LAYERS); i++) {
+    result[i] = values[i];
+  }
+  return result;
+}
+
+/**
+ * Helper to create a padded Vector3 array of MAX_CLOUD_LAYERS length
+ */
+function padVec3Array(values: THREE.Vector3[]): THREE.Vector3[] {
+  const result: THREE.Vector3[] = [];
+  for (let i = 0; i < MAX_CLOUD_LAYERS; i++) {
+    result.push(i < values.length ? values[i].clone() : new THREE.Vector3(0, 0, 0));
+  }
+  return result;
 }
 
 /**
@@ -350,10 +378,14 @@ export class VolumetricClouds {
   private p: number[] = [];
   
   /**
-   * Create the cloud shader material with raymarching
+   * Create the cloud shader material with raymarching.
+   *
+   * BUG-02 FIX: Cloud layer parameters are passed as individual flat uniform
+   * arrays (u_layerHeight[4], u_layerCoverage[4], etc.) instead of a
+   * GLSL struct array. WebGL cannot bind JS objects to GLSL struct uniforms.
    */
   private createCloudMaterial(): THREE.ShaderMaterial {
-    const vertexShader = `
+    const vertexShader = /* glsl */`
       varying vec3 vWorldPosition;
       varying vec3 vViewPosition;
       
@@ -368,7 +400,11 @@ export class VolumetricClouds {
       }
     `;
     
-    const fragmentShader = `
+    const fragmentShader = /* glsl */`
+      precision highp float;
+      precision highp int;
+      precision highp sampler3D;
+
       uniform float time;
       uniform vec3 sunDirection;
       uniform vec3 albedo;
@@ -385,22 +421,22 @@ export class VolumetricClouds {
       varying vec3 vWorldPosition;
       varying vec3 vViewPosition;
       
+      #define MAX_CLOUD_LAYERS 4
       #define MAX_STEPS 128
       #define LIGHT_STEPS 8
       
-      struct CloudLayer {
-        float height;
-        float thickness;
-        float density;
-        float coverage;
-        float scale;
-        float detail;
-        vec3 windOffset;
-        int type; // 0=cirrus, 1=cumulus, 2=stratus
-      };
-      
-      uniform CloudLayer layers[3];
-      uniform int layerCount;
+      // BUG-02 FIX: Flattened cloud layer parameters as individual uniform arrays.
+      // WebGL cannot bind JavaScript objects to GLSL struct array uniforms.
+      // Each layer property is stored in its own array, indexed by layer number.
+      uniform int u_layerCount;
+      uniform float u_layerHeight[MAX_CLOUD_LAYERS];
+      uniform float u_layerThickness[MAX_CLOUD_LAYERS];
+      uniform float u_layerDensity[MAX_CLOUD_LAYERS];
+      uniform float u_layerCoverage[MAX_CLOUD_LAYERS];
+      uniform float u_layerScale[MAX_CLOUD_LAYERS];
+      uniform float u_layerDetail[MAX_CLOUD_LAYERS];
+      uniform vec3 u_layerWindOffset[MAX_CLOUD_LAYERS];
+      uniform float u_layerType[MAX_CLOUD_LAYERS]; // 0=cirrus, 1=cumulus, 2=stratus
       
       // Hash function for noise
       float hash(vec3 p) {
@@ -411,20 +447,20 @@ export class VolumetricClouds {
       
       // 3D Noise from texture
       float noise3D(vec3 p) {
-        vec3 size = textureSize(noiseTexture3D, 0);
+        vec3 size = vec3(textureSize(noiseTexture3D, 0));
         vec3 uvw = fract(p) * (1.0 - 1.0 / size);
         vec3 texCoord = (floor(p) + uvw) / size;
         return texture(noiseTexture3D, texCoord).r;
       }
       
       // Fractal Brownian Motion
-      float fbm(vec3 p, float detail) {
+      float fbm(vec3 p, float detailLevel) {
         float value = 0.0;
         float amplitude = 0.5;
         float frequency = 1.0;
         
         for (int i = 0; i < 6; i++) {
-          if (float(i) >= detail) break;
+          if (float(i) >= detailLevel) break;
           value += amplitude * noise3D(p * frequency);
           amplitude *= 0.5;
           frequency *= 2.0;
@@ -433,30 +469,44 @@ export class VolumetricClouds {
         return value;
       }
       
-      // Cloud density function for a single layer
-      float cloudDensity(vec3 pos, CloudLayer layer) {
+      // Cloud density function for a single layer (by index into flat arrays)
+      float cloudDensity(vec3 pos, int layerIdx) {
+        float layerHeight = u_layerHeight[layerIdx];
+        float layerThickness = u_layerThickness[layerIdx];
+        float layerDensity = u_layerDensity[layerIdx];
+        float layerCoverage = u_layerCoverage[layerIdx];
+        float layerScale = u_layerScale[layerIdx];
+        float layerDetail = u_layerDetail[layerIdx];
+        vec3 layerWindOffset = u_layerWindOffset[layerIdx];
+        
+        // Guard: skip layers with zero thickness (padding slots)
+        if (layerThickness <= 0.0) return 0.0;
+        
         // Height-based falloff
-        float heightFactor = smoothstep(0.0, 0.2, (pos.y - layer.height) / layer.thickness) *
-                            smoothstep(1.0, 0.8, (pos.y - layer.height) / layer.thickness);
+        float heightFraction = (pos.y - layerHeight) / layerThickness;
+        float heightFactor = smoothstep(0.0, 0.2, heightFraction) *
+                            smoothstep(1.0, 0.8, heightFraction);
         
         // Animated noise
-        vec3 noisePos = pos * layer.scale + layer.windOffset * time;
-        float noise = fbm(noisePos, layer.detail);
+        vec3 noisePos = pos * layerScale + layerWindOffset * time;
+        float noise = fbm(noisePos, layerDetail);
         
         // Coverage mask
-        float coverageMask = step(1.0 - layer.coverage, noise);
+        float coverageMask = step(1.0 - layerCoverage, noise);
         
         // Final density
-        float d = (noise - (1.0 - layer.coverage)) * layer.density * heightFactor * coverageMask;
+        float d = (noise - (1.0 - layerCoverage)) * layerDensity * heightFactor * coverageMask;
         return max(d, 0.0);
       }
       
       // Total cloud density at position
       float getTotalDensity(vec3 pos) {
         float totalDensity = 0.0;
+        int count = min(u_layerCount, MAX_CLOUD_LAYERS);
         
-        for (int i = 0; i < layerCount && i < 3; i++) {
-          totalDensity += cloudDensity(pos, layers[i]);
+        for (int i = 0; i < MAX_CLOUD_LAYERS; i++) {
+          if (i >= count) break;
+          totalDensity += cloudDensity(pos, i);
         }
         
         return totalDensity;
@@ -469,8 +519,8 @@ export class VolumetricClouds {
         
         for (int i = 0; i < LIGHT_STEPS; i++) {
           pos += lightDir * stepSize;
-          float density = getTotalDensity(pos);
-          totalTransmittance *= exp(-density * lightAbsorption * stepSize);
+          float d = getTotalDensity(pos);
+          totalTransmittance *= exp(-d * lightAbsorption * stepSize);
         }
         
         return totalTransmittance;
@@ -511,11 +561,11 @@ export class VolumetricClouds {
         float transmittance = 1.0;
         
         for (int i = 0; i < MAX_STEPS; i++) {
-          if (float(i) >= float(raySteps)) break;
+          if (i >= raySteps) break;
           
-          float density = getTotalDensity(pos);
+          float d = getTotalDensity(pos);
           
-          if (density > 0.001) {
+          if (d > 0.001) {
             // Compute lighting with self-shadowing
             float lightVisibility = lightMarch(pos, sunDirection);
             
@@ -523,10 +573,10 @@ export class VolumetricClouds {
             vec3 lightColor = vec3(1.0, 0.95, 0.9) * lightVisibility;
             float diffuse = max(dot(sunDirection, normalize(pos)), 0.0) * 0.5 + 0.5;
             
-            vec3 sampleColor = albedo * lightColor * diffuse * density;
+            vec3 sampleColor = albedo * lightColor * diffuse * d;
             
             // Accumulate with alpha blending
-            float alpha = 1.0 - exp(-density * lightAbsorption * stepSize);
+            float alpha = 1.0 - exp(-d * lightAbsorption * stepSize);
             accumulatedColor += sampleColor * transmittance * alpha;
             transmittance *= (1.0 - alpha);
             
@@ -556,8 +606,17 @@ export class VolumetricClouds {
         lightSteps: { value: 4 },
         noiseTexture3D: { value: this.noiseTexture3D },
         noiseTexture2D: { value: this.noiseTexture2D },
-        layers: { value: [] },
-        layerCount: { value: 0 },
+        // BUG-02 FIX: Flattened layer uniform arrays replace the broken
+        // `layers: { value: [] }` struct array that WebGL could not bind.
+        u_layerCount: { value: 0 },
+        u_layerHeight: { value: padFloatArray([], 0) },
+        u_layerThickness: { value: padFloatArray([], 0) },
+        u_layerDensity: { value: padFloatArray([], 0) },
+        u_layerCoverage: { value: padFloatArray([], 0) },
+        u_layerScale: { value: padFloatArray([], 0) },
+        u_layerDetail: { value: padFloatArray([], 0) },
+        u_layerWindOffset: { value: padVec3Array([]) },
+        u_layerType: { value: padFloatArray([], 0) },
       },
       transparent: true,
       depthWrite: false,
@@ -570,6 +629,12 @@ export class VolumetricClouds {
    * Add a cloud layer
    */
   addLayer(layer: CloudLayer): void {
+    if (this.layers.length >= MAX_CLOUD_LAYERS) {
+      console.warn(
+        `VolumetricClouds: Maximum ${MAX_CLOUD_LAYERS} layers reached. Ignoring additional layer.`
+      );
+      return;
+    }
     this.layers.push(layer);
     this.updateUniforms();
   }
@@ -585,7 +650,12 @@ export class VolumetricClouds {
   }
   
   /**
-   * Update shader uniforms
+   * Update shader uniforms.
+   *
+   * BUG-02 FIX: Cloud layer parameters are now written into flat uniform
+   * arrays (u_layerHeight, u_layerCoverage, etc.) instead of being packed
+   * into JavaScript objects under a single `layers` uniform that WebGL
+   * cannot bind to a GLSL struct array.
    */
   private updateUniforms(): void {
     const uniforms = this.cloudMaterial.uniforms;
@@ -600,25 +670,46 @@ export class VolumetricClouds {
     uniforms.shadowIntensity.value = this.params.shadowIntensity;
     uniforms.raySteps.value = Math.min(this.params.raySteps, 128);
     uniforms.lightSteps.value = Math.min(this.params.lightSteps, 8);
-    uniforms.layerCount.value = Math.min(this.layers.length, 3);
     
-    // Convert layers to uniform array format
-    const layerUniforms: any[] = [];
-    for (let i = 0; i < Math.min(this.layers.length, 3); i++) {
+    // Clamp layer count to MAX_CLOUD_LAYERS
+    const activeLayers = Math.min(this.layers.length, MAX_CLOUD_LAYERS);
+    uniforms.u_layerCount.value = activeLayers;
+    
+    // Flatten each layer's properties into dedicated uniform arrays,
+    // padded to MAX_CLOUD_LAYERS length with safe default values.
+    const heights: number[] = [];
+    const thicknesses: number[] = [];
+    const densities: number[] = [];
+    const coverages: number[] = [];
+    const scales: number[] = [];
+    const details: number[] = [];
+    const windOffsets: THREE.Vector3[] = [];
+    const types: number[] = [];
+    
+    for (let i = 0; i < activeLayers; i++) {
       const layer = this.layers[i];
-      layerUniforms.push({
-        height: layer.height,
-        thickness: layer.thickness,
-        density: layer.density,
-        coverage: layer.coverage,
-        scale: layer.scale,
-        detail: layer.detail,
-        windOffset: layer.windOffset,
-        type: layer.type === 'cirrus' ? 0 : layer.type === 'cumulus' ? 1 : 2,
-      });
+      heights.push(layer.height);
+      thicknesses.push(layer.thickness);
+      densities.push(layer.density);
+      coverages.push(layer.coverage);
+      scales.push(layer.scale);
+      details.push(layer.detail);
+      windOffsets.push(layer.windOffset);
+      types.push(
+        layer.type === 'cirrus' ? 0 : layer.type === 'cumulus' ? 1 : 2
+      );
     }
     
-    uniforms.layers.value = layerUniforms;
+    // Write padded arrays into uniforms
+    uniforms.u_layerHeight.value = padFloatArray(heights, 0);
+    uniforms.u_layerThickness.value = padFloatArray(thicknesses, 0);
+    uniforms.u_layerDensity.value = padFloatArray(densities, 0);
+    uniforms.u_layerCoverage.value = padFloatArray(coverages, 0);
+    uniforms.u_layerScale.value = padFloatArray(scales, 0);
+    uniforms.u_layerDetail.value = padFloatArray(details, 0);
+    uniforms.u_layerWindOffset.value = padVec3Array(windOffsets);
+    uniforms.u_layerType.value = padFloatArray(types, 0);
+    
     this.cloudMaterial.needsUpdate = true;
   }
   

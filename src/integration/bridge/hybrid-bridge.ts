@@ -94,6 +94,9 @@ export class HybridBridge {
   private reconnectAttempts: number = 0;
   private intentionallyClosed: boolean = false;
 
+  // Monotonic counter for unique request IDs (replaces Math.random)
+  private static _requestCounter: number = 0;
+
   constructor(config: Partial<HybridBridgeConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
@@ -380,7 +383,7 @@ export class HybridBridge {
    * Send an RPC request with timeout handling
    */
   async request<T>(method: BridgeRequest['method'], params: any, binary?: ArrayBuffer, timeout?: number): Promise<T> {
-    const id = `${method}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = `${method}-${Date.now()}-${(HybridBridge._requestCounter++).toString(36)}`;
     const request: BridgeRequest = { id, method, params, binaryPayload: binary };
     const requestTimeout = timeout ?? this.config.requestTimeout;
 

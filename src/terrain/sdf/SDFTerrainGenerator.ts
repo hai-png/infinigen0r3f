@@ -15,7 +15,7 @@
 
 import * as THREE from 'three';
 import { SignedDistanceField, extractIsosurface, sdfBoolean, sdfSmoothUnion, sdfOffset } from './sdf-operations';
-import { NoiseUtils } from '../utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 import { SeededRandom } from '../../core/util/MathUtils';
 
 /**

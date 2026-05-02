@@ -20,7 +20,7 @@ import { SeededRandom } from '@/core/util/MathUtils';
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
-import { NoiseUtils } from '../../../terrain/utils/NoiseUtils';
+import { NoiseUtils } from '@/core/util/math/noise';
 
 // ============================================================================
 // Type Definitions
