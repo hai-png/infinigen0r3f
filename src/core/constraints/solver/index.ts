@@ -35,3 +35,29 @@ export {
   HybridProposalGenerator,
   type ProposalStrategyOptions
 } from './proposals/ProposalStrategies';
+
+// Greedy Pre-Solve Phase
+export {
+  ConstraintPartition,
+  GreedyPreSolver,
+  ActiveForStage,
+  greedyPreSolve,
+  type ConstraintGroup,
+} from './GreedyPreSolver';
+
+// Complete Move Proposal System (enhanced with full move set)
+// Note: MoveProposals provides the full Infinigen-compatible move operator system.
+// We use aliases to avoid conflicts with the simpler move types from ./moves.
+export {
+  MoveType,
+  MoveOperatorFactory,
+  AdditionMove as FullAdditionMove,
+  DeletionMove as FullDeletionMove,
+  SwapMove as FullSwapMove,
+  ReassignmentMove as FullReassignmentMove,
+  PoseMove,
+  PlaneChangeMove,
+  ResampleMove,
+  retryAttemptProposals,
+} from './MoveProposals';
+export type { MoveProposal, MoveOperator } from './MoveProposals';

@@ -42,3 +42,60 @@ export * from './source';
 export * from './tectonic';
 export * from './utils';
 export * from './water';
+
+// Phase 2 — Terrain System Overhaul (SDF + CSG)
+export {
+  sdSphere,
+  sdBox,
+  sdTorus,
+  sdCylinder,
+  sdCone,
+  sdCapsule,
+  sdGroundPlane,
+  sdMountainRidge,
+  sdVoronoiRock,
+  sdWarpedRock,
+  createTerrainSDF,
+  TERRAIN_MATERIALS,
+  type SDFPrimitiveResult,
+  type SDFEvaluator,
+} from './sdf/SDFPrimitives';
+
+export {
+  sdfUnion,
+  sdfIntersection,
+  sdfSubtraction,
+  sdfReverseSubtraction,
+  smoothUnion,
+  smoothIntersection,
+  smoothSubtraction,
+  expSmoothUnion,
+  domainWarp,
+  createNoiseDomainWarp,
+  combineSDFsSmoothUnion,
+  combineSDFsSmoothSubtraction,
+  combineSDFsSmoothIntersection,
+  composeTerrainLayers,
+  type TerrainLayer,
+  type CombinedSDFResult,
+} from './sdf/SDFCombinators';
+
+export {
+  CSGTerrainComposer,
+  generateMountainMesh,
+  generateCaveMesh,
+  generateRockMesh,
+  generateGroundMesh,
+  createStandardTerrainElements,
+  type CSGOperation,
+  type TerrainElementDefinition,
+  type CSGCompositionResult,
+} from './CSGTerrainComposer';
+
+export {
+  AdaptiveMesher,
+  stitchChunkBoundaries,
+  DEFAULT_ADAPTIVE_MESHER_CONFIG,
+  type AdaptiveMesherConfig,
+  type TerrainChunk,
+} from './mesher/AdaptiveMesher';

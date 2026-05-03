@@ -58,3 +58,39 @@ export type {
   PatternType,
   TextureExecParams,
 } from './TextureNodeExecutor';
+
+// GeometryNodeExecutor - Geometry node execution backend
+export {
+  GeometryNodeContext,
+  GeometryNodeExecutor,
+  GeometryNodePipeline,
+} from './GeometryNodeExecutor';
+
+export type {
+  GeometryExecutorFn,
+} from './GeometryNodeExecutor';
+
+// AttributeIO - Per-vertex/face data I/O system
+export {
+  AttributeType,
+  AttributeDomain,
+  NamedAttribute,
+  AttributeManager,
+  StandardAttributes,
+  readAttrData,
+  writeAttrData,
+  newAttrData,
+} from './AttributeIO';
+
+// SurfaceIntegration - Surface/material integration
+export {
+  add_geomod,
+  add_material,
+  shaderfunc_to_material,
+  create_surface_material,
+  compileShaderGraphToMaterial,
+} from './SurfaceIntegration';
+
+export type {
+  MaterialCompileOptions,
+} from './SurfaceIntegration';

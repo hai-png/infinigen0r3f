@@ -176,6 +176,26 @@ export {
   compareSolutions
 } from './result';
 
+// Spatial Relation Algebra (geometry-focused relation classes)
+// Note: These are the geometry-focused SpatialRelation classes with implies/satisfies/intersects/difference.
+// The abstract Relation classes from ./relations are the constraint-language-level relations.
+// We use aliases to avoid naming conflicts.
+export {
+  RelationType,
+  type GeometricConstraint,
+  SpatialRelation,
+  Touching as SpatialTouching,
+  SupportedBy as SpatialSupportedBy,
+  CoPlanar as SpatialCoPlanar,
+  StableAgainst as SpatialStableAgainst,
+  RoomNeighbour as SpatialRoomNeighbour,
+  CutFrom,
+  SharedEdge,
+  Traverse,
+  NegatedRelation as SpatialNegatedRelation,
+  createRelation as createSpatialRelation,
+} from './SpatialRelationAlgebra';
+
 // Room-Specific Constraints
 export {
   objectsInRoom,

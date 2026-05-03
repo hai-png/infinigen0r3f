@@ -16,6 +16,37 @@ export {
   generateMJCF,
 } from './types';
 
+// URDF Export
+export {
+  type URDFJointType,
+  type URDFLink,
+  type URDFJoint,
+  type URDFGeometry,
+  type URDFOrigin,
+  type URDFInertial,
+  type URDFJointLimit,
+  type URDFJointDynamics,
+  type URDFExportOptions,
+  generateURDF,
+  jointTypeToURDF,
+  estimateInertia,
+} from './URDFExporter';
+
+// USD Export
+export {
+  generateUSD,
+  generateUSDCrate,
+} from './USDExporter';
+
+// Kinematic Compiler extensions
+export {
+  type KinematicNodeEntry,
+  KinematicNodeTree,
+  compileKinematicTree,
+  RigidBodyNode,
+  RigidBodySkeleton,
+} from '../../../sim/kinematic/KinematicCompiler';
+
 // 18 Articulated Object Generators
 export { DoorGenerator } from './DoorGenerator';
 export { DrawerGenerator } from './DrawerGenerator';

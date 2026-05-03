@@ -58,3 +58,18 @@ export {
   evaluateHidden,
   geometryNodeImpls
 } from './node-impl/trimesh-geometry';
+
+// Geometry Cost Functions
+export {
+  distance as geometryDistance,
+  accessibility_cost,
+  center_stable_surface_dist,
+  freespace_2d,
+  coplanarity_cost,
+  volume as geometryVolume,
+  min_dist_2d,
+  rotational_asymmetry,
+  reflectional_asymmetry,
+  clearance_cost,
+  path_obstruction_cost,
+} from './GeometryCosts';

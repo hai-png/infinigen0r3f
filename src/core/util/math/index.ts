@@ -113,3 +113,47 @@ export {
 export * from './bbox';
 export * from './utils';
 export * from './transforms';
+
+// GPU noise shaders — GLSL noise library for GPU-side evaluation
+export {
+  NOISE_GLSL,
+  DEFAULT_GPU_NOISE_CONFIG,
+  injectNoiseGLSL,
+  injectNoiseGLSLFrag,
+  getNoiseUniforms,
+} from './gpu-noise-shaders';
+export type { GPUNoiseConfig } from './gpu-noise-shaders';
+
+// SDF evaluation — signed distance field primitives, CSG, and utilities
+export {
+  evaluateSDF,
+  evaluateSDFBatch,
+  computeSDFNormal,
+  computeSDFGradient,
+  createSphere,
+  createBox,
+  createSmoothUnion,
+  createSubtraction,
+  createDisplacement,
+} from './sdf-evaluation';
+export type {
+  SDFPrimitive,
+  SDFCSGOperation,
+  SDFNodeType,
+  SDFTransform,
+  SDFNode,
+} from './sdf-evaluation';
+
+// Surface kernel — node graph compilation and evaluation
+export {
+  KernelDataType,
+  SurfaceKernel,
+  compileSurfaceKernel,
+  createTerrainHeightKernel,
+  createMaterialSurfaceKernel,
+} from './surface-kernel';
+export type {
+  KernelInput,
+  KernelOutput,
+  KernelOperation,
+} from './surface-kernel';
