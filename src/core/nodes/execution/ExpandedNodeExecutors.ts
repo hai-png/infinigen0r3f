@@ -1075,7 +1075,7 @@ export function executeScaleInstances(inputs: NodeInputs): NodeOutput {
  * Outputs: Geometry
  */
 export function executeVolumeToMesh(inputs: NodeInputs): NodeOutput {
-  const density = (inputs.Density ?? inputs.density ?? inputs.SDF ?? inputs.sdf ?? null) as ((p: Vector3Like) => number) | null;
+  const density = (inputs.Density ?? inputs.density ?? inputs.SDF ?? inputs.sdf ?? null) as ((x: number, y: number, z: number) => number) | null;
   const voxelSize = (inputs.VoxelSize ?? inputs.voxelSize ?? inputs.voxel_size ?? 0.5) as number;
   const threshold = (inputs.Threshold ?? inputs.threshold ?? 0.0) as number;
   const bounds = (inputs.Bounds ?? inputs.bounds ?? { min: { x: -5, y: -5, z: -5 }, max: { x: 5, y: 5, z: 5 } }) as { min: unknown; max: unknown };
@@ -1182,7 +1182,7 @@ export function executeVolumeToMesh(inputs: NodeInputs): NodeOutput {
  * Outputs: Geometry (point cloud)
  */
 export function executeVolumeToPoints(inputs: NodeInputs): NodeOutput {
-  const density = (inputs.Density ?? inputs.density ?? inputs.SDF ?? inputs.sdf ?? null) as ((p: Vector3Like) => number) | null;
+  const density = (inputs.Density ?? inputs.density ?? inputs.SDF ?? inputs.sdf ?? null) as ((x: number, y: number, z: number) => number) | null;
   const voxelSize = (inputs.VoxelSize ?? inputs.voxelSize ?? inputs.voxel_size ?? 0.5) as number;
   const threshold = (inputs.Threshold ?? inputs.threshold ?? 0.5) as number;
   const bounds = (inputs.Bounds ?? inputs.bounds ?? { min: { x: -5, y: -5, z: -5 }, max: { x: 5, y: 5, z: 5 } }) as { min: unknown; max: unknown };

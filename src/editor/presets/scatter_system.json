@@ -1,0 +1,120 @@
+{
+  "name": "Scatter System",
+  "description": "DistributePointsOnFaces → InstanceOnPoints → RealizeInstances",
+  "nodes": [
+    {
+      "id": "preset_ss_1",
+      "type": "geometry",
+      "position": { "x": 50, "y": 100 },
+      "data": {
+        "label": "Distribute Points on Faces",
+        "definitionType": "DistributePointsOnFacesNode",
+        "category": "POINT",
+        "color": "#84cc16",
+        "inputs": [
+          { "name": "Mesh", "type": "GEOMETRY" },
+          { "name": "Selection", "type": "BOOLEAN", "defaultValue": true },
+          { "name": "Distance Min", "type": "FLOAT", "defaultValue": 0 },
+          { "name": "Density Max", "type": "FLOAT", "defaultValue": 10 },
+          { "name": "Density", "type": "FLOAT", "defaultValue": 10 },
+          { "name": "Density Factor", "type": "FLOAT", "defaultValue": 1 },
+          { "name": "Seed", "type": "INTEGER", "defaultValue": 0 }
+        ],
+        "outputs": [
+          { "name": "Points", "type": "POINTS" },
+          { "name": "Normal", "type": "VECTOR" },
+          { "name": "Rotation", "type": "ROTATION" }
+        ],
+        "properties": {
+          "distribute_method": { "type": "enum", "default": "RANDOM", "items": ["RANDOM","POISSON"] }
+        },
+        "propertyValues": {
+          "distribute_method": "RANDOM"
+        }
+      }
+    },
+    {
+      "id": "preset_ss_2",
+      "type": "geometry",
+      "position": { "x": 400, "y": 100 },
+      "data": {
+        "label": "Instance on Points",
+        "definitionType": "InstanceOnPointsNode",
+        "category": "INSTANCES",
+        "color": "#8b5cf6",
+        "inputs": [
+          { "name": "Points", "type": "GEOMETRY" },
+          { "name": "Selection", "type": "BOOLEAN", "defaultValue": true },
+          { "name": "Instance", "type": "GEOMETRY" },
+          { "name": "Pick Instance", "type": "BOOLEAN", "defaultValue": false },
+          { "name": "Instance Index", "type": "INTEGER" },
+          { "name": "Rotation", "type": "VECTOR" },
+          { "name": "Scale", "type": "VECTOR", "defaultValue": { "x": 1, "y": 1, "z": 1 } }
+        ],
+        "outputs": [
+          { "name": "Instances", "type": "INSTANCES" }
+        ],
+        "properties": {},
+        "propertyValues": {}
+      }
+    },
+    {
+      "id": "preset_ss_3",
+      "type": "geometry",
+      "position": { "x": 750, "y": 100 },
+      "data": {
+        "label": "Realize Instances",
+        "definitionType": "RealizeInstancesNode",
+        "category": "INSTANCES",
+        "color": "#8b5cf6",
+        "inputs": [
+          { "name": "Geometry", "type": "GEOMETRY" }
+        ],
+        "outputs": [
+          { "name": "Geometry", "type": "GEOMETRY" }
+        ],
+        "properties": {
+          "legacy_behavior": { "type": "boolean", "default": false }
+        },
+        "propertyValues": {
+          "legacy_behavior": false
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "preset_ss_e1",
+      "source": "preset_ss_1",
+      "sourceHandle": "Points",
+      "target": "preset_ss_2",
+      "targetHandle": "Points",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#00b8b8", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#00b8b8", "width": 14, "height": 14 }
+    },
+    {
+      "id": "preset_ss_e2",
+      "source": "preset_ss_1",
+      "sourceHandle": "Normal",
+      "target": "preset_ss_2",
+      "targetHandle": "Rotation",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#ff9933", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#ff9933", "width": 14, "height": 14 }
+    },
+    {
+      "id": "preset_ss_e3",
+      "source": "preset_ss_2",
+      "sourceHandle": "Instances",
+      "target": "preset_ss_3",
+      "targetHandle": "Geometry",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#00b8b8", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#00b8b8", "width": 14, "height": 14 }
+    }
+  ]
+}

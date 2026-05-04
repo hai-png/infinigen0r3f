@@ -7,9 +7,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  css: {
+    modules: {
+      classNameStrategy: 'non-scoped',
+    },
+  },
   test: {
     environment: 'node',
     globals: true,
     include: ['src/**/*.test.ts'],
+    deps: {
+      inline: ['three-mesh-bvh', 'three-bvh-csg'],
+    },
   },
 });

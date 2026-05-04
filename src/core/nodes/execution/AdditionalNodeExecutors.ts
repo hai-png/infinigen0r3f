@@ -1140,11 +1140,13 @@ export function executeCurves(inputs: NodeInputs): NodeOutput {
     const tx = Math.max(0, Math.min(1, t));
 
     // Find surrounding points
-    let lower = sorted[0], upper = sorted[sorted.length - 1];
+    let lower = sorted[0] as Record<string, number>, upper = sorted[sorted.length - 1] as Record<string, number>;
     for (let i = 0; i < sorted.length - 1; i++) {
-      if (tx >= (sorted[i].x ?? 0) && tx <= (sorted[i + 1].x ?? 0)) {
-        lower = sorted[i];
-        upper = sorted[i + 1];
+      const cur = sorted[i] as Record<string, number>;
+      const nxt = sorted[i + 1] as Record<string, number>;
+      if (tx >= (cur.x ?? 0) && tx <= (nxt.x ?? 0)) {
+        lower = cur;
+        upper = nxt;
         break;
       }
     }
@@ -1162,9 +1164,9 @@ export function executeCurves(inputs: NodeInputs): NodeOutput {
   const inputG = color.g ?? 0.5;
   const inputB = color.b ?? 0.5;
 
-  const outR = evaluateCurve(inputR, curveR);
-  const outG = evaluateCurve(inputG, curveG);
-  const outB = evaluateCurve(inputB, curveB);
+  const outR = evaluateCurve(inputR, curveR as unknown[]);
+  const outG = evaluateCurve(inputG, curveG as unknown[]);
+  const outB = evaluateCurve(inputB, curveB as unknown[]);
 
   // Blend with original by fac
   const f = Math.max(0, Math.min(1, fac));
@@ -1411,11 +1413,12 @@ export function executeRotationToEuler(inputs: NodeInputs): NodeOutput {
   } else {
     // Quaternion
     if (rotation && typeof rotation === 'object') {
+      const r = rotation as Record<string, number>;
       quat = new THREE.Quaternion(
-        rotation.x ?? 0,
-        rotation.y ?? 0,
-        rotation.z ?? 0,
-        rotation.w ?? 1,
+        r.x ?? 0,
+        r.y ?? 0,
+        r.z ?? 0,
+        r.w ?? 1,
       );
     } else {
       quat = new THREE.Quaternion(); // Identity
@@ -1553,11 +1556,6 @@ export function executeAccumulateField(inputs: NodeInputs): NodeOutput {
 // ============================================================================
 // Registry
 // ============================================================================
-
-/**
- * Type definition for a node executor function.
- */
-export type NodeExecutorFunction = (inputs: NodeInputs, geometry?: THREE.BufferGeometry, context?: Record<string, unknown>) => NodeOutput;
 
 /**
  * AdditionalNodeExecutors registry — maps node type names to executor functions.

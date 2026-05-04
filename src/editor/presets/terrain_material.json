@@ -1,0 +1,221 @@
+{
+  "name": "Terrain Material",
+  "description": "Voronoi → Mapping → Gradient → Mix → PrincipledBSDF → MaterialOutput",
+  "nodes": [
+    {
+      "id": "preset_tm_1",
+      "type": "texture",
+      "position": { "x": 50, "y": 50 },
+      "data": {
+        "label": "Voronoi Texture",
+        "definitionType": "VoronoiTextureNode",
+        "category": "TEXTURE",
+        "color": "#f97316",
+        "inputs": [
+          { "name": "Vector", "type": "VECTOR" },
+          { "name": "Scale", "type": "FLOAT", "defaultValue": 5 },
+          { "name": "Randomness", "type": "FLOAT", "defaultValue": 1 }
+        ],
+        "outputs": [
+          { "name": "Distance", "type": "FLOAT" },
+          { "name": "Color", "type": "COLOR" },
+          { "name": "Position", "type": "VECTOR" }
+        ],
+        "properties": {
+          "voronoi_dimensions": { "type": "enum", "default": "3D", "items": ["1D","2D","3D","4D"] },
+          "feature": { "type": "enum", "default": "F1", "items": ["F1","F2","F2_SMOOTH","DISTANCE","N_SPHERE_RADIUS"] },
+          "distance_metric": { "type": "enum", "default": "EUCLIDEAN", "items": ["EUCLIDEAN","MANHATTAN","CHEBYSHEV","MINKOWSKI"] }
+        },
+        "propertyValues": {
+          "voronoi_dimensions": "3D",
+          "feature": "F1",
+          "distance_metric": "EUCLIDEAN"
+        }
+      }
+    },
+    {
+      "id": "preset_tm_2",
+      "type": "utility",
+      "position": { "x": 50, "y": 300 },
+      "data": {
+        "label": "Mapping",
+        "definitionType": "MappingNode",
+        "category": "UTILITY",
+        "color": "#a855f7",
+        "inputs": [
+          { "name": "Vector", "type": "VECTOR" },
+          { "name": "Scale", "type": "VECTOR", "defaultValue": { "x": 1, "y": 1, "z": 1 } },
+          { "name": "Rotation", "type": "VECTOR" },
+          { "name": "Translation", "type": "VECTOR" }
+        ],
+        "outputs": [
+          { "name": "Vector", "type": "VECTOR" }
+        ],
+        "properties": {
+          "vector_type": { "type": "enum", "default": "POINT", "items": ["POINT","TEXTURE","VECTOR","NORMAL"] }
+        },
+        "propertyValues": {
+          "vector_type": "POINT"
+        }
+      }
+    },
+    {
+      "id": "preset_tm_3",
+      "type": "texture",
+      "position": { "x": 350, "y": 300 },
+      "data": {
+        "label": "Gradient Texture",
+        "definitionType": "GradientTextureNode",
+        "category": "TEXTURE",
+        "color": "#f97316",
+        "inputs": [
+          { "name": "Vector", "type": "VECTOR" }
+        ],
+        "outputs": [
+          { "name": "Color", "type": "COLOR" },
+          { "name": "Fac", "type": "FLOAT" }
+        ],
+        "properties": {
+          "gradient_type": { "type": "enum", "default": "LINEAR", "items": ["LINEAR","QUADRATIC","EASING","DIAGONAL","SPHERICAL","QUADRATIC_SPHERE","RADIAL"] }
+        },
+        "propertyValues": {
+          "gradient_type": "LINEAR"
+        }
+      }
+    },
+    {
+      "id": "preset_tm_4",
+      "type": "utility",
+      "position": { "x": 650, "y": 150 },
+      "data": {
+        "label": "Mix",
+        "definitionType": "MixNode",
+        "category": "UTILITY",
+        "color": "#a855f7",
+        "inputs": [
+          { "name": "Factor", "type": "FLOAT", "defaultValue": 0.5 },
+          { "name": "A", "type": "ANY" },
+          { "name": "B", "type": "ANY" }
+        ],
+        "outputs": [
+          { "name": "Result", "type": "ANY" }
+        ],
+        "properties": {
+          "data_type": { "type": "enum", "default": "FLOAT", "items": ["FLOAT","INT","FLOAT_VECTOR","COLOR","BOOLEAN"] },
+          "blend_type": { "type": "enum", "default": "MIX", "items": ["MIX","DARKEN","MULTIPLY","BURN","LIGHTEN","SCREEN","DODGE","ADD","OVERLAY"] },
+          "clamp_factor": { "type": "boolean", "default": true },
+          "clamp_result": { "type": "boolean", "default": false }
+        },
+        "propertyValues": {
+          "data_type": "COLOR",
+          "blend_type": "MIX",
+          "clamp_factor": true,
+          "clamp_result": false
+        }
+      }
+    },
+    {
+      "id": "preset_tm_5",
+      "type": "shader",
+      "position": { "x": 950, "y": 150 },
+      "data": {
+        "label": "Principled BSDF",
+        "definitionType": "PrincipledBSDFNode",
+        "category": "SHADER",
+        "color": "#22c55e",
+        "inputs": [
+          { "name": "Base Color", "type": "COLOR", "defaultValue": { "r": 0.8, "g": 0.8, "b": 0.8, "a": 1 } },
+          { "name": "Metallic", "type": "FLOAT", "defaultValue": 0 },
+          { "name": "Roughness", "type": "FLOAT", "defaultValue": 0.8 },
+          { "name": "Specular", "type": "FLOAT", "defaultValue": 0.5 },
+          { "name": "Normal", "type": "VECTOR" }
+        ],
+        "outputs": [
+          { "name": "BSDF", "type": "SHADER" }
+        ],
+        "properties": {
+          "distribution": { "type": "enum", "default": "MULTI_GGX", "items": ["GGX","MULTI_GGX"] }
+        },
+        "propertyValues": {
+          "distribution": "MULTI_GGX"
+        }
+      }
+    },
+    {
+      "id": "preset_tm_6",
+      "type": "output",
+      "position": { "x": 1250, "y": 150 },
+      "data": {
+        "label": "Material Output",
+        "definitionType": "MaterialOutputNode",
+        "category": "SHADER_OUTPUT",
+        "color": "#ef4444",
+        "inputs": [
+          { "name": "Surface", "type": "SHADER" },
+          { "name": "Volume", "type": "SHADER" },
+          { "name": "Displacement", "type": "VECTOR" }
+        ],
+        "outputs": [],
+        "properties": {},
+        "propertyValues": {}
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "preset_tm_e1",
+      "source": "preset_tm_1",
+      "sourceHandle": "Distance",
+      "target": "preset_tm_4",
+      "targetHandle": "A",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#999999", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#999999", "width": 14, "height": 14 }
+    },
+    {
+      "id": "preset_tm_e2",
+      "source": "preset_tm_2",
+      "sourceHandle": "Vector",
+      "target": "preset_tm_1",
+      "targetHandle": "Vector",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#ff9933", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#ff9933", "width": 14, "height": 14 }
+    },
+    {
+      "id": "preset_tm_e3",
+      "source": "preset_tm_3",
+      "sourceHandle": "Color",
+      "target": "preset_tm_4",
+      "targetHandle": "B",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#ffcc33", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#ffcc33", "width": 14, "height": 14 }
+    },
+    {
+      "id": "preset_tm_e4",
+      "source": "preset_tm_4",
+      "sourceHandle": "Result",
+      "target": "preset_tm_5",
+      "targetHandle": "Base Color",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#ffcc33", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#ffcc33", "width": 14, "height": 14 }
+    },
+    {
+      "id": "preset_tm_e5",
+      "source": "preset_tm_5",
+      "sourceHandle": "BSDF",
+      "target": "preset_tm_6",
+      "targetHandle": "Surface",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#66cc66", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#66cc66", "width": 14, "height": 14 }
+    }
+  ]
+}

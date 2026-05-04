@@ -1,0 +1,146 @@
+{
+  "name": "Basic Material",
+  "description": "Noise → ColorRamp → PrincipledBSDF → MaterialOutput",
+  "nodes": [
+    {
+      "id": "preset_bm_1",
+      "type": "texture",
+      "position": { "x": 50, "y": 100 },
+      "data": {
+        "label": "Noise Texture",
+        "definitionType": "NoiseTextureNode",
+        "category": "TEXTURE",
+        "color": "#f97316",
+        "inputs": [
+          { "name": "Vector", "type": "VECTOR" },
+          { "name": "W", "type": "FLOAT", "defaultValue": 0 },
+          { "name": "Scale", "type": "FLOAT", "defaultValue": 5 },
+          { "name": "Detail", "type": "FLOAT", "defaultValue": 2 },
+          { "name": "Roughness", "type": "FLOAT", "defaultValue": 0.5 },
+          { "name": "Distortion", "type": "FLOAT", "defaultValue": 0 }
+        ],
+        "outputs": [
+          { "name": "Fac", "type": "FLOAT" },
+          { "name": "Color", "type": "COLOR" }
+        ],
+        "properties": {
+          "dimensions": { "type": "enum", "default": "3D", "items": ["1D","2D","3D","4D"] },
+          "noise_type": { "type": "enum", "default": "FBM", "items": ["MULTIFRACTAL","RIDGED_MULTIFRACTAL","FBM","HETERO_TERRAIN"] }
+        },
+        "propertyValues": {
+          "dimensions": "3D",
+          "noise_type": "FBM"
+        }
+      }
+    },
+    {
+      "id": "preset_bm_2",
+      "type": "utility",
+      "position": { "x": 350, "y": 100 },
+      "data": {
+        "label": "ColorRamp",
+        "definitionType": "ColorRampNode",
+        "category": "COLOR",
+        "color": "#f59e0b",
+        "inputs": [
+          { "name": "Fac", "type": "FLOAT", "defaultValue": 0.5 }
+        ],
+        "outputs": [
+          { "name": "Color", "type": "COLOR" },
+          { "name": "Alpha", "type": "FLOAT" }
+        ],
+        "properties": {
+          "color_mode": { "type": "enum", "default": "RGB", "items": ["RGB","HSV","HSL"] },
+          "interpolation": { "type": "enum", "default": "LINEAR", "items": ["EASE","CARDINAL","LINEAR","B_SPLINE","CONSTANT"] }
+        },
+        "propertyValues": {
+          "color_mode": "RGB",
+          "interpolation": "LINEAR"
+        }
+      }
+    },
+    {
+      "id": "preset_bm_3",
+      "type": "shader",
+      "position": { "x": 650, "y": 100 },
+      "data": {
+        "label": "Principled BSDF",
+        "definitionType": "PrincipledBSDFNode",
+        "category": "SHADER",
+        "color": "#22c55e",
+        "inputs": [
+          { "name": "Base Color", "type": "COLOR", "defaultValue": { "r": 0.8, "g": 0.8, "b": 0.8, "a": 1 } },
+          { "name": "Metallic", "type": "FLOAT", "defaultValue": 0 },
+          { "name": "Roughness", "type": "FLOAT", "defaultValue": 0.5 },
+          { "name": "Specular", "type": "FLOAT", "defaultValue": 0.5 },
+          { "name": "Normal", "type": "VECTOR" }
+        ],
+        "outputs": [
+          { "name": "BSDF", "type": "SHADER" }
+        ],
+        "properties": {
+          "distribution": { "type": "enum", "default": "MULTI_GGX", "items": ["GGX","MULTI_GGX"] },
+          "subsurface_method": { "type": "enum", "default": "RANDOM_WALK", "items": ["BURLEY","RANDOM_WALK"] }
+        },
+        "propertyValues": {
+          "distribution": "MULTI_GGX",
+          "subsurface_method": "RANDOM_WALK"
+        }
+      }
+    },
+    {
+      "id": "preset_bm_4",
+      "type": "output",
+      "position": { "x": 950, "y": 100 },
+      "data": {
+        "label": "Material Output",
+        "definitionType": "MaterialOutputNode",
+        "category": "SHADER_OUTPUT",
+        "color": "#ef4444",
+        "inputs": [
+          { "name": "Surface", "type": "SHADER" },
+          { "name": "Volume", "type": "SHADER" },
+          { "name": "Displacement", "type": "VECTOR" }
+        ],
+        "outputs": [],
+        "properties": {},
+        "propertyValues": {}
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "preset_bm_e1",
+      "source": "preset_bm_1",
+      "sourceHandle": "Fac",
+      "target": "preset_bm_2",
+      "targetHandle": "Fac",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#999999", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#999999", "width": 14, "height": 14 }
+    },
+    {
+      "id": "preset_bm_e2",
+      "source": "preset_bm_2",
+      "sourceHandle": "Color",
+      "target": "preset_bm_3",
+      "targetHandle": "Base Color",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#ffcc33", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#ffcc33", "width": 14, "height": 14 }
+    },
+    {
+      "id": "preset_bm_e3",
+      "source": "preset_bm_3",
+      "sourceHandle": "BSDF",
+      "target": "preset_bm_4",
+      "targetHandle": "Surface",
+      "type": "smoothstep",
+      "animated": true,
+      "style": { "stroke": "#66cc66", "strokeWidth": 2 },
+      "markerEnd": { "type": "arrowclosed", "color": "#66cc66", "width": 14, "height": 14 }
+    }
+  ]
+}

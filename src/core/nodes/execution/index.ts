@@ -195,9 +195,7 @@ export {
   executeAccumulateField,
 } from './AdditionalNodeExecutors';
 
-export type {
-  NodeExecutorFunction,
-} from './AdditionalNodeExecutors';
+
 
 // ExpandedNodeExecutors - 30 additional mesh topology, attribute, curve modifier, instance, volume/point, geometry, and shader input executors
 export {
@@ -233,6 +231,90 @@ export {
   executeObjectIndex,
   executeIsCameraRay,
 } from './ExpandedNodeExecutors';
+
+// EssentialNodeExecutors - 32 essential executors for Infinigen pipelines
+export {
+  EssentialNodeExecutors,
+  executeJoinGeometry,
+  executeSeparateGeometry,
+  executeDeleteGeometry,
+  executeTransform,
+  executeTriangulate,
+  executeSetMaterial,
+  executeCurveToPoints,
+  executeReverseCurve,
+  executeSubdivideCurve,
+  executeCurveCircle,
+  executeExtrudeMesh,
+  executeSetMeshNormals,
+  executeMeshToVolume,
+  executeDistributePointsInVolume,
+  executeCombineHSV,
+  executeCombineRGB,
+  executeSeparateRGB,
+  executeRGBCurve,
+  executeMix,
+  executeCompare,
+  executeInteger,
+  executeIndex,
+  executeInputID,
+  executeInputEdgeVertices,
+  executeAmbientOcclusion,
+  executeSetMaterialIndex,
+  executeMaterialIndex,
+  executeOffsetMesh,
+  executeSubdivisionSurface,
+  executeSetUV,
+  executeUVWarp,
+  executeGroupInput,
+  executeGroupOutput,
+} from './EssentialNodeExecutors';
+
+// SpecializedNodeExecutors - 41 specialized executors for shader inputs, topology, light data, etc.
+export {
+  SpecializedNodeExecutors,
+  executeLayerWeight,
+  executeLightPath,
+  executeWireframe,
+  executeShaderObjectInfo,
+  executeParticleInfo,
+  executeCameraData,
+  executeHairInfo,
+  executeNewGeometry,
+  executeBlackBody,
+  executeWavelength,
+  executeBevel,
+  executeNormalize,
+  executeVectorRotate,
+  executeVectorTransform,
+  executeQuaternion,
+  executeMatrixTransform,
+  executeAttribute,
+  executeCurveSplineType,
+  executeEdgeAngle,
+  executeEdgesOfVertex,
+  executeVerticesOfEdge,
+  executeVerticesOfFace,
+  executeFacesOfVertex,
+  executeFaceCorners,
+  executeNamedCorner,
+  executeExposure,
+  executeNormal,
+  executeTangent,
+  executeTrueNormal,
+  executeMaterialInfo,
+  executeMeshInfo,
+  executePointLight,
+  executeSpotLight,
+  executeSunLight,
+  executeAreaLight,
+  executeLightAttenuation,
+  executeRandomPerIsland,
+  executeTextureGabor,
+  executeFloorCeil,
+  executeRGBToBW,
+  executeFloatCurve,
+} from './SpecializedNodeExecutors';
 
 // GLSL Shader Generation - Node function libraries and shader composition
 export {

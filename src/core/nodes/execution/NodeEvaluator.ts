@@ -17,6 +17,8 @@ import * as CoreExecutors from './CoreNodeExecutors';
 import * as ExtExecutors from './ExtendedNodeExecutors';
 import * as AddExecutors from './AdditionalNodeExecutors';
 import * as ExpExecutors from './ExpandedNodeExecutors';
+import * as EssentialExecutors from './EssentialNodeExecutors';
+import * as SpecializedExecutors from './SpecializedNodeExecutors';
 
 // ============================================================================
 // Types
@@ -371,112 +373,112 @@ export class NodeEvaluator {
     const nodeType = node.type;
 
     // Shader nodes
-    if (nodeType === 'principled_bsdf' || nodeType === 'ShaderNodeBsdfPrincipled') {
+    if (nodeType === 'principled_bsdf' || nodeType === 'ShaderNodeBsdfPrincipled' || nodeType === 'PrincipledBSDFNode') {
       return this.executePrincipledBSDF(inputs);
     }
-    if (nodeType === 'bsdf_diffuse' || nodeType === 'ShaderNodeBsdfDiffuse') {
+    if (nodeType === 'bsdf_diffuse' || nodeType === 'ShaderNodeBsdfDiffuse' || nodeType === 'DiffuseBSDFNode') {
       return this.executeDiffuseBSDF(inputs);
     }
-    if (nodeType === 'bsdf_glossy' || nodeType === 'ShaderNodeBsdfGlossy') {
+    if (nodeType === 'bsdf_glossy' || nodeType === 'ShaderNodeBsdfGlossy' || nodeType === 'GlossyBSDFNode') {
       return this.executeGlossyBSDF(inputs);
     }
-    if (nodeType === 'bsdf_glass' || nodeType === 'ShaderNodeBsdfGlass') {
+    if (nodeType === 'bsdf_glass' || nodeType === 'ShaderNodeBsdfGlass' || nodeType === 'GlassBSDFNode') {
       return this.executeGlassBSDF(inputs);
     }
-    if (nodeType === 'emission' || nodeType === 'ShaderNodeEmission') {
+    if (nodeType === 'emission' || nodeType === 'ShaderNodeEmission' || nodeType === 'EmissionNode') {
       return this.executeEmission(inputs);
     }
-    if (nodeType === 'mix_shader' || nodeType === 'ShaderNodeMixShader') {
+    if (nodeType === 'mix_shader' || nodeType === 'ShaderNodeMixShader' || nodeType === 'MixShaderNode') {
       return this.executeMixShader(inputs);
     }
-    if (nodeType === 'add_shader' || nodeType === 'ShaderNodeAddShader') {
+    if (nodeType === 'add_shader' || nodeType === 'ShaderNodeAddShader' || nodeType === 'AddShaderNode') {
       return this.executeAddShader(inputs);
     }
 
     // Texture nodes
-    if (nodeType === 'ShaderNodeTexNoise' || nodeType === 'noise_texture') {
+    if (nodeType === 'ShaderNodeTexNoise' || nodeType === 'noise_texture' || nodeType === 'NoiseTextureNode') {
       return this.executeNoiseTexture(inputs);
     }
-    if (nodeType === 'ShaderNodeTexVoronoi' || nodeType === 'voronoi_texture') {
+    if (nodeType === 'ShaderNodeTexVoronoi' || nodeType === 'voronoi_texture' || nodeType === 'VoronoiTextureNode') {
       return this.executeVoronoiTexture(inputs);
     }
-    if (nodeType === 'ShaderNodeTexMusgrave' || nodeType === 'musgrave_texture') {
+    if (nodeType === 'ShaderNodeTexMusgrave' || nodeType === 'musgrave_texture' || nodeType === 'MusgraveTextureNode') {
       return this.executeMusgraveTexture(inputs);
     }
-    if (nodeType === 'ShaderNodeTexGradient' || nodeType === 'gradient_texture') {
+    if (nodeType === 'ShaderNodeTexGradient' || nodeType === 'gradient_texture' || nodeType === 'GradientTextureNode') {
       return this.executeGradientTexture(inputs);
     }
-    if (nodeType === 'ShaderNodeTexBrick' || nodeType === 'brick_texture') {
+    if (nodeType === 'ShaderNodeTexBrick' || nodeType === 'brick_texture' || nodeType === 'BrickTextureNode') {
       return this.executeBrickTexture(inputs);
     }
-    if (nodeType === 'ShaderNodeTexChecker' || nodeType === 'checker_texture') {
+    if (nodeType === 'ShaderNodeTexChecker' || nodeType === 'checker_texture' || nodeType === 'CheckerTextureNode') {
       return this.executeCheckerTexture(inputs);
     }
-    if (nodeType === 'ShaderNodeTexMagic' || nodeType === 'magic_texture') {
+    if (nodeType === 'ShaderNodeTexMagic' || nodeType === 'magic_texture' || nodeType === 'MagicTextureNode') {
       return this.executeMagicTexture(inputs);
     }
-    if (nodeType === 'ShaderNodeTexImage' || nodeType === 'image_texture') {
+    if (nodeType === 'ShaderNodeTexImage' || nodeType === 'image_texture' || nodeType === 'ImageTextureNode') {
       return this.executeImageTexture(inputs);
     }
 
     // Color nodes
-    if (nodeType === 'ShaderNodeMixRGB' || nodeType === 'mix_rgb') {
+    if (nodeType === 'ShaderNodeMixRGB' || nodeType === 'mix_rgb' || nodeType === 'MixRGBNode') {
       return this.executeMixRGB(inputs);
     }
-    if (nodeType === 'ShaderNodeValToRGB' || nodeType === 'color_ramp') {
+    if (nodeType === 'ShaderNodeValToRGB' || nodeType === 'color_ramp' || nodeType === 'ColorRampNode') {
       return this.executeColorRamp(inputs);
     }
-    if (nodeType === 'ShaderNodeHueSaturation' || nodeType === 'hue_saturation') {
+    if (nodeType === 'ShaderNodeHueSaturation' || nodeType === 'hue_saturation' || nodeType === 'HueSaturationNode') {
       return this.executeHueSaturationValue(inputs);
     }
-    if (nodeType === 'ShaderNodeInvert' || nodeType === 'invert') {
+    if (nodeType === 'ShaderNodeInvert' || nodeType === 'invert' || nodeType === 'InvertNode') {
       return this.executeInvert(inputs);
     }
-    if (nodeType === 'CompositorNodeBrightContrast' || nodeType === 'bright_contrast') {
+    if (nodeType === 'CompositorNodeBrightContrast' || nodeType === 'bright_contrast' || nodeType === 'BrightContrastNode') {
       return this.executeBrightContrast(inputs);
     }
 
     // Math nodes
-    if (nodeType === 'ShaderNodeMath' || nodeType === 'math') {
+    if (nodeType === 'ShaderNodeMath' || nodeType === 'math' || nodeType === 'MathNode') {
       return this.executeMath(inputs);
     }
-    if (nodeType === 'ShaderNodeVectorMath' || nodeType === 'vector_math') {
+    if (nodeType === 'ShaderNodeVectorMath' || nodeType === 'vector_math' || nodeType === 'VectorMathNode') {
       return this.executeVectorMath(inputs);
     }
 
     // Vector nodes
-    if (nodeType === 'ShaderNodeMapping' || nodeType === 'mapping') {
+    if (nodeType === 'ShaderNodeMapping' || nodeType === 'mapping' || nodeType === 'MappingNode') {
       return this.executeMapping(inputs, node.settings);
     }
-    if (nodeType === 'ShaderNodeCombineXYZ' || nodeType === 'combine_xyz') {
+    if (nodeType === 'ShaderNodeCombineXYZ' || nodeType === 'combine_xyz' || nodeType === 'CombineXYZNode') {
       return this.executeCombineXYZ(inputs);
     }
-    if (nodeType === 'ShaderNodeSeparateXYZ' || nodeType === 'separate_xyz') {
+    if (nodeType === 'ShaderNodeSeparateXYZ' || nodeType === 'separate_xyz' || nodeType === 'SeparateXYZNode') {
       return this.executeSeparateXYZ(inputs);
     }
-    if (nodeType === 'ShaderNodeBump' || nodeType === 'bump') {
+    if (nodeType === 'ShaderNodeBump' || nodeType === 'bump' || nodeType === 'BumpNode') {
       return this.executeBump(inputs);
     }
-    if (nodeType === 'ShaderNodeDisplacement' || nodeType === 'displacement') {
+    if (nodeType === 'ShaderNodeDisplacement' || nodeType === 'displacement' || nodeType === 'DisplacementNode') {
       return this.executeDisplacement(inputs);
     }
-    if (nodeType === 'ShaderNodeNormalMap' || nodeType === 'normal_map') {
+    if (nodeType === 'ShaderNodeNormalMap' || nodeType === 'normal_map' || nodeType === 'NormalMapNode') {
       return this.executeNormalMap(inputs);
     }
 
     // Texture coordinate
-    if (nodeType === 'ShaderNodeTexCoord' || nodeType === 'texture_coordinate') {
+    if (nodeType === 'ShaderNodeTexCoord' || nodeType === 'texture_coordinate' || nodeType === 'TextureCoordinateNode') {
       return this.executeTextureCoordinate(inputs);
     }
 
     // Input nodes
-    if (nodeType === 'GeometryNodeObjectInfo' || nodeType === 'object_info') {
+    if (nodeType === 'GeometryNodeObjectInfo' || nodeType === 'object_info' || nodeType === 'ObjectInfoNode') {
       return this.executeObjectInfo(inputs, node.settings);
     }
-    if (nodeType === 'ShaderNodeValue' || nodeType === 'value') {
+    if (nodeType === 'ShaderNodeValue' || nodeType === 'value' || nodeType === 'ValueNode') {
       return this.executeValue(inputs, node.settings);
     }
-    if (nodeType === 'ShaderNodeRGB' || nodeType === 'rgb') {
+    if (nodeType === 'ShaderNodeRGB' || nodeType === 'rgb' || nodeType === 'RGBNode') {
       return this.executeRGB(inputs, node.settings);
     }
 
@@ -496,10 +498,10 @@ export class NodeEvaluator {
     }
 
     // Geometry Sampling
-    if (nodeType === 'Proximity' || nodeType === 'ProximityNode' || nodeType === 'GeometryNodeProximity') {
+    if (nodeType === 'Proximity' || nodeType === 'ProximityNode' || nodeType === 'GeometryNodeProximity' || nodeType === 'proximity') {
       return CoreExecutors.executeProximity(inputs);
     }
-    if (nodeType === 'Raycast' || nodeType === 'RaycastNode' || nodeType === 'GeometryNodeRaycast') {
+    if (nodeType === 'Raycast' || nodeType === 'RaycastNode' || nodeType === 'GeometryNodeRaycast' || nodeType === 'raycast') {
       return CoreExecutors.executeRaycast(inputs);
     }
     if (nodeType === 'SampleNearestSurface' || nodeType === 'SampleNearestSurfaceNode' || nodeType === 'sample_nearest_surface') {
@@ -513,10 +515,10 @@ export class NodeEvaluator {
     if (nodeType === 'MergeByDistance' || nodeType === 'MergeByDistanceNode' || nodeType === 'merge_by_distance') {
       return CoreExecutors.executeMergeByDistance(inputs);
     }
-    if (nodeType === 'SmoothByAngle' || nodeType === 'smooth_by_angle') {
+    if (nodeType === 'SmoothByAngle' || nodeType === 'smooth_by_angle' || nodeType === 'SmoothByAngleNode') {
       return CoreExecutors.executeSmoothByAngle(inputs);
     }
-    if (nodeType === 'EdgeSplit' || nodeType === 'edge_split') {
+    if (nodeType === 'EdgeSplit' || nodeType === 'edge_split' || nodeType === 'EdgeSplitNode') {
       return CoreExecutors.executeEdgeSplit(inputs);
     }
 
@@ -535,13 +537,13 @@ export class NodeEvaluator {
     }
 
     // Mesh Analysis
-    if (nodeType === 'MeshBoolean' || nodeType === 'Boolean' || nodeType === 'BooleanUnionNode' || nodeType === 'BooleanIntersectNode' || nodeType === 'BooleanDifferenceNode' || nodeType === 'mesh_boolean') {
+    if (nodeType === 'MeshBoolean' || nodeType === 'MeshBooleanNode' || nodeType === 'Boolean' || nodeType === 'BooleanUnionNode' || nodeType === 'BooleanIntersectNode' || nodeType === 'BooleanDifferenceNode' || nodeType === 'mesh_boolean') {
       return CoreExecutors.executeMeshBoolean(inputs);
     }
     if (nodeType === 'MeshToCurve' || nodeType === 'MeshToCurveNode' || nodeType === 'mesh_to_curve') {
       return CoreExecutors.executeMeshToCurve(inputs);
     }
-    if (nodeType === 'FaceSetBoundaries' || nodeType === 'face_set_boundaries') {
+    if (nodeType === 'FaceSetBoundaries' || nodeType === 'FaceSetBoundariesNode' || nodeType === 'face_set_boundaries') {
       return CoreExecutors.executeFaceSetBoundaries(inputs);
     }
 
@@ -561,87 +563,87 @@ export class NodeEvaluator {
     // =========================================================================
 
     // Curve Nodes
-    if (nodeType === 'curve_line' || nodeType === 'GeometryNodeCurveLine') {
+    if (nodeType === 'curve_line' || nodeType === 'GeometryNodeCurveLine' || nodeType === 'CurveLineNode') {
       return ExtExecutors.executeCurveLine(inputs);
     }
-    if (nodeType === 'quadratic_bezier' || nodeType === 'GeometryNodeQuadraticBezier') {
+    if (nodeType === 'quadratic_bezier' || nodeType === 'GeometryNodeQuadraticBezier' || nodeType === 'QuadraticBezierNode') {
       return ExtExecutors.executeQuadraticBezier(inputs);
     }
-    if (nodeType === 'bezier_segment' || nodeType === 'GeometryNodeBezierSegment') {
+    if (nodeType === 'bezier_segment' || nodeType === 'GeometryNodeBezierSegment' || nodeType === 'BezierSegmentNode') {
       return ExtExecutors.executeBezierSegment(inputs);
     }
-    if (nodeType === 'curve_length' || nodeType === 'GeometryNodeCurveLength') {
+    if (nodeType === 'curve_length' || nodeType === 'GeometryNodeCurveLength' || nodeType === 'CurveLengthNode') {
       return ExtExecutors.executeCurveLength(inputs);
     }
-    if (nodeType === 'sample_curve' || nodeType === 'GeometryNodeSampleCurve') {
+    if (nodeType === 'sample_curve' || nodeType === 'GeometryNodeSampleCurve' || nodeType === 'SampleCurveNode') {
       return ExtExecutors.executeSampleCurve(inputs);
     }
 
     // Attribute Nodes
-    if (nodeType === 'AttributeTransfer' || nodeType === 'GeometryNodeAttributeTransfer' || nodeType === 'attribute_transfer') {
+    if (nodeType === 'AttributeTransfer' || nodeType === 'AttributeTransferNode' || nodeType === 'GeometryNodeAttributeTransfer' || nodeType === 'attribute_transfer') {
       return ExtExecutors.executeAttributeTransfer(inputs);
     }
 
     // Input/Output Nodes
-    if (nodeType === 'CollectionInfo' || nodeType === 'GeometryNodeCollectionInfo' || nodeType === 'collection_info') {
+    if (nodeType === 'CollectionInfo' || nodeType === 'CollectionInfoNode' || nodeType === 'GeometryNodeCollectionInfo' || nodeType === 'collection_info') {
       return ExtExecutors.executeCollectionInfo(inputs);
     }
-    if (nodeType === 'SelfObject' || nodeType === 'GeometryNodeSelfObject' || nodeType === 'self_object') {
+    if (nodeType === 'SelfObject' || nodeType === 'SelfObjectNode' || nodeType === 'GeometryNodeSelfObject' || nodeType === 'self_object') {
       return ExtExecutors.executeSelfObject(inputs);
     }
-    if (nodeType === 'input_vector' || nodeType === 'GeometryNodeInputVector' || nodeType === 'NodeInputVector') {
+    if (nodeType === 'input_vector' || nodeType === 'GeometryNodeInputVector' || nodeType === 'NodeInputVector' || nodeType === 'InputVectorNode') {
       return ExtExecutors.executeInputVector(inputs, node.settings);
     }
-    if (nodeType === 'input_color' || nodeType === 'GeometryNodeInputColor' || nodeType === 'NodeInputColor') {
+    if (nodeType === 'input_color' || nodeType === 'GeometryNodeInputColor' || nodeType === 'NodeInputColor' || nodeType === 'InputColorNode') {
       return ExtExecutors.executeInputColor(inputs, node.settings);
     }
-    if (nodeType === 'input_int' || nodeType === 'GeometryNodeInputInt' || nodeType === 'NodeInputInt') {
+    if (nodeType === 'input_int' || nodeType === 'GeometryNodeInputInt' || nodeType === 'NodeInputInt' || nodeType === 'InputIntNode') {
       return ExtExecutors.executeInputInt(inputs, node.settings);
     }
-    if (nodeType === 'input_float' || nodeType === 'GeometryNodeInputFloat' || nodeType === 'NodeInputFloat') {
+    if (nodeType === 'input_float' || nodeType === 'GeometryNodeInputFloat' || nodeType === 'NodeInputFloat' || nodeType === 'InputFloatNode') {
       return ExtExecutors.executeInputFloat(inputs, node.settings);
     }
-    if (nodeType === 'input_bool' || nodeType === 'GeometryNodeInputBool' || nodeType === 'NodeInputBool') {
+    if (nodeType === 'input_bool' || nodeType === 'GeometryNodeInputBool' || nodeType === 'NodeInputBool' || nodeType === 'InputBoolNode') {
       return ExtExecutors.executeInputBool(inputs, node.settings);
     }
 
     // Utility Nodes
-    if (nodeType === 'clamp' || nodeType === 'ShaderNodeClamp' || nodeType === 'GeometryNodeClamp') {
+    if (nodeType === 'clamp' || nodeType === 'ShaderNodeClamp' || nodeType === 'GeometryNodeClamp' || nodeType === 'ClampNode') {
       return ExtExecutors.executeClamp(inputs);
     }
-    if (nodeType === 'map_range' || nodeType === 'ShaderNodeMapRange' || nodeType === 'GeometryNodeMapRange') {
+    if (nodeType === 'map_range' || nodeType === 'ShaderNodeMapRange' || nodeType === 'GeometryNodeMapRange' || nodeType === 'MapRangeNode') {
       return ExtExecutors.executeMapRange(inputs);
     }
-    if (nodeType === 'float_to_int' || nodeType === 'GeometryNodeFloatToInt' || nodeType === 'ShaderNodeFloatToInt') {
+    if (nodeType === 'float_to_int' || nodeType === 'GeometryNodeFloatToInt' || nodeType === 'ShaderNodeFloatToInt' || nodeType === 'FloatToIntNode') {
       return ExtExecutors.executeFloatToInt(inputs);
     }
-    if (nodeType === 'rotate_euler' || nodeType === 'GeometryNodeRotateEuler' || nodeType === 'RotateEuler') {
+    if (nodeType === 'rotate_euler' || nodeType === 'GeometryNodeRotateEuler' || nodeType === 'RotateEuler' || nodeType === 'RotateEulerNode') {
       return ExtExecutors.executeRotateEuler(inputs);
     }
-    if (nodeType === 'rotate_vector' || nodeType === 'GeometryNodeRotateVector' || nodeType === 'RotateVector') {
+    if (nodeType === 'rotate_vector' || nodeType === 'GeometryNodeRotateVector' || nodeType === 'RotateVector' || nodeType === 'RotateVectorNode') {
       return ExtExecutors.executeRotateVector(inputs);
     }
-    if (nodeType === 'align_euler_to_vector' || nodeType === 'GeometryNodeAlignEulerToVector' || nodeType === 'AlignEulerToVector') {
+    if (nodeType === 'align_euler_to_vector' || nodeType === 'GeometryNodeAlignEulerToVector' || nodeType === 'AlignEulerToVector' || nodeType === 'AlignEulerToVectorNode') {
       return ExtExecutors.executeAlignEulerToVector(inputs);
     }
-    if (nodeType === 'switch' || nodeType === 'GeometryNodeSwitch' || nodeType === 'ShaderNodeSwitch') {
+    if (nodeType === 'switch' || nodeType === 'GeometryNodeSwitch' || nodeType === 'ShaderNodeSwitch' || nodeType === 'SwitchNode') {
       return ExtExecutors.executeSwitch(inputs);
     }
-    if (nodeType === 'random_value' || nodeType === 'GeometryNodeRandomValue' || nodeType === 'FunctionNodeRandomValue') {
+    if (nodeType === 'random_value' || nodeType === 'GeometryNodeRandomValue' || nodeType === 'FunctionNodeRandomValue' || nodeType === 'RandomValueNode') {
       return ExtExecutors.executeRandomValue(inputs);
     }
 
     // Geometry Utility Nodes
-    if (nodeType === 'bounding_box' || nodeType === 'GeometryNodeBoundBox' || nodeType === 'GeometryNodeBoundingBox') {
+    if (nodeType === 'bounding_box' || nodeType === 'GeometryNodeBoundBox' || nodeType === 'GeometryNodeBoundingBox' || nodeType === 'BoundingBoxNode') {
       return ExtExecutors.executeBoundingBox(inputs);
     }
-    if (nodeType === 'geometry_proximity' || nodeType === 'GeometryNodeProximity') {
+    if (nodeType === 'geometry_proximity' || nodeType === 'GeometryNodeProximity' || nodeType === 'GeometryProximityNode') {
       return ExtExecutors.executeGeometryProximity(inputs);
     }
-    if (nodeType === 'GeometryNodeRaycast') {
+    if (nodeType === 'GeometryNodeRaycast' || nodeType === 'RaycastEnhancedNode' || nodeType === 'raycast_enhanced') {
       return ExtExecutors.executeRaycastEnhanced(inputs);
     }
-    if (nodeType === 'GeometryNodeSampleNearestSurface') {
+    if (nodeType === 'GeometryNodeSampleNearestSurface' || nodeType === 'SampleNearestSurfaceEnhancedNode' || nodeType === 'sample_nearest_surface_enhanced') {
       return ExtExecutors.executeSampleNearestSurfaceEnhanced(inputs);
     }
     if (nodeType === 'mesh_to_points' || nodeType === 'GeometryNodeMeshToPoints' || nodeType === 'MeshToPointsNode') {
@@ -653,102 +655,102 @@ export class NodeEvaluator {
     // =========================================================================
 
     // Texture Coordinate Nodes
-    if (nodeType === 'TextureCoordinate' || nodeType === 'texture_coordinate' || nodeType === 'ShaderNodeTexCoord') {
+    if (nodeType === 'TextureCoordinate' || nodeType === 'TextureCoordinateNode' || nodeType === 'texture_coordinate' || nodeType === 'ShaderNodeTexCoord') {
       return AddExecutors.executeTextureCoordinate(inputs);
     }
-    if (nodeType === 'Mapping' || nodeType === 'mapping' || nodeType === 'ShaderNodeMapping') {
+    if (nodeType === 'Mapping' || nodeType === 'MappingNode' || nodeType === 'mapping' || nodeType === 'ShaderNodeMapping') {
       return AddExecutors.executeMapping(inputs);
     }
-    if (nodeType === 'UVMap' || nodeType === 'uv_map' || nodeType === 'GeometryNodeInputUVMap') {
+    if (nodeType === 'UVMap' || nodeType === 'UVMapNode' || nodeType === 'uv_map' || nodeType === 'GeometryNodeInputUVMap') {
       return AddExecutors.executeUVMap(inputs);
     }
-    if (nodeType === 'GeometryNodeInputPosition' || nodeType === 'input_position') {
+    if (nodeType === 'GeometryNodeInputPosition' || nodeType === 'input_position' || nodeType === 'InputPositionNode') {
       return AddExecutors.executeGeometryNodeInputPosition(inputs);
     }
-    if (nodeType === 'GeometryNodeInputNormal' || nodeType === 'input_normal') {
+    if (nodeType === 'GeometryNodeInputNormal' || nodeType === 'input_normal' || nodeType === 'InputNormalNode') {
       return AddExecutors.executeGeometryNodeInputNormal(inputs);
     }
-    if (nodeType === 'GeometryNodeInputTangent' || nodeType === 'input_tangent') {
+    if (nodeType === 'GeometryNodeInputTangent' || nodeType === 'input_tangent' || nodeType === 'InputTangentNode') {
       return AddExecutors.executeGeometryNodeInputTangent(inputs);
     }
 
     // Geometry Operation Nodes
-    if (nodeType === 'SubdivideMesh' || nodeType === 'subdivide_mesh' || nodeType === 'GeometryNodeSubdivisionSurface') {
+    if (nodeType === 'SubdivideMesh' || nodeType === 'SubdivideMeshNode' || nodeType === 'subdivide_mesh' || nodeType === 'GeometryNodeSubdivisionSurface') {
       return AddExecutors.executeSubdivideMesh(inputs);
     }
-    if (nodeType === 'DecimateMesh' || nodeType === 'decimate_mesh' || nodeType === 'GeometryNodeDecimate') {
+    if (nodeType === 'DecimateMesh' || nodeType === 'DecimateMeshNode' || nodeType === 'decimate_mesh' || nodeType === 'GeometryNodeDecimate') {
       return AddExecutors.executeDecimateMesh(inputs);
     }
-    if (nodeType === 'ExtrudeFaces' || nodeType === 'extrude_faces' || nodeType === 'GeometryNodeExtrudeFaces') {
+    if (nodeType === 'ExtrudeFaces' || nodeType === 'ExtrudeFacesNode' || nodeType === 'extrude_faces' || nodeType === 'GeometryNodeExtrudeFaces') {
       return AddExecutors.executeExtrudeFaces(inputs);
     }
-    if (nodeType === 'InsetFaces' || nodeType === 'inset_faces' || nodeType === 'GeometryNodeInsetFaces') {
+    if (nodeType === 'InsetFaces' || nodeType === 'InsetFacesNode' || nodeType === 'inset_faces' || nodeType === 'GeometryNodeInsetFaces') {
       return AddExecutors.executeInsetFaces(inputs);
     }
-    if (nodeType === 'FlipFaces' || nodeType === 'flip_faces' || nodeType === 'GeometryNodeFlipFaces') {
+    if (nodeType === 'FlipFaces' || nodeType === 'FlipFacesNode' || nodeType === 'flip_faces' || nodeType === 'GeometryNodeFlipFaces') {
       return AddExecutors.executeFlipFaces(inputs);
     }
-    if (nodeType === 'RotateMesh' || nodeType === 'rotate_mesh' || nodeType === 'GeometryNodeRotateMesh') {
+    if (nodeType === 'RotateMesh' || nodeType === 'RotateMeshNode' || nodeType === 'rotate_mesh' || nodeType === 'GeometryNodeRotateMesh') {
       return AddExecutors.executeRotateMesh(inputs);
     }
-    if (nodeType === 'ScaleMesh' || nodeType === 'scale_mesh' || nodeType === 'GeometryNodeScaleMesh') {
+    if (nodeType === 'ScaleMesh' || nodeType === 'ScaleMeshNode' || nodeType === 'scale_mesh' || nodeType === 'GeometryNodeScaleMesh') {
       return AddExecutors.executeScaleMesh(inputs);
     }
-    if (nodeType === 'TranslateMesh' || nodeType === 'translate_mesh' || nodeType === 'GeometryNodeTranslateMesh') {
+    if (nodeType === 'TranslateMesh' || nodeType === 'TranslateMeshNode' || nodeType === 'translate_mesh' || nodeType === 'GeometryNodeTranslateMesh') {
       return AddExecutors.executeTranslateMesh(inputs);
     }
 
     // Texture/Evaluation Nodes
-    if (nodeType === 'BrickTexture' || nodeType === 'brick_texture' || nodeType === 'ShaderNodeTexBrick') {
+    if (nodeType === 'BrickTexture' || nodeType === 'BrickTextureNode' || nodeType === 'brick_texture' || nodeType === 'ShaderNodeTexBrick') {
       return AddExecutors.executeBrickTexture(inputs);
     }
-    if (nodeType === 'CheckerTexture' || nodeType === 'checker_texture' || nodeType === 'ShaderNodeTexChecker') {
+    if (nodeType === 'CheckerTexture' || nodeType === 'CheckerTextureNode' || nodeType === 'checker_texture' || nodeType === 'ShaderNodeTexChecker') {
       return AddExecutors.executeCheckerTexture(inputs);
     }
-    if (nodeType === 'GradientTexture' || nodeType === 'gradient_texture' || nodeType === 'ShaderNodeTexGradient') {
+    if (nodeType === 'GradientTexture' || nodeType === 'GradientTextureNode' || nodeType === 'gradient_texture' || nodeType === 'ShaderNodeTexGradient') {
       return AddExecutors.executeGradientTexture(inputs);
     }
-    if (nodeType === 'MagicTexture' || nodeType === 'magic_texture' || nodeType === 'ShaderNodeTexMagic') {
+    if (nodeType === 'MagicTexture' || nodeType === 'MagicTextureNode' || nodeType === 'magic_texture' || nodeType === 'ShaderNodeTexMagic') {
       return AddExecutors.executeMagicTexture(inputs);
     }
-    if (nodeType === 'WaveTexture' || nodeType === 'wave_texture' || nodeType === 'ShaderNodeTexWave') {
+    if (nodeType === 'WaveTexture' || nodeType === 'WaveTextureNode' || nodeType === 'wave_texture' || nodeType === 'ShaderNodeTexWave') {
       return AddExecutors.executeWaveTexture(inputs);
     }
-    if (nodeType === 'WhiteNoiseTexture' || nodeType === 'white_noise_texture' || nodeType === 'ShaderNodeTexWhiteNoise') {
+    if (nodeType === 'WhiteNoiseTexture' || nodeType === 'WhiteNoiseTextureNode' || nodeType === 'white_noise_texture' || nodeType === 'ShaderNodeTexWhiteNoise') {
       return AddExecutors.executeWhiteNoiseTexture(inputs);
     }
 
     // Color/Mix Nodes
-    if (nodeType === 'ColorRamp' || nodeType === 'color_ramp' || nodeType === 'ShaderNodeValToRGB') {
+    if (nodeType === 'ColorRamp' || nodeType === 'ColorRampNode' || nodeType === 'color_ramp' || nodeType === 'ShaderNodeValToRGB') {
       return AddExecutors.executeColorRamp(inputs);
     }
-    if (nodeType === 'Curves' || nodeType === 'curves' || nodeType === 'ShaderNodeCurveRGB') {
+    if (nodeType === 'Curves' || nodeType === 'CurvesNode' || nodeType === 'curves' || nodeType === 'ShaderNodeCurveRGB') {
       return AddExecutors.executeCurves(inputs);
     }
-    if (nodeType === 'SeparateColor' || nodeType === 'separate_color' || nodeType === 'FunctionNodeSeparateColor') {
+    if (nodeType === 'SeparateColor' || nodeType === 'SeparateColorNode' || nodeType === 'separate_color' || nodeType === 'FunctionNodeSeparateColor') {
       return AddExecutors.executeSeparateColor(inputs);
     }
-    if (nodeType === 'CombineColor' || nodeType === 'combine_color' || nodeType === 'FunctionNodeCombineColor') {
+    if (nodeType === 'CombineColor' || nodeType === 'CombineColorNode' || nodeType === 'combine_color' || nodeType === 'FunctionNodeCombineColor') {
       return AddExecutors.executeCombineColor(inputs);
     }
 
     // Math/Utility Nodes
-    if (nodeType === 'BooleanMath' || nodeType === 'boolean_math' || nodeType === 'FunctionNodeBooleanMath') {
+    if (nodeType === 'BooleanMath' || nodeType === 'BooleanMathNode' || nodeType === 'boolean_math' || nodeType === 'FunctionNodeBooleanMath') {
       return AddExecutors.executeBooleanMath(inputs);
     }
-    if (nodeType === 'FloatCompare' || nodeType === 'float_compare' || nodeType === 'FunctionNodeFloatCompare') {
+    if (nodeType === 'FloatCompare' || nodeType === 'FloatCompareNode' || nodeType === 'float_compare' || nodeType === 'FunctionNodeFloatCompare') {
       return AddExecutors.executeFloatCompare(inputs);
     }
-    if (nodeType === 'MapRangeVector' || nodeType === 'map_range_vector' || nodeType === 'ShaderNodeVectorMapRange') {
+    if (nodeType === 'MapRangeVector' || nodeType === 'MapRangeVectorNode' || nodeType === 'map_range_vector' || nodeType === 'ShaderNodeVectorMapRange') {
       return AddExecutors.executeMapRangeVector(inputs);
     }
-    if (nodeType === 'RotationToEuler' || nodeType === 'rotation_to_euler' || nodeType === 'FunctionNodeRotationToEuler') {
+    if (nodeType === 'RotationToEuler' || nodeType === 'RotationToEulerNode' || nodeType === 'rotation_to_euler' || nodeType === 'FunctionNodeRotationToEuler') {
       return AddExecutors.executeRotationToEuler(inputs);
     }
-    if (nodeType === 'EulerToRotation' || nodeType === 'euler_to_rotation' || nodeType === 'FunctionNodeEulerToRotation') {
+    if (nodeType === 'EulerToRotation' || nodeType === 'EulerToRotationNode' || nodeType === 'euler_to_rotation' || nodeType === 'FunctionNodeEulerToRotation') {
       return AddExecutors.executeEulerToRotation(inputs);
     }
-    if (nodeType === 'AccumulateField' || nodeType === 'accumulate_field' || nodeType === 'GeometryNodeAccumulateField') {
+    if (nodeType === 'AccumulateField' || nodeType === 'AccumulateFieldNode' || nodeType === 'accumulate_field' || nodeType === 'GeometryNodeAccumulateField') {
       return AddExecutors.executeAccumulateField(inputs);
     }
 
@@ -757,111 +759,483 @@ export class NodeEvaluator {
     // =========================================================================
 
     // Mesh Topology Nodes
-    if (nodeType === 'DualMesh' || nodeType === 'dual_mesh' || nodeType === 'GeometryNodeDualMesh') {
+    if (nodeType === 'DualMesh' || nodeType === 'DualMeshNode' || nodeType === 'dual_mesh' || nodeType === 'GeometryNodeDualMesh') {
       return ExpExecutors.executeDualMesh(inputs);
     }
-    if (nodeType === 'EdgeNeighbors' || nodeType === 'edge_neighbors' || nodeType === 'GeometryNodeInputEdgeNeighbors') {
+    if (nodeType === 'EdgeNeighbors' || nodeType === 'EdgeNeighborsNode' || nodeType === 'edge_neighbors' || nodeType === 'GeometryNodeInputEdgeNeighbors') {
       return ExpExecutors.executeEdgeNeighbors(inputs);
     }
-    if (nodeType === 'EdgeVertices' || nodeType === 'edge_vertices' || nodeType === 'GeometryNodeInputEdgeVertices') {
+    if (nodeType === 'EdgeVertices' || nodeType === 'EdgeVerticesNode' || nodeType === 'edge_vertices' || nodeType === 'GeometryNodeInputEdgeVertices') {
       return ExpExecutors.executeEdgeVertices(inputs);
     }
-    if (nodeType === 'FaceArea' || nodeType === 'face_area' || nodeType === 'GeometryNodeInputMeshFaceArea') {
+    if (nodeType === 'FaceArea' || nodeType === 'FaceAreaNode' || nodeType === 'face_area' || nodeType === 'GeometryNodeInputMeshFaceArea') {
       return ExpExecutors.executeFaceArea(inputs);
     }
-    if (nodeType === 'VertexNeighbors' || nodeType === 'vertex_neighbors' || nodeType === 'GeometryNodeInputMeshVertexNeighbors') {
+    if (nodeType === 'VertexNeighbors' || nodeType === 'VertexNeighborsNode' || nodeType === 'vertex_neighbors' || nodeType === 'GeometryNodeInputMeshVertexNeighbors') {
       return ExpExecutors.executeVertexNeighbors(inputs);
     }
-    if (nodeType === 'EdgesOfFace' || nodeType === 'edges_of_face' || nodeType === 'GeometryNodeInputMeshFaceEdges') {
+    if (nodeType === 'EdgesOfFace' || nodeType === 'EdgesOfFaceNode' || nodeType === 'edges_of_face' || nodeType === 'GeometryNodeInputMeshFaceEdges') {
       return ExpExecutors.executeEdgesOfFace(inputs);
     }
-    if (nodeType === 'FacesOfEdge' || nodeType === 'faces_of_edge' || nodeType === 'GeometryNodeInputMeshEdgeFaces') {
+    if (nodeType === 'FacesOfEdge' || nodeType === 'FacesOfEdgeNode' || nodeType === 'faces_of_edge' || nodeType === 'GeometryNodeInputMeshEdgeFaces') {
       return ExpExecutors.executeFacesOfEdge(inputs);
     }
 
     // Attribute Nodes
-    if (nodeType === 'CaptureAttribute' || nodeType === 'capture_attribute' || nodeType === 'GeometryNodeCaptureAttribute') {
+    if (nodeType === 'CaptureAttribute' || nodeType === 'CaptureAttributeNode' || nodeType === 'capture_attribute' || nodeType === 'GeometryNodeCaptureAttribute') {
       return ExpExecutors.executeCaptureAttribute(inputs);
     }
-    if (nodeType === 'RemoveAttribute' || nodeType === 'remove_attribute' || nodeType === 'GeometryNodeRemoveAttribute') {
+    if (nodeType === 'RemoveAttribute' || nodeType === 'RemoveAttributeNode' || nodeType === 'remove_attribute' || nodeType === 'GeometryNodeRemoveAttribute') {
       return ExpExecutors.executeRemoveAttribute(inputs);
     }
-    if (nodeType === 'SampleIndex' || nodeType === 'sample_index' || nodeType === 'GeometryNodeSampleIndex') {
+    if (nodeType === 'SampleIndex' || nodeType === 'SampleIndexNode' || nodeType === 'sample_index' || nodeType === 'GeometryNodeSampleIndex') {
       return ExpExecutors.executeSampleIndex(inputs);
     }
-    if (nodeType === 'SampleNearest' || nodeType === 'sample_nearest' || nodeType === 'GeometryNodeSampleNearest') {
+    if (nodeType === 'SampleNearest' || nodeType === 'SampleNearestNode' || nodeType === 'sample_nearest' || nodeType === 'GeometryNodeSampleNearest') {
       return ExpExecutors.executeSampleNearest(inputs);
     }
-    if (nodeType === 'DomainSize' || nodeType === 'domain_size' || nodeType === 'GeometryNodeInputDomainSize') {
+    if (nodeType === 'DomainSize' || nodeType === 'DomainSizeNode' || nodeType === 'domain_size' || nodeType === 'GeometryNodeInputDomainSize') {
       return ExpExecutors.executeDomainSize(inputs);
     }
 
     // Curve Modifier Nodes
-    if (nodeType === 'SetCurveRadius' || nodeType === 'set_curve_radius' || nodeType === 'GeometryNodeSetCurveRadius') {
+    if (nodeType === 'SetCurveRadius' || nodeType === 'SetCurveRadiusNode' || nodeType === 'set_curve_radius' || nodeType === 'GeometryNodeSetCurveRadius') {
       return ExpExecutors.executeSetCurveRadius(inputs);
     }
-    if (nodeType === 'SetCurveTilt' || nodeType === 'set_curve_tilt' || nodeType === 'GeometryNodeSetCurveTilt') {
+    if (nodeType === 'SetCurveTilt' || nodeType === 'SetCurveTiltNode' || nodeType === 'set_curve_tilt' || nodeType === 'GeometryNodeSetCurveTilt') {
       return ExpExecutors.executeSetCurveTilt(inputs);
     }
-    if (nodeType === 'SetHandlePositions' || nodeType === 'set_handle_positions' || nodeType === 'GeometryNodeSetCurveHandlePositions') {
+    if (nodeType === 'SetHandlePositions' || nodeType === 'SetHandlePositionsNode' || nodeType === 'set_handle_positions' || nodeType === 'GeometryNodeSetCurveHandlePositions') {
       return ExpExecutors.executeSetHandlePositions(inputs);
     }
-    if (nodeType === 'SplineParameter' || nodeType === 'spline_parameter' || nodeType === 'GeometryNodeSplineParameter') {
+    if (nodeType === 'SplineParameter' || nodeType === 'SplineParameterNode' || nodeType === 'spline_parameter' || nodeType === 'GeometryNodeSplineParameter') {
       return ExpExecutors.executeSplineParameter(inputs);
     }
-    if (nodeType === 'FilletCurve' || nodeType === 'fillet_curve' || nodeType === 'GeometryNodeFilletCurve') {
+    if (nodeType === 'FilletCurve' || nodeType === 'FilletCurveNode' || nodeType === 'fillet_curve' || nodeType === 'GeometryNodeFilletCurve') {
       return ExpExecutors.executeFilletCurve(inputs);
     }
 
     // Instance Transform Nodes
-    if (nodeType === 'TranslateInstances' || nodeType === 'translate_instances' || nodeType === 'GeometryNodeTranslateInstances') {
+    if (nodeType === 'TranslateInstances' || nodeType === 'TranslateInstancesNode' || nodeType === 'translate_instances' || nodeType === 'GeometryNodeTranslateInstances') {
       return ExpExecutors.executeTranslateInstances(inputs);
     }
-    if (nodeType === 'RotateInstances' || nodeType === 'rotate_instances' || nodeType === 'GeometryNodeRotateInstances') {
+    if (nodeType === 'RotateInstances' || nodeType === 'RotateInstancesNode' || nodeType === 'rotate_instances' || nodeType === 'GeometryNodeRotateInstances') {
       return ExpExecutors.executeRotateInstances(inputs);
     }
-    if (nodeType === 'ScaleInstances' || nodeType === 'scale_instances' || nodeType === 'GeometryNodeScaleInstances') {
+    if (nodeType === 'ScaleInstances' || nodeType === 'ScaleInstancesNode' || nodeType === 'scale_instances' || nodeType === 'GeometryNodeScaleInstances') {
       return ExpExecutors.executeScaleInstances(inputs);
     }
 
     // Volume/Point Conversion Nodes
-    if (nodeType === 'VolumeToMesh' || nodeType === 'volume_to_mesh' || nodeType === 'GeometryNodeVolumeToMesh') {
+    if (nodeType === 'VolumeToMesh' || nodeType === 'VolumeToMeshNode' || nodeType === 'volume_to_mesh' || nodeType === 'GeometryNodeVolumeToMesh') {
       return ExpExecutors.executeVolumeToMesh(inputs);
     }
-    if (nodeType === 'VolumeToPoints' || nodeType === 'volume_to_points' || nodeType === 'GeometryNodeVolumeToPoints') {
+    if (nodeType === 'VolumeToPoints' || nodeType === 'VolumeToPointsNode' || nodeType === 'volume_to_points' || nodeType === 'GeometryNodeVolumeToPoints') {
       return ExpExecutors.executeVolumeToPoints(inputs);
     }
-    if (nodeType === 'PointsToVertices' || nodeType === 'points_to_vertices' || nodeType === 'GeometryNodePointsToVertices') {
+    if (nodeType === 'PointsToVertices' || nodeType === 'PointsToVerticesNode' || nodeType === 'points_to_vertices' || nodeType === 'GeometryNodePointsToVertices') {
       return ExpExecutors.executePointsToVertices(inputs);
     }
-    if (nodeType === 'PointsToCurves' || nodeType === 'points_to_curves' || nodeType === 'GeometryNodePointsToCurves') {
+    if (nodeType === 'PointsToCurves' || nodeType === 'PointsToCurvesNode' || nodeType === 'points_to_curves' || nodeType === 'GeometryNodePointsToCurves') {
       return ExpExecutors.executePointsToCurves(inputs);
     }
 
     // Geometry Operation Nodes
-    if (nodeType === 'SetPosition' || nodeType === 'set_position' || nodeType === 'GeometryNodeSetPosition') {
+    if (nodeType === 'SetPosition' || nodeType === 'SetPositionNode' || nodeType === 'set_position' || nodeType === 'GeometryNodeSetPosition') {
       return ExpExecutors.executeSetPosition(inputs);
     }
-    if (nodeType === 'DuplicateElements' || nodeType === 'duplicate_elements' || nodeType === 'GeometryNodeDuplicateElements') {
+    if (nodeType === 'DuplicateElements' || nodeType === 'DuplicateElementsNode' || nodeType === 'duplicate_elements' || nodeType === 'GeometryNodeDuplicateElements') {
       return ExpExecutors.executeDuplicateElements(inputs);
     }
-    if (nodeType === 'SetShadeSmooth' || nodeType === 'set_shade_smooth' || nodeType === 'GeometryNodeSetShadeSmooth') {
+    if (nodeType === 'SetShadeSmooth' || nodeType === 'SetShadeSmoothNode' || nodeType === 'set_shade_smooth' || nodeType === 'GeometryNodeSetShadeSmooth') {
       return ExpExecutors.executeSetShadeSmooth(inputs);
     }
 
     // Shader Input / Light Nodes
-    if (nodeType === 'LightFalloff' || nodeType === 'light_falloff' || nodeType === 'ShaderNodeLightFalloff') {
+    if (nodeType === 'LightFalloff' || nodeType === 'LightFalloffNode' || nodeType === 'light_falloff' || nodeType === 'ShaderNodeLightFalloff') {
       return ExpExecutors.executeLightFalloff(inputs);
     }
-    if (nodeType === 'ObjectIndex' || nodeType === 'object_index' || nodeType === 'GeometryNodeInputObjectIndex') {
+    if (nodeType === 'ObjectIndex' || nodeType === 'ObjectIndexNode' || nodeType === 'object_index' || nodeType === 'GeometryNodeInputObjectIndex') {
       return ExpExecutors.executeObjectIndex(inputs, node.settings);
     }
-    if (nodeType === 'IsCameraRay' || nodeType === 'is_camera_ray' || nodeType === 'ShaderNodeIsCameraRay') {
+    if (nodeType === 'IsCameraRay' || nodeType === 'IsCameraRayNode' || nodeType === 'is_camera_ray' || nodeType === 'ShaderNodeIsCameraRay') {
       return ExpExecutors.executeIsCameraRay(inputs);
     }
 
+    // =========================================================================
+    // Essential Node Executors (from EssentialNodeExecutors.ts) — 32 executors
+    // =========================================================================
+
+    // Geometry Merge/Split/Delete
+    if (nodeType === 'JoinGeometry' || nodeType === 'join_geometry' || nodeType === 'GeometryNodeJoinGeometry' || nodeType === 'JoinGeometryNode') {
+      return EssentialExecutors.executeJoinGeometry(inputs);
+    }
+    if (nodeType === 'SeparateGeometry' || nodeType === 'separate_geometry' || nodeType === 'GeometryNodeSeparateGeometry' || nodeType === 'SeparateGeometryNode') {
+      return EssentialExecutors.executeSeparateGeometry(inputs);
+    }
+    if (nodeType === 'DeleteGeometry' || nodeType === 'delete_geometry' || nodeType === 'GeometryNodeDeleteGeometry' || nodeType === 'DeleteGeometryNode') {
+      return EssentialExecutors.executeDeleteGeometry(inputs);
+    }
+
+    // Transform & Triangulate
+    if (nodeType === 'Transform' || nodeType === 'transform' || nodeType === 'GeometryNodeTransform' || nodeType === 'TransformNode') {
+      return EssentialExecutors.executeTransform(inputs);
+    }
+    if (nodeType === 'Triangulate' || nodeType === 'triangulate' || nodeType === 'GeometryNodeTriangulate' || nodeType === 'TriangulateNode') {
+      return EssentialExecutors.executeTriangulate(inputs);
+    }
+
+    // Material
+    if (nodeType === 'SetMaterial' || nodeType === 'set_material' || nodeType === 'GeometryNodeSetMaterial' || nodeType === 'SetMaterialNode') {
+      return EssentialExecutors.executeSetMaterial(inputs);
+    }
+
+    // Curve Operations
+    if (nodeType === 'CurveToPoints' || nodeType === 'curve_to_points' || nodeType === 'GeometryNodeCurveToPoints' || nodeType === 'CurveToPointsNode') {
+      return EssentialExecutors.executeCurveToPoints(inputs);
+    }
+    if (nodeType === 'ReverseCurve' || nodeType === 'reverse_curve' || nodeType === 'GeometryNodeReverseCurve' || nodeType === 'ReverseCurveNode') {
+      return EssentialExecutors.executeReverseCurve(inputs);
+    }
+    if (nodeType === 'SubdivideCurve' || nodeType === 'subdivide_curve' || nodeType === 'GeometryNodeSubdivideCurve' || nodeType === 'SubdivideCurveNode') {
+      return EssentialExecutors.executeSubdivideCurve(inputs);
+    }
+    if (nodeType === 'CurveCircle' || nodeType === 'curve_circle' || nodeType === 'GeometryNodeCurveCircle' || nodeType === 'CurveCircleNode') {
+      return EssentialExecutors.executeCurveCircle(inputs);
+    }
+
+    // Mesh Operations
+    if (nodeType === 'ExtrudeMesh' || nodeType === 'extrude_mesh' || nodeType === 'GeometryNodeExtrudeMesh' || nodeType === 'ExtrudeMeshNode') {
+      return EssentialExecutors.executeExtrudeMesh(inputs);
+    }
+    if (nodeType === 'SetMeshNormals' || nodeType === 'set_mesh_normals' || nodeType === 'GeometryNodeSetMeshNormals' || nodeType === 'SetMeshNormalsNode') {
+      return EssentialExecutors.executeSetMeshNormals(inputs);
+    }
+    if (nodeType === 'MeshToVolume' || nodeType === 'mesh_to_volume' || nodeType === 'GeometryNodeMeshToVolume' || nodeType === 'MeshToVolumeNode') {
+      return EssentialExecutors.executeMeshToVolume(inputs);
+    }
+    if (nodeType === 'DistributePointsInVolume' || nodeType === 'distribute_points_in_volume' || nodeType === 'GeometryNodeDistributePointsInVolume' || nodeType === 'DistributePointsInVolumeNode') {
+      return EssentialExecutors.executeDistributePointsInVolume(inputs);
+    }
+
+    // Color Operations
+    if (nodeType === 'CombineHSV' || nodeType === 'combine_hsv' || nodeType === 'ShaderNodeCombineHSV' || nodeType === 'CombineHSVNode') {
+      return EssentialExecutors.executeCombineHSV(inputs);
+    }
+    if (nodeType === 'CombineRGB' || nodeType === 'combine_rgb' || nodeType === 'ShaderNodeCombineRGB' || nodeType === 'CombineRGBNode') {
+      return EssentialExecutors.executeCombineRGB(inputs);
+    }
+    if (nodeType === 'SeparateRGB' || nodeType === 'separate_rgb' || nodeType === 'ShaderNodeSeparateRGB' || nodeType === 'SeparateRGBNode') {
+      return EssentialExecutors.executeSeparateRGB(inputs);
+    }
+    if (nodeType === 'RGBCurve' || nodeType === 'rgb_curve' || nodeType === 'ShaderNodeCurveRGB' || nodeType === 'RGBCurveNode') {
+      return EssentialExecutors.executeRGBCurve(inputs);
+    }
+
+    // Mix & Compare
+    if (nodeType === 'Mix' || nodeType === 'ShaderNodeMix' || nodeType === 'GeometryNodeMix' || nodeType === 'MixNode') {
+      return EssentialExecutors.executeMix(inputs);
+    }
+    if (nodeType === 'Compare' || nodeType === 'compare' || nodeType === 'FunctionNodeCompare' || nodeType === 'CompareNode') {
+      return EssentialExecutors.executeCompare(inputs);
+    }
+
+    // Input Nodes
+    if (nodeType === 'Integer' || nodeType === 'integer' || nodeType === 'GeometryNodeInputInt' || nodeType === 'IntegerNode') {
+      return EssentialExecutors.executeInteger(inputs);
+    }
+    if (nodeType === 'Index' || nodeType === 'index' || nodeType === 'GeometryNodeInputIndex' || nodeType === 'IndexNode') {
+      return EssentialExecutors.executeIndex(inputs);
+    }
+    if (nodeType === 'InputID' || nodeType === 'input_id' || nodeType === 'GeometryNodeInputID' || nodeType === 'InputIDNode') {
+      return EssentialExecutors.executeInputID(inputs);
+    }
+    if (nodeType === 'InputEdgeVertices' || nodeType === 'input_edge_vertices' || nodeType === 'GeometryNodeInputMeshEdgeVertices' || nodeType === 'InputEdgeVerticesNode') {
+      return EssentialExecutors.executeInputEdgeVertices(inputs);
+    }
+
+    // Ambient Occlusion
+    if (nodeType === 'AmbientOcclusion' || nodeType === 'ambient_occlusion' || nodeType === 'ShaderNodeAmbientOcclusion' || nodeType === 'AmbientOcclusionNode') {
+      return EssentialExecutors.executeAmbientOcclusion(inputs);
+    }
+
+    // Material Index
+    if (nodeType === 'SetMaterialIndex' || nodeType === 'set_material_index' || nodeType === 'GeometryNodeSetMaterialIndex' || nodeType === 'SetMaterialIndexNode') {
+      return EssentialExecutors.executeSetMaterialIndex(inputs);
+    }
+    if (nodeType === 'MaterialIndex' || nodeType === 'material_index' || nodeType === 'GeometryNodeInputMaterialIndex' || nodeType === 'MaterialIndexNode') {
+      return EssentialExecutors.executeMaterialIndex(inputs);
+    }
+
+    // Mesh Offset & Subdivision
+    if (nodeType === 'OffsetMesh' || nodeType === 'offset_mesh' || nodeType === 'GeometryNodeOffsetMesh' || nodeType === 'OffsetMeshNode') {
+      return EssentialExecutors.executeOffsetMesh(inputs);
+    }
+    if (nodeType === 'SubdivisionSurface' || nodeType === 'subdivision_surface' || nodeType === 'GeometryNodeSubdivisionSurface' || nodeType === 'SubdivisionSurfaceNode') {
+      return EssentialExecutors.executeSubdivisionSurface(inputs);
+    }
+
+    // UV Operations
+    if (nodeType === 'SetUV' || nodeType === 'set_uv' || nodeType === 'GeometryNodeSetUV' || nodeType === 'SetUVNode') {
+      return EssentialExecutors.executeSetUV(inputs);
+    }
+    if (nodeType === 'UVWarp' || nodeType === 'uv_warp' || nodeType === 'GeometryNodeUVWarp' || nodeType === 'UVWarpNode') {
+      return EssentialExecutors.executeUVWarp(inputs);
+    }
+
+    // Group I/O
+    if (nodeType === 'GroupInput' || nodeType === 'group_input' || nodeType === 'NodeGroupInput' || nodeType === 'GroupInputNode') {
+      return EssentialExecutors.executeGroupInput(inputs);
+    }
+    if (nodeType === 'GroupOutput' || nodeType === 'group_output' || nodeType === 'NodeGroupOutput' || nodeType === 'GroupOutputNode') {
+      return EssentialExecutors.executeGroupOutput(inputs);
+    }
+
+    // =========================================================================
+    // Specialized Node Executors (from SpecializedNodeExecutors.ts) — 41 executors
+    // =========================================================================
+
+    // Shader Input Nodes
+    if (nodeType === 'LayerWeight' || nodeType === 'layer_weight' || nodeType === 'ShaderNodeLayerWeight' || nodeType === 'LayerWeightNode') {
+      return SpecializedExecutors.executeLayerWeight(inputs);
+    }
+    if (nodeType === 'LightPath' || nodeType === 'light_path' || nodeType === 'ShaderNodeLightPath' || nodeType === 'LightPathNode') {
+      return SpecializedExecutors.executeLightPath(inputs);
+    }
+    if (nodeType === 'Wireframe' || nodeType === 'wireframe' || nodeType === 'ShaderNodeWireframe' || nodeType === 'WireframeNode') {
+      return SpecializedExecutors.executeWireframe(inputs);
+    }
+    if (nodeType === 'ShaderObjectInfo' || nodeType === 'shader_object_info' || nodeType === 'ShaderNodeObjectInfo' || nodeType === 'ShaderObjectInfoNode') {
+      return SpecializedExecutors.executeShaderObjectInfo(inputs);
+    }
+    if (nodeType === 'ParticleInfo' || nodeType === 'particle_info' || nodeType === 'ShaderNodeParticleInfo' || nodeType === 'ParticleInfoNode') {
+      return SpecializedExecutors.executeParticleInfo(inputs);
+    }
+    if (nodeType === 'CameraData' || nodeType === 'camera_data' || nodeType === 'ShaderNodeCameraData' || nodeType === 'CameraDataNode') {
+      return SpecializedExecutors.executeCameraData(inputs);
+    }
+    if (nodeType === 'HairInfo' || nodeType === 'hair_info' || nodeType === 'ShaderNodeHairInfo' || nodeType === 'HairInfoNode') {
+      return SpecializedExecutors.executeHairInfo(inputs);
+    }
+    if (nodeType === 'NewGeometry' || nodeType === 'new_geometry' || nodeType === 'ShaderNodeNewGeometry' || nodeType === 'NewGeometryNode') {
+      return SpecializedExecutors.executeNewGeometry(inputs);
+    }
+    if (nodeType === 'BlackBody' || nodeType === 'blackbody' || nodeType === 'ShaderNodeBlackbody' || nodeType === 'BlackBodyNode') {
+      return SpecializedExecutors.executeBlackBody(inputs);
+    }
+
+    // Color/Wavelength Nodes
+    if (nodeType === 'Wavelength' || nodeType === 'wavelength' || nodeType === 'ShaderNodeWavelength' || nodeType === 'WavelengthNode') {
+      return SpecializedExecutors.executeWavelength(inputs);
+    }
+    if (nodeType === 'Bevel' || nodeType === 'bevel' || nodeType === 'ShaderNodeBevel' || nodeType === 'BevelNode') {
+      return SpecializedExecutors.executeBevel(inputs);
+    }
+
+    // Vector/Math Nodes
+    if (nodeType === 'Normalize' || nodeType === 'normalize' || nodeType === 'ShaderNodeVectorMathNormalize' || nodeType === 'NormalizeNode') {
+      return SpecializedExecutors.executeNormalize(inputs);
+    }
+    if (nodeType === 'VectorRotate' || nodeType === 'vector_rotate' || nodeType === 'ShaderNodeVectorRotate' || nodeType === 'VectorRotateNode') {
+      return SpecializedExecutors.executeVectorRotate(inputs);
+    }
+    if (nodeType === 'VectorTransform' || nodeType === 'vector_transform' || nodeType === 'ShaderNodeVectorTransform' || nodeType === 'VectorTransformNode') {
+      return SpecializedExecutors.executeVectorTransform(inputs);
+    }
+    if (nodeType === 'Quaternion' || nodeType === 'quaternion' || nodeType === 'FunctionNodeQuaternion' || nodeType === 'QuaternionNode') {
+      return SpecializedExecutors.executeQuaternion(inputs);
+    }
+    if (nodeType === 'MatrixTransform' || nodeType === 'matrix_transform' || nodeType === 'FunctionNodeMatrixTransform' || nodeType === 'MatrixTransformNode') {
+      return SpecializedExecutors.executeMatrixTransform(inputs);
+    }
+
+    // Attribute Node (legacy)
+    if (nodeType === 'Attribute' || nodeType === 'attribute' || nodeType === 'GeometryNodeAttribute' || nodeType === 'AttributeNode') {
+      return SpecializedExecutors.executeAttribute(inputs);
+    }
+
+    // Curve Spline Type
+    if (nodeType === 'CurveSplineType' || nodeType === 'curve_spline_type' || nodeType === 'GeometryNodeCurveSplineType' || nodeType === 'CurveSplineTypeNode') {
+      return SpecializedExecutors.executeCurveSplineType(inputs);
+    }
+
+    // Topology Nodes
+    if (nodeType === 'EdgeAngle' || nodeType === 'edge_angle' || nodeType === 'GeometryNodeInputEdgeAngle' || nodeType === 'EdgeAngleNode') {
+      return SpecializedExecutors.executeEdgeAngle(inputs);
+    }
+    if (nodeType === 'EdgesOfVertex' || nodeType === 'edges_of_vertex' || nodeType === 'GeometryNodeInputMeshVertexEdges' || nodeType === 'EdgesOfVertexNode') {
+      return SpecializedExecutors.executeEdgesOfVertex(inputs);
+    }
+    if (nodeType === 'VerticesOfEdge' || nodeType === 'vertices_of_edge' || nodeType === 'GeometryNodeInputMeshEdgeVertices' || nodeType === 'VerticesOfEdgeNode') {
+      return SpecializedExecutors.executeVerticesOfEdge(inputs);
+    }
+    if (nodeType === 'VerticesOfFace' || nodeType === 'vertices_of_face' || nodeType === 'GeometryNodeInputMeshFaceVertices' || nodeType === 'VerticesOfFaceNode') {
+      return SpecializedExecutors.executeVerticesOfFace(inputs);
+    }
+    if (nodeType === 'FacesOfVertex' || nodeType === 'faces_of_vertex' || nodeType === 'GeometryNodeInputMeshVertexFaces' || nodeType === 'FacesOfVertexNode') {
+      return SpecializedExecutors.executeFacesOfVertex(inputs);
+    }
+    if (nodeType === 'FaceCorners' || nodeType === 'face_corners' || nodeType === 'GeometryNodeInputMeshFaceCorners' || nodeType === 'FaceCornersNode') {
+      return SpecializedExecutors.executeFaceCorners(inputs);
+    }
+    if (nodeType === 'NamedCorner' || nodeType === 'named_corner' || nodeType === 'GeometryNodeInputNamedCorner' || nodeType === 'NamedCornerNode') {
+      return SpecializedExecutors.executeNamedCorner(inputs);
+    }
+
+    // Exposure & Shader Input Nodes
+    if (nodeType === 'Exposure' || nodeType === 'exposure' || nodeType === 'CompositorNodeExposure' || nodeType === 'ExposureNode') {
+      return SpecializedExecutors.executeExposure(inputs);
+    }
+    if (nodeType === 'Normal' || nodeType === 'normal' || nodeType === 'ShaderNodeNormal' || nodeType === 'NormalNode') {
+      return SpecializedExecutors.executeNormal(inputs);
+    }
+    if (nodeType === 'Tangent' || nodeType === 'tangent' || nodeType === 'ShaderNodeTangent' || nodeType === 'TangentNode') {
+      return SpecializedExecutors.executeTangent(inputs);
+    }
+    if (nodeType === 'TrueNormal' || nodeType === 'true_normal' || nodeType === 'ShaderNodeTrueNormal' || nodeType === 'TrueNormalNode') {
+      return SpecializedExecutors.executeTrueNormal(inputs);
+    }
+    if (nodeType === 'MaterialInfo' || nodeType === 'material_info' || nodeType === 'ShaderNodeMaterialInfo' || nodeType === 'MaterialInfoNode') {
+      return SpecializedExecutors.executeMaterialInfo(inputs);
+    }
+
+    // Mesh Info & Light Nodes
+    if (nodeType === 'MeshInfo' || nodeType === 'mesh_info' || nodeType === 'GeometryNodeInputMeshInfo' || nodeType === 'MeshInfoNode') {
+      return SpecializedExecutors.executeMeshInfo(inputs);
+    }
+    if (nodeType === 'PointLight' || nodeType === 'point_light' || nodeType === 'ShaderNodePointLight' || nodeType === 'PointLightNode') {
+      return SpecializedExecutors.executePointLight(inputs);
+    }
+    if (nodeType === 'SpotLight' || nodeType === 'spot_light' || nodeType === 'ShaderNodeSpotLight' || nodeType === 'SpotLightNode') {
+      return SpecializedExecutors.executeSpotLight(inputs);
+    }
+    if (nodeType === 'SunLight' || nodeType === 'sun_light' || nodeType === 'ShaderNodeSunLight' || nodeType === 'SunLightNode') {
+      return SpecializedExecutors.executeSunLight(inputs);
+    }
+    if (nodeType === 'AreaLight' || nodeType === 'area_light' || nodeType === 'ShaderNodeAreaLight' || nodeType === 'AreaLightNode') {
+      return SpecializedExecutors.executeAreaLight(inputs);
+    }
+    if (nodeType === 'LightAttenuation' || nodeType === 'light_attenuation' || nodeType === 'ShaderNodeLightAttenuation' || nodeType === 'LightAttenuationNode') {
+      return SpecializedExecutors.executeLightAttenuation(inputs);
+    }
+    if (nodeType === 'RandomPerIsland' || nodeType === 'random_per_island' || nodeType === 'GeometryNodeInputRandomPerIsland' || nodeType === 'RandomPerIslandNode') {
+      return SpecializedExecutors.executeRandomPerIsland(inputs);
+    }
+
+    // Texture & Utility Math Nodes
+    if (nodeType === 'TextureGabor' || nodeType === 'texture_gabor' || nodeType === 'ShaderNodeTexGabor' || nodeType === 'TextureGaborNode') {
+      return SpecializedExecutors.executeTextureGabor(inputs);
+    }
+    if (nodeType === 'FloorCeil' || nodeType === 'floor_ceil' || nodeType === 'FunctionNodeFloorCeil' || nodeType === 'FloorCeilNode') {
+      return SpecializedExecutors.executeFloorCeil(inputs);
+    }
+    if (nodeType === 'RGBToBW' || nodeType === 'rgb_to_bw' || nodeType === 'ShaderNodeRGBToBW' || nodeType === 'RGBToBWNode') {
+      return SpecializedExecutors.executeRGBToBW(inputs);
+    }
+    if (nodeType === 'FloatCurve' || nodeType === 'float_curve' || nodeType === 'ShaderNodeFloatCurve' || nodeType === 'FloatCurveNode') {
+      return SpecializedExecutors.executeFloatCurve(inputs);
+    }
+
+    // =========================================================================
+    // Blender-Specific / Compositor / UI Nodes
+    // These nodes are intentionally pass-through in R3F — they log a debug
+    // message instead of emitting a warning so they don't pollute evaluation.
+    // =========================================================================
+
+    // Viewer / Compositor output nodes
+    if (nodeType === 'ViewerNode' || nodeType === 'viewer' || nodeType === 'CompositorNodeViewer' || nodeType === 'ViewerNode') {
+      console.debug(`[NodeEvaluator] Blender-specific node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+    if (nodeType === 'SplitViewerNode' || nodeType === 'split_viewer' || nodeType === 'CompositorNodeSplitViewer' || nodeType === 'SplitViewer') {
+      console.debug(`[NodeEvaluator] Blender-specific node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+    if (nodeType === 'CompositeNode' || nodeType === 'composite' || nodeType === 'CompositorNodeComposite' || nodeType === 'CompositeNode') {
+      console.debug(`[NodeEvaluator] Blender-specific node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+    if (nodeType === 'RenderLayerNode' || nodeType === 'render_layer' || nodeType === 'CompositorNodeRLayers' || nodeType === 'RenderLayer') {
+      console.debug(`[NodeEvaluator] Blender-specific node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+    if (nodeType === 'DebugOutputNode' || nodeType === 'debug_output' || nodeType === 'GeometryNodeDebugOutput' || nodeType === 'DebugOutput') {
+      console.debug(`[NodeEvaluator] Blender-specific node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+
+    // Blender-specific output nodes
+    if (nodeType === 'ShaderNodeOutputWorld' || nodeType === 'world_output' || nodeType === 'OutputWorldNode') {
+      console.debug(`[NodeEvaluator] Blender-specific output node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+    if (nodeType === 'ShaderNodeOutputLight' || nodeType === 'light_output' || nodeType === 'OutputLightNode') {
+      console.debug(`[NodeEvaluator] Blender-specific output node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+    if (nodeType === 'ShaderNodeOutputAOV' || nodeType === 'aov_output' || nodeType === 'OutputAOVNode') {
+      console.debug(`[NodeEvaluator] Blender-specific output node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+    if (nodeType === 'GeometryNodeOutput' || nodeType === 'geometry_output' || nodeType === 'OutputGeometryNode') {
+      console.debug(`[NodeEvaluator] Blender-specific output node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+    if (nodeType === 'CompositorNodeOutputFile' || nodeType === 'file_output' || nodeType === 'OutputFileNode') {
+      console.debug(`[NodeEvaluator] Blender-specific output node "${nodeType}" — intentional pass-through in R3F`);
+      return inputs;
+    }
+
+    // Structural pass-through nodes
+    if (nodeType === 'NodeGroupInput' || nodeType === 'group_input_node' || nodeType === 'GroupInputNode') {
+      // Already handled in Essential section; this catches alias-only types
+      console.debug(`[NodeEvaluator] Structural pass-through "${nodeType}" in R3F`);
+      return EssentialExecutors.executeGroupInput(inputs);
+    }
+    if (nodeType === 'NodeGroupOutput' || nodeType === 'group_output_node' || nodeType === 'GroupOutputNode') {
+      console.debug(`[NodeEvaluator] Structural pass-through "${nodeType}" in R3F`);
+      return EssentialExecutors.executeGroupOutput(inputs);
+    }
+
+    // =========================================================================
+    // Domain Alias Nodes
+    // Point/Volume prefixed types delegate to the generic executor.
+    // Example: PointIndexNode → same executor as IndexNode
+    // =========================================================================
+
+    if (nodeType === 'PointIndexNode' || nodeType === 'point_index' || nodeType === 'GeometryNodeInputPointIndex') {
+      return EssentialExecutors.executeIndex(inputs);
+    }
+    if (nodeType === 'PointPositionNode' || nodeType === 'point_position' || nodeType === 'GeometryNodeInputPointPosition') {
+      return AddExecutors.executeGeometryNodeInputPosition(inputs);
+    }
+    if (nodeType === 'PointNormalNode' || nodeType === 'point_normal' || nodeType === 'GeometryNodeInputPointNormal') {
+      return AddExecutors.executeGeometryNodeInputNormal(inputs);
+    }
+    if (nodeType === 'PointIDNode' || nodeType === 'point_id' || nodeType === 'GeometryNodeInputPointID') {
+      return EssentialExecutors.executeInputID(inputs);
+    }
+    if (nodeType === 'PointRadiusNode' || nodeType === 'point_radius' || nodeType === 'GeometryNodeInputPointRadius') {
+      return inputs; // Pass-through: radius context not available in R3F CPU eval
+    }
+    if (nodeType === 'PointCountNode' || nodeType === 'point_count' || nodeType === 'GeometryNodeInputPointCount') {
+      return ExpExecutors.executeDomainSize(inputs); // DomainSize gives point count
+    }
+    if (nodeType === 'VolumeIndexNode' || nodeType === 'volume_index' || nodeType === 'GeometryNodeInputVolumeIndex') {
+      return EssentialExecutors.executeIndex(inputs);
+    }
+    if (nodeType === 'VolumePositionNode' || nodeType === 'volume_position' || nodeType === 'GeometryNodeInputVolumePosition') {
+      return AddExecutors.executeGeometryNodeInputPosition(inputs);
+    }
+    if (nodeType === 'VolumeNormalNode' || nodeType === 'volume_normal' || nodeType === 'GeometryNodeInputVolumeNormal') {
+      return AddExecutors.executeGeometryNodeInputNormal(inputs);
+    }
+    if (nodeType === 'VolumeIDNode' || nodeType === 'volume_id' || nodeType === 'GeometryNodeInputVolumeID') {
+      return EssentialExecutors.executeInputID(inputs);
+    }
+
     // Output nodes - pass through
-    if (nodeType === 'ShaderNodeOutputMaterial' || nodeType === 'material_output') {
+    if (nodeType === 'ShaderNodeOutputMaterial' || nodeType === 'material_output' || nodeType === 'OutputMaterialNode') {
       return inputs.Surface ?? inputs.surface ?? inputs.bsdf ?? null;
     }
 
