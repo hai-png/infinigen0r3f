@@ -23,3 +23,25 @@ export type {
 
 export { SceneWireup, applyMaterialToScene, applyGeometryToScene, applyTextureToScene } from './SceneWireup';
 export type { ApplyResult, AppliedEntry, TextureMapSlot } from './SceneWireup';
+
+// ---- Unified Editor ----
+export { EditorProvider, useEditor } from './unified/EditorContext';
+export type {
+  CenterViewMode,
+  LeftTab,
+  RightTab,
+  BottomTab,
+  SceneObject as UnifiedSceneObject,
+  PBRMaterialState,
+  TerrainParams,
+  ConstraintEntry,
+  Keyframe,
+  ParticleSystemConfig,
+  CameraRig,
+  PerformanceMetrics as EditorPerformanceMetrics,
+  LogEntry,
+  EditorState,
+  EditorContextValue,
+} from './unified/EditorContext';
+
+export { default as InfinigenEditor } from './unified/InfinigenEditor';
