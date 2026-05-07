@@ -19,7 +19,7 @@
 import * as THREE from 'three';
 import type { BiomeDefinition, BiomeBlend, BiomeType } from './BiomeSystem';
 import type { AssetMetadata } from '../../../assets/core/AssetTypes';
-import { SeededRandom } from '../../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 import { SeededNoiseGenerator } from '../../../core/util/math/noise';
 import { BiomeScatterMapping, type ExtendedBiomeType, type BiomeScatterProfile, type ScatterEntry } from './BiomeScatterMapping';
 import type { ScatterConfig as AdvancedScatterConfig } from '../../../core/placement/advanced/ScatterSystem';

@@ -6,7 +6,7 @@
  */
 
 import { Vector3, Matrix4 } from 'three';
-import { SeededRandom } from '../../core/util/math/index';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 export interface FaultLineParams {
   // Fault geometry

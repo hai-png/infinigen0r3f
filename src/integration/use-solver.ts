@@ -3,10 +3,31 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   SimulatedAnnealingSolver,
-  SolverState,
-  Relation,
-  ObjectState
 } from '../index';
+import type { ObjectState } from '../core/constraints/evaluator/state';
+import type { State as ConstraintState } from '../core/constraints/evaluator/state';
+import type { Relation as RelationType } from '../core/constraints/language/relations';
+
+// The integration layer uses its own extended SolverState that includes
+// SA iteration tracking on top of the base ConstraintState
+// It's a plain object, not a class instance — for serialization and React state
+export interface SolverState {
+  objects: Map<string, ObjectState>;
+  iteration: number;
+  energy: number;
+  currentScore: number;
+  bestScore: number;
+  assignments: Map<string, any>;
+  lastMove: any;
+  lastMoveAccepted: boolean;
+  bvhCache?: any;
+  trimeshScene?: any;
+  graphs?: any[];
+  planes?: any;
+  problem?: any;
+}
+
+type Relation = RelationType;
 
 export interface UseInfinigenSolverParams {
   /** Initial constraint relations */
@@ -84,9 +105,7 @@ export function useInfinigenSolver(
       coolingRate: solverConfig.coolingRate || 0.995,
     });
 
-    const initialState: SolverState = {
-      state: {} as any,
-      score: Infinity,
+    const makeInitialState = (): SolverState => ({
       objects: new Map(initialObjects.map(obj => [obj.id, obj])),
       iteration: 0,
       energy: Infinity,
@@ -95,9 +114,9 @@ export function useInfinigenSolver(
       assignments: new Map(),
       lastMove: null,
       lastMoveAccepted: false
-    };
+    });
 
-    setState(initialState);
+    setState(makeInitialState());
 
     return () => {
       if (animationFrameRef.current) {
@@ -148,9 +167,10 @@ export function useInfinigenSolver(
             }, 0);
             setViolationCount(violations);
 
-            // Merge the SA solver's SolverState with our extended state
+            // Merge the SA solver's result with our state
             const mergedState: SolverState = {
               ...state,
+              objects: new Map(state.objects),
               iteration: nextState.iteration,
               energy: nextState.energy,
               currentScore: nextState.currentScore,
@@ -196,9 +216,7 @@ export function useInfinigenSolver(
   const reset = () => {
     if (!initialObjects.length) return;
 
-    const initialState: SolverState = {
-      state: {} as any,
-      score: Infinity,
+    const makeInitialState = (): SolverState => ({
       objects: new Map(initialObjects.map(obj => [obj.id, obj])),
       iteration: 0,
       energy: Infinity,
@@ -207,9 +225,9 @@ export function useInfinigenSolver(
       assignments: new Map(),
       lastMove: null,
       lastMoveAccepted: false
-    };
+    });
 
-    setState(initialState);
+    setState(makeInitialState());
     setIsSolved(false);
     setProgress(0);
     setViolationCount(0);

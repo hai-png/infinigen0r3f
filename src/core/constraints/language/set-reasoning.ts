@@ -5,6 +5,7 @@
 
 import { Node, Variable, Domain, ObjectSetDomain } from './types';
 import { ScalarExpression, BoolExpression, ScalarConstant } from './expression';
+import { TagSet as UnifiedTagSet, Tag as UnifiedTag } from '@/core/UnifiedTagSystem';
 
 /**
  * Base class for object set expressions
@@ -373,7 +374,57 @@ export class TagCondition extends ObjectCondition {
   }
 
   evaluate(objectId: string, state: Map<Variable, any>): boolean {
-    // Placeholder - requires tag system integration
+    // Look up the object's tags from the state.
+    // The state map may contain:
+    //  - '__tagRegistry': a UnifiedTaggingSystem instance
+    //  - '__solverState': the evaluator State instance (with objects Map)
+    // The Map<Variable, any> type is used for variable bindings but callers
+    // may inject special string-keyed entries for infrastructure access.
+    const stateAny = state as Map<any, any>;
+    const tagRegistry = stateAny.get('__tagRegistry');
+    const solverState = stateAny.get('__solverState');
+
+    let objectTagSet: UnifiedTagSet | null = null;
+
+    if (tagRegistry && typeof tagRegistry === 'object' && 'getObjectTags' in (tagRegistry as object)) {
+      objectTagSet = (tagRegistry as any).getObjectTags(objectId);
+    } else if (solverState && typeof solverState === 'object' && 'objects' in (solverState as object)) {
+      const objState = (solverState as any).objects.get(objectId);
+      if (!objState) return false;
+      // Convert legacy tags to unified TagSet
+      objectTagSet = new UnifiedTagSet(
+        objState.tags.toArray().map((t: any) => {
+          const str = t.toString();
+          // Strip type prefix like Semantics(...), Material(...), etc.
+          const match = str.match(/^[A-Z][a-z]+\((.+)\)$/);
+          const name = match ? match[1] : str;
+          return new UnifiedTag(name);
+        })
+      );
+    }
+
+    if (!objectTagSet) {
+      // No tag information available in state — fall back to true
+      // (preserves backward compatibility with code that doesn't inject a registry)
+      return true;
+    }
+
+    // All required tags must be effectively contained in the object's TagSet
+    for (const requiredTag of this.requiredTags) {
+      if (!objectTagSet.contains(new UnifiedTag(requiredTag))) {
+        return false;
+      }
+    }
+
+    // No excluded tags may be present
+    if (this.excludedTags) {
+      for (const excludedTag of this.excludedTags) {
+        if (objectTagSet.contains(new UnifiedTag(excludedTag))) {
+          return false;
+        }
+      }
+    }
+
     return true;
   }
 

@@ -3,10 +3,10 @@
  *
  * Complete node-based procedural generation system
  * Ported from Blender Geometry Nodes and Infinigen's node system
- * 
+ *
  * @module @infinigen/r3f/nodes
- * @version 1.0.0
- * 
+ * @version 2.0.0
+ *
  * Note: Some names exist in multiple sub-modules. When there's a conflict,
  * we explicitly re-export from the preferred module to resolve ambiguity.
  * The following names have been resolved:
@@ -18,17 +18,111 @@
  * - CollectionInfoNode, ObjectInfoNode → from ./collection (primary definitions)
  */
 
-// Core types and utilities
+// ============================================================================
+// NEW: Clean top-level exports
+// ============================================================================
+
+// NodeWrangler — central orchestrator for node graphs
+export { NodeWrangler } from './node-wrangler';
+
+// Types — single canonical source for all node-system interfaces
+export type {
+  NodeInstance,
+  NodeLink,
+  NodeGroup,
+  NodeTree,
+  NodeGraph,
+  NodeGroupInterface,
+  NodeEvaluationResult,
+  NodeExecutionContext,
+  Node,
+  AttributeDomain,
+  GeometryType,
+} from './types';
+
+export {
+  EvaluationMode,
+  NodeCategory,
+} from './types';
+
+// SocketTypeEnum — re-exported directly from registry (types.ts imports it as type-only)
+export { SocketType as SocketTypeEnum } from './registry';
+
+export type {
+  NodeType,
+  NodeSocket,
+  SocketDefinition,
+  GeometryDataType,
+} from './registry';
+
+// Registry — node type resolution and socket type system
+export {
+  resolveNodeType,
+  isKnownNodeType,
+  getAliasesForCanonical,
+  registerNodeType,
+  getCanonicalNodeTypes,
+  getNodeCategory,
+  SocketType,
+  getDefaultValueForType,
+  areSocketsCompatible,
+} from './registry';
+
+// Execution — node evaluation pipeline (clean API)
+export type {
+  NodeExecutor,
+  ExecutorContext,
+} from './execution';
+
+export {
+  registerExecutor,
+  registerExecutorRaw,
+  registerExecutorAliases,
+  getExecutor,
+  hasExecutor,
+  executeNode,
+  registerAllExecutors,
+  getExecutorCount,
+  NodeEvaluator,
+  EvaluationMode as ExecutionEvaluationMode,
+  CyclicDependencyError,
+  MissingConnectionError,
+  SocketTypeMismatchError,
+  performCSGBoolean,
+  mergeGeometries,
+} from './execution';
+
+export type {
+  NodeEvaluationResult as ExecutionNodeEvaluationResult,
+  BooleanOperation,
+} from './execution';
+
+// ============================================================================
+// DEPRECATED: Legacy core/ re-exports (kept for backward compatibility)
+// Consumers should migrate to the clean top-level exports above.
+// ============================================================================
+
+/** @deprecated Use `import { NodeTypes } from './core/node-types'` or canonical string types */
 export { NodeTypes } from './core/node-types';
-export type { SocketType, NodeSocket } from './core/socket-types';
+
+/** @deprecated Use `import type { SocketType, NodeSocket } from './registry'` instead */
+export type { SocketType as LegacySocketType, NodeSocket as LegacyNodeSocket } from './core/socket-types';
+
+/** @deprecated Use `import type { NodeDefinition, NodeBase, NodeContext, NodeDomain } from './types'` instead */
 export type { NodeDefinition } from './core/types';
 export type { NodeBase, NodeContext, NodeDomain } from './core/types';
 
+// ============================================================================
 // Geometry Nodes (20 nodes) - primary source for: ColorNode, RandomValueNode,
 // InstanceOnPointsNode, and all attribute type names
+// ============================================================================
+
 export * from './geometry';
 
+// ============================================================================
 // Shader Nodes (13 nodes) - export explicitly to exclude MappingNode (conflicts with vector)
+// ============================================================================
+
 export {
   PrincipledBSDFDefinition,
   executePrincipledBSDF,
@@ -71,7 +165,10 @@ export type {
   MappingNode,
 } from './shader';
 
+// ============================================================================
 // Input/Output Nodes - export explicitly to exclude names that conflict with ./output and ./collection
+// ============================================================================
+
 export {
   ValueNode,
   IntegerNode,
@@ -107,7 +204,10 @@ export type {
   GroupOutputNodeData,
 } from './input_output';
 
+// ============================================================================
 // Utility Nodes - export explicitly to exclude names that conflict with ./vector and ./geometry
+// ============================================================================
+
 export {
   MathNode,
   ColorMathNode,
@@ -137,13 +237,22 @@ export {
   VectorMathNode as UtilityVectorMathNode,
 } from './utility';
 
+// ============================================================================
 // Curve Nodes (13 nodes)
+// ============================================================================
+
 export * from './curve';
 
+// ============================================================================
 // Texture Nodes (10 nodes)
+// ============================================================================
+
 export * from './texture';
 
+// ============================================================================
 // Color Nodes - export explicitly to exclude ColorNode (conflicts with ./geometry)
+// ============================================================================
+
 export {
   ColorRampNode,
   MixRGBNode,
@@ -200,11 +309,17 @@ export {
   createInvertNode,
 } from './color';
 
+// ============================================================================
 // Vector Nodes (36 nodes) - primary source for: MappingNode, CombineXYZNode,
 // SeparateXYZNode, VectorMathNode, CompareNode
+// ============================================================================
+
 export * from './vector';
 
+// ============================================================================
 // Attribute Nodes - export explicitly to exclude names that conflict with ./geometry
+// ============================================================================
+
 export {
   PositionInputNode,
   NormalInputNode,
@@ -262,19 +377,34 @@ export {
   SetPositionNode as AttributeSetPositionNode,
 } from './attribute';
 
+// ============================================================================
 // Output Nodes (24 nodes) - primary source for GroupOutputNode
+// ============================================================================
+
 export * from './output';
 
+// ============================================================================
 // Boolean Nodes (3 nodes)
+// ============================================================================
+
 export * from './boolean';
 
+// ============================================================================
 // Light Nodes (6 nodes)
+// ============================================================================
+
 export * from './light';
 
+// ============================================================================
 // Camera Nodes (4 nodes)
+// ============================================================================
+
 export * from './camera';
 
+// ============================================================================
 // Collection Nodes (5 nodes) - primary source for CollectionInfoNode, ObjectInfoNode
+// ============================================================================
+
 export {
   CollectionInfoNode,
   ObjectInfoNode,
@@ -299,17 +429,29 @@ export {
   createChildrenOfSceneNode,
 } from './collection';
 
+// ============================================================================
 // Simulation Nodes (9 nodes)
+// ============================================================================
+
 export * from './simulation';
 
+// ============================================================================
 // Volume Nodes (4 nodes)
+// ============================================================================
+
 export * from './volume';
 
+// ============================================================================
 // Transpiler - export explicitly to exclude VariableBinding (conflicts with constraints)
+// ============================================================================
+
 export { NodeTranspiler, transpileNodeTree } from './transpiler';
 export type { TranspilerOptions } from './transpiler';
 
+// ============================================================================
 // Code Serializer / Transpiler (NodeWrangler graph → TypeScript code)
+// ============================================================================
+
 export {
   NodeCodeSerializer,
   serializeToTypeScript,
@@ -320,28 +462,55 @@ export type {
   RoundTripResult,
 } from './core/NodeCodeSerializer';
 
+// ============================================================================
 // Pre-built Groups
+// ============================================================================
+
 export * from './groups';
 
+// ============================================================================
 // Helpers
+// ============================================================================
+
 export * from './helpers';
 
-// Execution Layer - Node evaluation pipeline
+// ============================================================================
+// Execution Layer — full re-export for consumers that need the deep pipeline
+// ============================================================================
+
 export {
-  NodeEvaluator,
-  EvaluationMode,
-  CyclicDependencyError,
-  MissingConnectionError,
-  SocketTypeMismatchError,
   NodeShaderCompiler,
   MaterialFactory,
   TextureNodeExecutor,
+  NodeGraphMaterialBridge,
+  NodeGraphTextureBridge,
+  evaluateToMaterial,
+  evaluateToMaterialQuick,
+  bsdfToMaterial,
+  evaluatorTextureToThreeTexture,
+  runAllValidations,
+  validateBridgePipeline,
+  add_geomod,
+  add_material,
+  shaderfunc_to_material,
+  create_surface_material,
+  compileShaderGraphToMaterial,
+  GeometryNodeContext,
+  GeometryNodeExecutor,
+  GeometryNodePipeline,
+  AttributeType,
+  AttributeDomain as AttributeIODomain,
+  NamedAttribute,
+  AttributeManager,
+  StandardAttributes,
+  readAttrData,
+  writeAttrData,
+  newAttrData,
 } from './execution';
 
 export type {
-  NodeEvaluationResult,
-  NodeGraph,
   ShaderCompileResult,
+  ShaderCompileOptions,
   TerrainMaterialParams,
   BarkMaterialParams,
   StoneMaterialParams,
@@ -355,6 +524,17 @@ export type {
   GradientType,
   PatternType,
   TextureExecParams,
+  BSDFOutput,
+  NodeEvaluationOutput,
+  MaterialBridgeOptions,
+  TextureNodeType,
+  TextureNodeOutput,
+  TextureConversionResult,
+  EvaluatorTextureOutput,
+  EvaluateToMaterialOptions,
+  EvaluateToMaterialResult,
+  GeometryExecutorFn,
+  MaterialCompileOptions,
 } from './execution';
 
 // Shader utilities (also from shader module)
@@ -362,4 +542,3 @@ export {
   createMaterialFromShader,
   parseColor,
 } from './shader';
-

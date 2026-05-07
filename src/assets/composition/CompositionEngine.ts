@@ -7,7 +7,24 @@
 
 import { Vector3, Quaternion, Box3, Sphere } from 'three';
 import type { Object3D } from 'three';
-import type { SceneGraphNode } from '../nodes/types';
+
+/**
+ * Scene graph node — previously in ../nodes/types (deleted).
+ * Kept here as a local definition for CompositionEngine.
+ */
+export interface SceneGraphNode {
+  id: string;
+  type: string;
+  name: string;
+  children?: SceneGraphNode[];
+  parent?: SceneGraphNode;
+  transform: {
+    position: Vector3;
+    rotation: import('three').Euler | Quaternion;
+    scale: Vector3;
+  };
+  data?: any;
+}
 /**
  * Spatial relationship types between objects
  */

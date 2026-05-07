@@ -50,6 +50,7 @@ import {
   DEFAULT_TERRAIN_SURFACE_BRIDGE_CONFIG,
   TerrainVertexAttributes,
 } from '@/terrain/surface/SurfaceKernelPipeline';
+import { ErosionSystem, type ErosionParams } from '@/terrain/erosion/ErosionSystem';
 
 // ============================================================================
 // TerrainGenerationMode
@@ -1013,7 +1014,10 @@ export class UnifiedTerrainGenerator {
   }
 
   /**
-   * Apply erosion to a heightmap using simple thermal + hydraulic erosion.
+   * Apply erosion to a heightmap using the ErosionSystem.
+   *
+   * Delegates to the consolidated ErosionSystem (thermal + hydraulic + river)
+   * instead of duplicating erosion logic inline.
    *
    * @param heightmap - The heightmap to erode (modified in-place)
    * @param size - Grid size (width = height)
@@ -1024,35 +1028,20 @@ export class UnifiedTerrainGenerator {
     size: number,
     config: UnifiedTerrainConfig,
   ): void {
-    // Simple thermal erosion: smooth steep slopes
-    const iterations = config.erosionIterations;
-    const talusAngle = 0.05;
-    const erosionRate = config.erosionStrength * 0.5;
+    const erosionParams: Partial<ErosionParams> = {
+      thermalErosionEnabled: true,
+      talusAngle: Math.atan(0.05), // Convert talus slope to angle
+      thermalIterations: config.erosionIterations,
+      hydraulicErosionEnabled: true,
+      erodeSpeed: config.erosionStrength * 0.3,
+      depositSpeed: config.erosionStrength * 0.3,
+      hydraulicIterations: Math.ceil(config.erosionIterations / 4),
+      riverFormationEnabled: false,
+      seed: config.seed,
+    };
 
-    for (let iter = 0; iter < iterations; iter++) {
-      for (let y = 1; y < size - 1; y++) {
-        for (let x = 1; x < size - 1; x++) {
-          const idx = y * size + x;
-          const h = heightmap[idx];
-
-          // Check 4 neighbors
-          const neighbors = [
-            heightmap[(y - 1) * size + x],
-            heightmap[(y + 1) * size + x],
-            heightmap[y * size + (x - 1)],
-            heightmap[y * size + (x + 1)],
-          ];
-
-          for (const nh of neighbors) {
-            const diff = h - nh;
-            if (diff > talusAngle) {
-              const transfer = diff * erosionRate * 0.25;
-              heightmap[idx] -= transfer;
-            }
-          }
-        }
-      }
-    }
+    const erosionSystem = new ErosionSystem(heightmap, size, size, erosionParams);
+    erosionSystem.simulate();
   }
 
   /**

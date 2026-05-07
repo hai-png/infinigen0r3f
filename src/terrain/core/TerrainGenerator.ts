@@ -4,22 +4,59 @@
  *
  * Integrated with TerrainSurfaceShaderPipeline for optional GPU/CPU
  * SDF-based surface displacement after terrain mesh generation.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * DEPRECATION NOTICE
+ * ─────────────────────────────────────────────────────────────────────
+ * This class is now a thin convenience wrapper around UnifiedTerrainGenerator.
+ * It preserves the original TerrainData-based API for backward compatibility
+ * while delegating heightmap generation to the unified system.
+ *
+ * @deprecated Use `UnifiedTerrainGenerator` with `TerrainGenerationMode.HEIGHTMAP`
+ *             instead. Migration guide:
+ *
+ *   // Old (deprecated):
+ *   const gen = new TerrainGenerator({ seed: 42, width: 512, height: 512 });
+ *   const data: TerrainData = gen.generate();
+ *
+ *   // New (preferred):
+ *   const gen = new UnifiedTerrainGenerator({
+ *     mode: TerrainGenerationMode.HEIGHTMAP,
+ *     seed: 42,
+ *     heightmapSize: 512,
+ *   });
+ *   const heightmap: Float32Array = gen.generateHeightmap();
+ *   // Compute normals/slopes/biomes separately as needed
+ *
+ * UnifiedTerrainGenerator supports HEIGHTMAP, SDF_FLAT, SDF_FULL, and PLANET
+ * modes, eliminating the need for this heightmap-only class.
+ * ─────────────────────────────────────────────────────────────────────
  */
 
-import { Box3, Vector2, Vector3 } from 'three';
+import { Box3, Vector3 } from 'three';
 import type { BufferGeometry } from 'three';
-import { SeededRandom } from '../../core/util/math/index';
-import { ErosionSystem } from '../erosion/ErosionSystem';
+import { SeededRandom } from '@/core/util/MathUtils';
 import { TerrainSurfaceShaderPipeline, DEFAULT_TERRAIN_SURFACE_CONFIG } from '../gpu/TerrainSurfaceShaderPipeline';
 import type { TerrainSurfaceConfig } from '../gpu/TerrainSurfaceShaderPipeline';
 import { SignedDistanceField } from '../sdf/sdf-operations';
 import type { HeightMap, NormalMap } from '../types';
-import { heightMapFromFloat32Array } from '../types';
-import { BiomeSystem, type BiomeGrid, type BiomeType } from '../biomes/core/BiomeSystem';
+import type { TerrainData as UnifiedTerrainData } from '../types';
+import type { MaskMap, BiomeGrid, TerrainConfig } from '../types';
+import { heightMapFromFloat32Array, normalizeHeightmap } from '../types';
+import { BiomeSystem, type BiomeGrid as BiomeSystemGrid, type BiomeType } from '../biomes/core/BiomeSystem';
+import {
+  UnifiedTerrainGenerator,
+  TerrainGenerationMode,
+} from '../UnifiedTerrainGenerator';
 
-export type MaskMap = Uint8Array;
-
-export interface TerrainConfig {
+/**
+ * Full configuration for TerrainGenerator (internal use).
+ *
+ * This extends the simplified TerrainConfig from ../types with all the
+ * parameters the legacy generator needs. The unified TerrainData.config
+ * carries only the simplified version for consumers.
+ */
+export interface TerrainGeneratorConfig {
   seed: number;
   width: number;
   height: number;
@@ -45,28 +82,33 @@ export interface TerrainConfig {
   surfaceShaderConfig?: Partial<TerrainSurfaceConfig>;
 }
 
-export interface TerrainData {
-  heightMap: HeightMap;
-  normalMap: HeightMap;
-  slopeMap: HeightMap;
-  biomeMask: MaskMap;
-  config: TerrainConfig;
-  width: number;
-  height: number;
-  /** Full biome grid from Whittaker classification (temperature/moisture maps + blend weights) */
-  biomeGrid: BiomeGrid | null;
-  /** Dominant biome type across the terrain */
-  dominantBiome: BiomeType | null;
-}
+// Re-export the unified TerrainData and TerrainConfig from types
+export type TerrainData = UnifiedTerrainData;
+export type { MaskMap, BiomeGrid, TerrainConfig };
 
+/**
+ * Legacy heightmap-only terrain generator.
+ *
+ * @deprecated Use `UnifiedTerrainGenerator` with `TerrainGenerationMode.HEIGHTMAP` instead.
+ *
+ * This class now delegates base heightmap generation (noise + erosion) to
+ * `UnifiedTerrainGenerator.generateHeightmap()`, then augments the result
+ * with tectonic uplift, elevation offset, derived maps (normals, slopes),
+ * and biome classification to preserve the original `TerrainData` API.
+ *
+ * All existing code that constructs `TerrainGenerator` and calls
+ * `generate()`, `getHeightAt()`, etc. will continue to work unchanged.
+ */
 export class TerrainGenerator {
   private rng: SeededRandom;
-  private config: TerrainConfig;
+  private config: TerrainGeneratorConfig;
   private width: number;
   private height: number;
-  private permutationTable: number[];
   private cachedHeightMap: Float32Array | null = null;
   private biomeSystem: BiomeSystem | null = null;
+
+  /** Internal UnifiedTerrainGenerator used for heightmap generation */
+  private unifiedGenerator: UnifiedTerrainGenerator;
 
   // -----------------------------------------------------------------------
   // Surface Shader Pipeline Integration
@@ -87,7 +129,7 @@ export class TerrainGenerator {
    */
   private surfaceShaderInitialized: boolean = false;
 
-  constructor(config: Partial<TerrainConfig> = {}) {
+  constructor(config: Partial<TerrainGeneratorConfig> = {}) {
     this.config = {
       seed: 42,
       width: 512,
@@ -107,8 +149,12 @@ export class TerrainGenerator {
     this.rng = new SeededRandom(this.config.seed);
     this.width = this.config.width;
     this.height = this.config.height;
-    this.permutationTable = [];
-    this.initPermutationTable();
+
+    // Create internal UnifiedTerrainGenerator in HEIGHTMAP mode.
+    // This is the single code path for heightmap generation — the old
+    // inline Perlin noise, ErosionSystem, etc. are replaced by the
+    // unified system's GroundElement + thermal erosion pipeline.
+    this.unifiedGenerator = this.createUnifiedGenerator();
 
     // Create the surface shader pipeline if config is provided
     if (this.config.surfaceShaderConfig !== undefined) {
@@ -120,117 +166,174 @@ export class TerrainGenerator {
     }
   }
 
+  // =====================================================================
+  // UnifiedTerrainGenerator Bridge
+  // =====================================================================
+
   /**
-   * Generate complete terrain data
+   * Create a `UnifiedTerrainGenerator` configured in HEIGHTMAP mode,
+   * mapping this `TerrainGeneratorConfig`'s parameters to the unified config shape.
+   */
+  private createUnifiedGenerator(): UnifiedTerrainGenerator {
+    const worldSize = this.config.scale;
+    const halfSize = worldSize / 2;
+
+    return new UnifiedTerrainGenerator({
+      mode: TerrainGenerationMode.HEIGHTMAP,
+      seed: this.config.seed,
+      heightmapSize: Math.max(this.width, this.height),
+      heightScale: this.config.scale,
+      bounds: {
+        minX: -halfSize,
+        maxX: halfSize,
+        minY: -10,
+        maxY: 30,
+        minZ: -halfSize,
+        maxZ: halfSize,
+      },
+      groundParams: {
+        frequency: 1.0 / this.config.scale,
+        amplitude: 8,
+        octaves: this.config.octaves,
+        persistence: this.config.persistence,
+        lacunarity: this.config.lacunarity,
+        baseHeight: 0,
+      },
+      erosionStrength: this.config.erosionStrength,
+      erosionIterations: this.config.erosionIterations,
+      // Disable GPU SDF evaluator — not needed for heightmap-only mode
+      gpuSDFConfig: { enabled: false },
+    });
+  }
+
+  // =====================================================================
+  // Main Generation API
+  // =====================================================================
+
+  /**
+   * Generate complete terrain data.
+   *
+   * Delegates base heightmap generation (noise + erosion + normalisation)
+   * to the internal `UnifiedTerrainGenerator` in HEIGHTMAP mode, then
+   * applies tectonic uplift, elevation offset, and computes derived maps
+   * (normals, slopes, biomes) for backward compatibility.
    */
   public generate(): TerrainData {
-    console.log(`Generating terrain with seed ${this.config.seed}...`);
-    
-    // 1. Generate base heightmap with noise
-    const heightData = this.generateBaseHeightMap();
-    
-    // 2. Apply tectonic uplift
+    console.log(`[TerrainGenerator] Generating terrain (via UnifiedTerrainGenerator) with seed ${this.config.seed}...`);
+
+    // 1. Delegate base heightmap generation (including erosion) to UnifiedTerrainGenerator
+    let heightData = this.unifiedGenerator.generateHeightmap();
+
+    // Handle non-square maps: the unified generator always produces a square
+    // grid of size `heightmapSize = max(width, height)`.  If the requested
+    // dimensions differ, crop to the target rectangle.
+    if (this.width !== this.height) {
+      const maxSize = Math.max(this.width, this.height);
+      const cropped = new Float32Array(this.width * this.height);
+      for (let y = 0; y < this.height; y++) {
+        for (let x = 0; x < this.width; x++) {
+          cropped[y * this.width + x] = heightData[y * maxSize + x];
+        }
+      }
+      heightData = cropped;
+    }
+
+    // 2. Apply tectonic uplift (feature not available in UnifiedTerrainGenerator)
     this.applyTectonics(heightData);
-    
-    // 3. Apply erosion via ErosionSystem (consolidated entry point)
-    this.applyErosion(heightData);
-    
-    // 4. Normalize and offset
-    this.normalizeHeightMap(heightData);
-    
-    // 5. Calculate derived maps
+
+    // 3. Normalize to [0, 1] using shared utility, then apply elevation offset
+    normalizeHeightmap(heightData);
+    if (this.config.elevationOffset !== 0) {
+      for (let i = 0; i < heightData.length; i++) {
+        heightData[i] = heightData[i] + this.config.elevationOffset;
+        heightData[i] = Math.max(0, Math.min(1, heightData[i]));
+      }
+    }
+
+    // 4. Calculate derived maps
     const normalData = this.calculateNormals(heightData);
     const slopeData = this.calculateSlopes(heightData);
 
-    // 6. Generate biome data using BiomeSystem (Whittaker classification)
-    // This replaces the old 25-line inline height/slope lookup
+    // 5. Generate biome data using BiomeSystem (Whittaker classification)
     this.biomeSystem = new BiomeSystem(0.3, this.config.seed);
-    const biomeGrid = this.biomeSystem.generateBiomeGrid(
+    const biomeSystemGrid = this.biomeSystem.generateBiomeGrid(
       heightData,
       slopeData,
       this.width,
       this.height,
       { seed: this.config.seed, seaLevel: this.config.seaLevel }
     );
-    const biomeMask = biomeGrid.biomeIds;
+
+    // Convert Uint8Array biome IDs to Float32Array mask (MaskMap)
+    const biomeMask: MaskMap = new Float32Array(biomeSystemGrid.biomeIds.length);
+    for (let i = 0; i < biomeSystemGrid.biomeIds.length; i++) {
+      biomeMask[i] = biomeSystemGrid.biomeIds[i];
+    }
+
+    // Build simplified BiomeGrid for TerrainData
+    const biomeGrid: BiomeGrid = {
+      cells: [],
+      width: biomeSystemGrid.width,
+      height: biomeSystemGrid.height,
+    };
+    for (let i = 0; i < biomeSystemGrid.biomeIds.length; i++) {
+      biomeGrid.cells.push(biomeSystemGrid.biomeIndexToType[biomeSystemGrid.biomeIds[i]] ?? 'desert');
+    }
 
     // Determine dominant biome (excluding ocean)
-    const biomeCounts = new Map<string, number>();
-    for (let i = 0; i < biomeGrid.biomeIds.length; i++) {
-      const biomeType = biomeGrid.biomeIndexToType[biomeGrid.biomeIds[i]];
-      if (biomeType) {
-        biomeCounts.set(biomeType, (biomeCounts.get(biomeType) ?? 0) + 1);
-      }
-    }
-    let maxCount = 0;
-    let dominantBiome: BiomeType | null = null;
-    for (const [type, count] of biomeCounts) {
-      if (type !== 'ocean' && count > maxCount) {
-        maxCount = count;
-        dominantBiome = type as BiomeType;
-      }
-    }
+    const dominantBiome = this.computeDominantBiome(biomeSystemGrid);
 
     // Cache raw heightmap for getHeightAt() lookups
     this.cachedHeightMap = heightData;
 
+    // Compute world-space bounds
+    const halfSize = this.config.scale / 2;
+    const bounds = new Box3(
+      new Vector3(-halfSize, -this.config.scale, -halfSize),
+      new Vector3(halfSize, this.config.scale, halfSize)
+    );
+
+    // Build the unified TerrainData
     return {
       heightMap: heightMapFromFloat32Array(heightData, this.width, this.height),
-      normalMap: heightMapFromFloat32Array(normalData, this.width, this.height),
+      normalMap: { data: normalData, width: this.width, height: this.height },
       slopeMap: heightMapFromFloat32Array(slopeData, this.width, this.height),
       biomeMask,
       biomeGrid,
       dominantBiome,
-      config: { ...this.config },
+      bounds,
+      waterLevel: this.config.seaLevel * this.config.scale,
+      config: {
+        scale: this.config.scale,
+        heightScale: this.config.scale,
+        seaLevel: this.config.seaLevel,
+        erosionIterations: this.config.erosionIterations,
+        biomeCount: this.config.tectonicPlates,
+        // Preserve extra fields via index signature
+        seed: this.config.seed,
+        width: this.config.width,
+        height: this.config.height,
+        octaves: this.config.octaves,
+        persistence: this.config.persistence,
+        lacunarity: this.config.lacunarity,
+        elevationOffset: this.config.elevationOffset,
+        erosionStrength: this.config.erosionStrength,
+        tectonicPlates: this.config.tectonicPlates,
+      },
       width: this.width,
       height: this.height,
     };
   }
 
-  /**
-   * Generate base heightmap using Fractal Brownian Motion
-   */
-  private generateBaseHeightMap(): Float32Array {
-    const map = new Float32Array(this.width * this.height);
-    const amplitude = 1.0;
-    const frequency = 1.0 / this.config.scale;
-    let maxVal = -Infinity;
-    let minVal = Infinity;
-
-    for (let y = 0; y < this.height; y++) {
-      for (let x = 0; x < this.width; x++) {
-        let value = 0;
-        let amp = amplitude;
-        let freq = frequency;
-
-        // Multi-octave noise
-        for (let i = 0; i < this.config.octaves; i++) {
-          const nx = x * freq;
-          const ny = y * freq;
-          value += this.perlinNoise(nx, ny) * amp;
-          
-          maxVal = Math.max(maxVal, value);
-          minVal = Math.min(minVal, value);
-
-          amp *= this.config.persistence;
-          freq *= this.config.lacunarity;
-        }
-
-        map[y * this.width + x] = value;
-      }
-    }
-
-    // Normalize to 0-1 range
-    const range = maxVal - minVal;
-    for (let i = 0; i < map.length; i++) {
-      map[i] = (map[i] - minVal) / range;
-    }
-
-    return map;
-  }
+  // =====================================================================
+  // Tectonic Uplift (local — not in UnifiedTerrainGenerator)
+  // =====================================================================
 
   /**
-   * Apply tectonic plate simulation for mountain ranges
+   * Apply tectonic plate simulation for mountain ranges.
+   *
+   * This step is specific to the legacy TerrainGenerator and is not
+   * available in UnifiedTerrainGenerator, so it is retained locally.
    */
   private applyTectonics(heightMap: Float32Array): void {
     if (this.config.tectonicPlates <= 0) return;
@@ -250,12 +353,12 @@ export class TerrainGenerator {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         let uplift = 0;
-        
+
         for (const plate of plates) {
           const dx = x - plate.x;
           const dy = y - plate.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          
+
           if (dist < plate.radius) {
             const falloff = 1 - (dist / plate.radius);
             uplift += plate.height * falloff * falloff; // Quadratic falloff
@@ -268,54 +371,9 @@ export class TerrainGenerator {
     }
   }
 
-  /**
-   * Apply erosion using the consolidated ErosionSystem
-   *
-   * Previously this method had inline hydraulic erosion code that duplicated
-   * the logic in ErosionEnhanced.ts. Now it delegates to ErosionSystem which
-   * is the single entry point for all erosion types.
-   */
-  private applyErosion(heightMap: Float32Array): void {
-    const erosionSystem = new ErosionSystem(
-      heightMap,
-      this.width,
-      this.height,
-      {
-        hydraulicErosionEnabled: this.config.erosionStrength > 0,
-        thermalErosionEnabled: true,
-        hydraulicIterations: this.config.erosionIterations,
-        erodeSpeed: this.config.erosionStrength,
-        depositSpeed: 0.3,
-        seed: this.config.seed,
-      }
-    );
-
-    erosionSystem.simulate();
-
-    // Clamp values
-    for (let i = 0; i < heightMap.length; i++) {
-      heightMap[i] = Math.max(0, Math.min(1, heightMap[i]));
-    }
-  }
-
-  /**
-   * Normalize heightmap to 0-1 range with optional offset
-   */
-  private normalizeHeightMap(heightMap: Float32Array): void {
-    let max = -Infinity;
-    let min = Infinity;
-
-    for (let i = 0; i < heightMap.length; i++) {
-      max = Math.max(max, heightMap[i]);
-      min = Math.min(min, heightMap[i]);
-    }
-
-    const range = max - min;
-    for (let i = 0; i < heightMap.length; i++) {
-      heightMap[i] = ((heightMap[i] - min) / range) + this.config.elevationOffset;
-      heightMap[i] = Math.max(0, Math.min(1, heightMap[i]));
-    }
-  }
+  // =====================================================================
+  // Derived Maps (local — not produced by UnifiedTerrainGenerator)
+  // =====================================================================
 
   /**
    * Calculate normal vectors for lighting
@@ -336,7 +394,7 @@ export class TerrainGenerator {
         const dz = 1.0;
 
         const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        
+
         const idx = (y * this.width + x) * 3;
         normals[idx] = -dx / len;     // X
         normals[idx + 1] = -dy / len; // Y
@@ -380,6 +438,32 @@ export class TerrainGenerator {
     return slopes;
   }
 
+  // =====================================================================
+  // Biome Helpers
+  // =====================================================================
+
+  /**
+   * Compute the dominant (non-ocean) biome from a BiomeSystemGrid.
+   */
+  private computeDominantBiome(biomeGrid: BiomeSystemGrid): BiomeType | null {
+    const biomeCounts = new Map<string, number>();
+    for (let i = 0; i < biomeGrid.biomeIds.length; i++) {
+      const biomeType = biomeGrid.biomeIndexToType[biomeGrid.biomeIds[i]];
+      if (biomeType) {
+        biomeCounts.set(biomeType, (biomeCounts.get(biomeType) ?? 0) + 1);
+      }
+    }
+    let maxCount = 0;
+    let dominantBiome: BiomeType | null = null;
+    for (const [type, count] of biomeCounts) {
+      if (type !== 'ocean' && count > maxCount) {
+        maxCount = count;
+        dominantBiome = type as BiomeType;
+      }
+    }
+    return dominantBiome;
+  }
+
   /**
    * Generate biome mask using the BiomeSystem (Whittaker classification).
    *
@@ -391,13 +475,15 @@ export class TerrainGenerator {
    */
   generateBiomeMask(heightMap: Float32Array, slopeMap: Float32Array, seaLevel?: number): MaskMap {
     const biomeSystem = new BiomeSystem(0.3, this.config.seed);
-    return biomeSystem.generateBiomeMask(
+    const biomeIds = biomeSystem.generateBiomeMask(
       heightMap,
       slopeMap,
       this.width,
       this.height,
       seaLevel ?? this.config.seaLevel
     );
+    // Convert Uint8Array to Float32Array mask (MaskMap)
+    return new Float32Array(biomeIds);
   }
 
   /**
@@ -409,72 +495,29 @@ export class TerrainGenerator {
   }
 
   /**
-   * Perlin noise implementation
+   * Get the internal UnifiedTerrainGenerator instance.
+   *
+   * Useful for accessing the unified generator's advanced features
+   * (SDF modes, presets, async generation) while still using the
+   * legacy TerrainGenerator as the primary entry point.
    */
-  private perlinNoise(x: number, y: number): number {
-    const X = Math.floor(x) & 255;
-    const Y = Math.floor(y) & 255;
-
-    x -= Math.floor(x);
-    y -= Math.floor(y);
-
-    const u = this.fade(x);
-    const v = this.fade(y);
-
-    const A = this.permutationTable[X] + Y;
-    const B = this.permutationTable[X + 1] + Y;
-
-    return this.lerp(
-      v,
-      this.lerp(u, this.grad(this.permutationTable[A], x, y), this.grad(this.permutationTable[B], x - 1, y)),
-      this.lerp(u, this.grad(this.permutationTable[A + 1], x, y - 1), this.grad(this.permutationTable[B + 1], x - 1, y - 1))
-    );
+  getUnifiedGenerator(): UnifiedTerrainGenerator {
+    return this.unifiedGenerator;
   }
 
-  private fade(t: number): number {
-    return t * t * t * (t * (t * 6 - 15) + 10);
-  }
-
-  private lerp(t: number, a: number, b: number): number {
-    return a + t * (b - a);
-  }
-
-  private grad(hash: number, x: number, y: number): number {
-    const h = hash & 3;
-    const u = h < 2 ? x : y;
-    const v = h < 2 ? y : x;
-    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
-  }
+  // =====================================================================
+  // Reseed
+  // =====================================================================
 
   /**
-   * Initialize permutation table for noise
-   */
-  private initPermutationTable(): void {
-    this.permutationTable = new Array(512);
-    const perm = new Array(256);
-    
-    for (let i = 0; i < 256; i++) {
-      perm[i] = i;
-    }
-
-    // Shuffle based on seed
-    for (let i = 255; i > 0; i--) {
-      const j = Math.floor(this.rng.next() * (i + 1));
-      [perm[i], perm[j]] = [perm[j], perm[i]];
-    }
-
-    for (let i = 0; i < 512; i++) {
-      this.permutationTable[i] = perm[i & 255];
-    }
-  }
-
-  /**
-   * Reseed the generator
+   * Reseed the generator.
+   *
+   * Creates a new internal `UnifiedTerrainGenerator` with the updated seed.
    */
   public reseed(seed: number): void {
     this.rng = new SeededRandom(seed);
     this.config.seed = seed;
-    this.initPermutationTable();
+    this.unifiedGenerator = this.createUnifiedGenerator();
   }
 
   // =====================================================================
@@ -689,7 +732,7 @@ export class TerrainGenerator {
   public getHeightAt(x: number, y: number): number {
     const xi = Math.floor(x);
     const yi = Math.floor(y);
-    
+
     if (xi < 0 || xi >= this.width - 1 || yi < 0 || yi >= this.height - 1) {
       return 0;
     }

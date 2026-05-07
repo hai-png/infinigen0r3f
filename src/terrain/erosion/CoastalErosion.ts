@@ -12,7 +12,7 @@
  * @see https://github.com/princeton-vl/infinigen
  */
 
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 // ---------------------------------------------------------------------------
 // Configuration

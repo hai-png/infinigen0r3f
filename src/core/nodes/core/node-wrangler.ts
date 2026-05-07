@@ -1,9 +1,12 @@
 /**
  * Node Wrangler - Core class for managing node graphs
  * Based on infinigen/core/nodes/node_wrangler.py
- * 
+ *
  * This class provides utilities for creating, connecting, and manipulating nodes
  * in a Three.js/R3F context, inspired by Blender's node system.
+ *
+ * @deprecated Use `import { NodeWrangler } from '../node-wrangler'` (the clean top-level module)
+ * instead. This file is kept for backward compatibility until all consumers migrate.
  */
 
 import { NodeTypes } from './node-types';
@@ -11,7 +14,7 @@ import { SocketType, NodeSocket, SocketDefinition } from './socket-types';
 import { nodeDefinitionRegistry } from './node-definition-registry';
 
 export interface NodeDefinition {
-  type: NodeTypes;
+  type: NodeTypes | string;
   inputs: SocketDefinition[];
   outputs: SocketDefinition[];
   properties?: Record<string, any>;
@@ -20,7 +23,7 @@ export interface NodeDefinition {
 
 export interface NodeInstance {
   id: string;
-  type: NodeTypes;
+  type: NodeTypes | string;
   name: string;
   location: [number, number];
   inputs: Map<string, NodeSocket>;
@@ -104,7 +107,7 @@ export class NodeWrangler {
    * Create a new node in the active group
    */
   newNode(
-    type: NodeTypes,
+    type: NodeTypes | string,
     name?: string,
     location?: [number, number],
     properties?: Record<string, any>
@@ -860,7 +863,7 @@ export class NodeWrangler {
    * Get node definition from the central registry.
    * Falls back to an empty definition for unregistered types.
    */
-  private getNodeDefinition(type: NodeTypes): NodeDefinition {
+  private getNodeDefinition(type: NodeTypes | string): NodeDefinition {
     const entry = nodeDefinitionRegistry.get(String(type));
     if (entry) {
       return {
@@ -1287,12 +1290,251 @@ export class NodeWrangler {
    * Import node graph from JSON
    */
   static fromJSON(json: string): NodeWrangler {
-    const data = JSON.parse(json);
+    let data: any;
+    try {
+      data = JSON.parse(json);
+    } catch (err) {
+      throw new Error(`NodeWrangler.fromJSON: invalid JSON — ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('NodeWrangler.fromJSON: parsed value is not an object');
+    }
+
     const wrangler = new NodeWrangler();
-    
-    // Implementation would reconstruct the node graph from JSON
-    // This is a stub for the basic structure
-    
+
+    // Clear the default root group created by the constructor so we can
+    // rebuild from the serialized data without duplicates.
+    wrangler.nodeGroups.clear();
+
+    let maxNodeCounter = -1;
+    let maxLinkCounter = -1;
+
+    // Helper: extract the numeric suffix from IDs like "node_5", "link_3", "group_7"
+    const parseNumericId = (prefix: string, id: string): number | null => {
+      if (id.startsWith(prefix + '_')) {
+        const num = parseInt(id.slice(prefix.length + 1), 10);
+        if (!isNaN(num)) return num;
+      }
+      return null;
+    };
+
+    const groupsData = Array.isArray(data.groups) ? data.groups : [];
+
+    for (const groupData of groupsData) {
+      if (!groupData || typeof groupData !== 'object') continue;
+
+      const groupId: string = groupData.id ?? 'root';
+      const groupName: string = groupData.name ?? groupId;
+      const groupParent: string | undefined = groupData.parent ?? undefined;
+
+      // Track group_ IDs that borrow from nodeCounter (see createNodeGroup)
+      const groupIdNum = parseNumericId('group', groupId);
+      if (groupIdNum !== null && groupIdNum > maxNodeCounter) {
+        maxNodeCounter = groupIdNum;
+      }
+
+      // --- Reconstruct nodes ---
+      const nodesMap = new Map<string, NodeInstance>();
+      const nodesData = Array.isArray(groupData.nodes) ? groupData.nodes : [];
+
+      for (const nodeData of nodesData) {
+        if (!nodeData || typeof nodeData !== 'object') continue;
+
+        const nodeId: string = nodeData.id ?? `node_${++maxNodeCounter}`;
+
+        // Track max node counter
+        const nodeNum = parseNumericId('node', nodeId);
+        if (nodeNum !== null && nodeNum > maxNodeCounter) {
+          maxNodeCounter = nodeNum;
+        }
+
+        // Also account for group_ IDs that borrow from nodeCounter
+        const groupNum = parseNumericId('group', nodeId);
+        if (groupNum !== null && groupNum > maxNodeCounter) {
+          maxNodeCounter = groupNum;
+        }
+
+        // Reconstruct input sockets
+        const inputsMap = new Map<string, NodeSocket>();
+        const inputsData = Array.isArray(nodeData.inputs) ? nodeData.inputs : [];
+        for (const inputData of inputsData) {
+          if (!inputData || typeof inputData !== 'object') continue;
+          const socketName: string = inputData.name ?? '';
+          const socket: NodeSocket = {
+            id: `${nodeId}_in_${socketName}`,
+            name: socketName,
+            type: inputData.type ?? 'ANY',
+            isInput: true,
+          };
+          // Only set value if present in JSON (could be undefined/null intentionally)
+          if ('value' in inputData) {
+            socket.value = inputData.value;
+          }
+          if ('connectedTo' in inputData && inputData.connectedTo != null) {
+            socket.connectedTo = inputData.connectedTo;
+          }
+          // Copy over any extra fields from the serialized socket that we may
+          // not explicitly know about (e.g. defaultValue, min, max, required, description)
+          for (const key of Object.keys(inputData)) {
+            if (!(key in socket) || (key as any) === 'name' || (key as any) === 'type') {
+              (socket as any)[key] = inputData[key];
+            }
+          }
+          inputsMap.set(socketName, socket);
+        }
+
+        // Reconstruct output sockets
+        const outputsMap = new Map<string, NodeSocket>();
+        const outputsData = Array.isArray(nodeData.outputs) ? nodeData.outputs : [];
+        for (const outputData of outputsData) {
+          if (!outputData || typeof outputData !== 'object') continue;
+          const socketName: string = outputData.name ?? '';
+          const socket: NodeSocket = {
+            id: `${nodeId}_out_${socketName}`,
+            name: socketName,
+            type: outputData.type ?? 'ANY',
+            isInput: false,
+          };
+          if ('value' in outputData) {
+            socket.value = outputData.value;
+          }
+          if ('connectedTo' in outputData && outputData.connectedTo != null) {
+            socket.connectedTo = outputData.connectedTo;
+          }
+          // Copy extra fields
+          for (const key of Object.keys(outputData)) {
+            if (!(key in socket) || (key as any) === 'name' || (key as any) === 'type') {
+              (socket as any)[key] = outputData[key];
+            }
+          }
+          outputsMap.set(socketName, socket);
+        }
+
+        const nodeInstance: NodeInstance = {
+          id: nodeId,
+          type: nodeData.type ?? 'ValueNode',
+          name: nodeData.name ?? nodeId,
+          location: Array.isArray(nodeData.location) && nodeData.location.length >= 2
+            ? [Number(nodeData.location[0]) || 0, Number(nodeData.location[1]) || 0]
+            : [0, 0],
+          inputs: inputsMap,
+          outputs: outputsMap,
+          properties: (nodeData.properties && typeof nodeData.properties === 'object')
+            ? nodeData.properties
+            : {},
+        };
+
+        if (nodeData.hidden != null) nodeInstance.hidden = !!nodeData.hidden;
+        if (nodeData.muted != null) nodeInstance.muted = !!nodeData.muted;
+        if (nodeData.parent != null) nodeInstance.parent = String(nodeData.parent);
+
+        nodesMap.set(nodeId, nodeInstance);
+      }
+
+      // --- Reconstruct links ---
+      const linksMap = new Map<string, NodeLink>();
+      const linksData = Array.isArray(groupData.links) ? groupData.links : [];
+      for (const linkData of linksData) {
+        if (!linkData || typeof linkData !== 'object') continue;
+
+        const linkId: string = linkData.id ?? `link_${++maxLinkCounter}`;
+
+        // Track max link counter
+        const linkNum = parseNumericId('link', linkId);
+        if (linkNum !== null && linkNum > maxLinkCounter) {
+          maxLinkCounter = linkNum;
+        }
+
+        const link: NodeLink = {
+          id: linkId,
+          fromNode: String(linkData.fromNode ?? ''),
+          fromSocket: String(linkData.fromSocket ?? ''),
+          toNode: String(linkData.toNode ?? ''),
+          toSocket: String(linkData.toSocket ?? ''),
+        };
+
+        linksMap.set(linkId, link);
+      }
+
+      // --- Reconstruct group inputs ---
+      const groupInputsMap = new Map<string, NodeSocket>();
+      const groupInputsData = Array.isArray(groupData.inputs) ? groupData.inputs : [];
+      for (const inputData of groupInputsData) {
+        if (!inputData || typeof inputData !== 'object') continue;
+        const socketName: string = inputData.name ?? '';
+        const socket: NodeSocket = {
+          id: `group_input_${socketName}`,
+          name: socketName,
+          type: inputData.type ?? 'ANY',
+          isInput: true,
+        };
+        // Copy extra fields
+        for (const key of Object.keys(inputData)) {
+          if (!(key in socket)) {
+            (socket as any)[key] = inputData[key];
+          }
+        }
+        groupInputsMap.set(socketName, socket);
+      }
+
+      // --- Reconstruct group outputs ---
+      const groupOutputsMap = new Map<string, NodeSocket>();
+      const groupOutputsData = Array.isArray(groupData.outputs) ? groupData.outputs : [];
+      for (const outputData of groupOutputsData) {
+        if (!outputData || typeof outputData !== 'object') continue;
+        const socketName: string = outputData.name ?? '';
+        const socket: NodeSocket = {
+          id: `group_output_${socketName}`,
+          name: socketName,
+          type: outputData.type ?? 'ANY',
+          isInput: false,
+        };
+        // Copy extra fields
+        for (const key of Object.keys(outputData)) {
+          if (!(key in socket)) {
+            (socket as any)[key] = outputData[key];
+          }
+        }
+        groupOutputsMap.set(socketName, socket);
+      }
+
+      // --- Assemble the group ---
+      const group: NodeGroup = {
+        id: groupId,
+        name: groupName,
+        nodes: nodesMap,
+        links: linksMap,
+        inputs: groupInputsMap,
+        outputs: groupOutputsMap,
+      };
+      if (groupParent !== undefined) {
+        group.parent = groupParent;
+      }
+
+      wrangler.nodeGroups.set(groupId, group);
+    }
+
+    // --- Ensure a root group exists ---
+    if (!wrangler.nodeGroups.has('root')) {
+      const rootGroup: NodeGroup = {
+        id: 'root',
+        name: 'Root',
+        nodes: new Map(),
+        links: new Map(),
+        inputs: new Map(),
+        outputs: new Map(),
+      };
+      wrangler.nodeGroups.set('root', rootGroup);
+    }
+
+    // --- Set counters to be higher than any existing ID ---
+    wrangler.nodeCounter = maxNodeCounter + 1;
+    wrangler.linkCounter = maxLinkCounter + 1;
+
+    // --- Set active group to 'root' ---
+    wrangler.activeGroup = 'root';
+
     return wrangler;
   }
 }

@@ -1,13 +1,21 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { Text, Line, Box, Sphere } from '@react-three/drei';
-import { SolverState, Relation, Domain } from '../index';
+import type { Relation as RelationType } from '../core/constraints/language/relations';
+import type { Domain as DomainType } from '../core/constraints/language/types';
+
+// The debugger accepts a simplified state interface compatible with
+// both the core ConstraintState and the integration hook's SolverState
+export interface DebuggerState {
+  objects: Map<string, any>;
+  [key: string]: any;
+}
 
 export interface ConstraintDebuggerProps {
   /** Current solver state */
-  state: SolverState | null;
+  state: DebuggerState | null;
   /** Active constraints */
-  constraints: Relation[];
+  constraints: RelationType[];
   /** Show constraint domains */
   showDomains?: boolean;
   /** Highlight violations */
@@ -130,16 +138,15 @@ export const ConstraintDebugger: React.FC<ConstraintDebuggerProps> = ({
       
       {/* Statistics overlay */}
       <Text position={[-2, 2, 0]} fontSize={0.15} color="white" anchorX="left">
-        {`Iteration: ${state.iteration}`}
-        {`\nEnergy: ${state.energy.toFixed(2)}`}
-        {`\nViolations: ${Array.from(violationStatus.values()).filter(v => v).length}/${constraints.length}`}
+        {`Objects: ${state.objects.size}`}
+        {`\nBVH cached: ${state.bvhCache?.size ?? 0}`}
       </Text>
     </group>
   );
 };
 
 interface DomainVisualizerProps {
-  domain: Domain;
+  domain: DomainType;
   objectId: string;
 }
 
@@ -176,7 +183,7 @@ const DomainVisualizer: React.FC<DomainVisualizerProps> = ({ domain, objectId })
 };
 
 interface ConstraintVisualizerProps {
-  constraint: Relation;
+  constraint: RelationType;
   index: number;
   isViolated: boolean;
 }

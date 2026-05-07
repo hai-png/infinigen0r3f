@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { Waterfall, WaterfallTier } from './WaterfallGenerator';
 import { NoiseUtils } from '@/core/util/math/noise';
-import { SeededRandom } from '@/core/util/math/index';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 // ============================================================================
 // Configuration

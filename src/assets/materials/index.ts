@@ -70,6 +70,15 @@ export type {
   IndoorMaterialConfig,
 } from './MaterialPipeline';
 
+// Unified texture pipeline: GPU GLSL / Canvas / NodeGraph backends
+export { MaterialTexturePipeline, getMaterialTexturePipeline, generateProceduralTexture } from './MaterialTexturePipeline';
+export type {
+  UnifiedPBRTextureSet,
+  TextureBackend,
+  MaterialTexturePipelineConfig,
+  GenerateTextureOptions,
+} from './MaterialTexturePipeline';
+
 // 3D Material Evaluation — runtime GLSL shader pipeline
 export { Material3DEvaluator, CoordinateSpace, DEFAULT_3D_CONFIG } from './Material3DEvaluator';
 export type { MaterialPointEvaluation, Material3DConfig } from './Material3DEvaluator';

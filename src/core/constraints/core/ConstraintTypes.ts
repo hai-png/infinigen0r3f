@@ -1,6 +1,12 @@
 /**
  * Constraint Types for Infinigen R3F
  * Core constraint definitions ported from original Infinigen
+ *
+ * @deprecated This module defines a legacy constraint type system that predates
+ * the constraint language DSL (`language/`). New code should use the Relation
+ * classes from `language/relations.ts`, the expression system from
+ * `language/expression.ts`, and the evaluator from `evaluator/evaluate.ts`.
+ * This file will be removed in a future release once all consumers migrate.
  */
 
 import { Object3D } from 'three';

@@ -21,7 +21,7 @@ import * as THREE from 'three';
 import { Vector3 } from 'three';
 import { TerrainMesher } from '../mesher/TerrainMesher';
 import { NoiseUtils } from '@/core/util/math/noise';
-import { SeededRandom } from '../../core/util/math/index';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 export interface LakeConfig {
   seed: number;

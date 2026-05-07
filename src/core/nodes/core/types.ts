@@ -1,13 +1,23 @@
 /**
  * Node System - Core Types and Interfaces
- * 
+ *
  * Ports: infinigen/core/nodes/node_info.py
- * 
+ *
  * Defines the type system for Blender-style node graphs in TypeScript.
  * This enables procedural material and geometry generation similar to the original Infinigen.
+ *
+ * @deprecated Use `import { ... } from '../types'` (the clean top-level types module) or
+ * `import { ... } from '../registry'` for registry-backed types instead.
+ * This file is kept for backward compatibility until all consumers migrate.
  */
 
 import type { Domain } from '../../constraints/language/types';
+// Import SocketType and NodeSocket from socket-types.ts (canonical source)
+// and re-export them for backward compatibility with code that imports from ./types
+import { SocketType } from './socket-types';
+import type { NodeSocket } from './socket-types';
+export { SocketType };
+export type { NodeSocket };
 
 /**
  * Base interface for all node classes
@@ -36,43 +46,9 @@ export type AttributeDomain =
   | 'curve'
   | 'instance';
 
-/**
- * Socket types supported by the node system
- */
-export enum SocketType {
-  GEOMETRY = 'GEOMETRY',
-  VECTOR = 'VECTOR',
-  COLOR = 'COLOR',
-  FLOAT = 'FLOAT',
-  INTEGER = 'INTEGER',
-  INT = 'INT',
-  BOOLEAN = 'BOOLEAN',
-  STRING = 'STRING',
-  TEXTURE = 'TEXTURE',
-  MATERIAL = 'MATERIAL',
-  OBJECT = 'OBJECT',
-  COLLECTION = 'COLLECTION',
-  CURVE = 'CURVE',
-  MESH = 'MESH',
-  POINTS = 'POINTS',
-  INSTANCE = 'INSTANCE',
-  INSTANCES = 'INSTANCES',
-  VOLUME = 'VOLUME',
-  ANY = 'ANY',
-  VALUE = 'VALUE',
-  SHADER = 'SHADER',
-  ROTATION = 'ROTATION',
-  MATRIX = 'MATRIX',
-  LIGHT = 'LIGHT',
-  CAMERA = 'CAMERA',
-  RGB = 'RGB',
-  RGBA = 'RGBA',
-  UV = 'UV',
-  QUATERNION = 'QUATERNION',
-  TRANSFORM = 'TRANSFORM',
-  IMAGE = 'IMAGE',
-  WORLD = 'WORLD',
-}
+// SocketType enum removed — canonical definition is in socket-types.ts
+// Re-exported above for backward compatibility.
+// Use `import { SocketType } from './socket-types'` directly in new code.
 
 /**
  * Node categories organized by Blender's Shift-A menu structure
@@ -345,22 +321,9 @@ export enum NodeType {
   ForEachElementEnd = 'GeometryNodeForEachElementEnd',
 }
 
-/**
- * Socket definition for node inputs/outputs
- * Generic over the value type carried by the socket
- */
-export interface NodeSocket<T = any> {
-  name: string;
-  type: SocketType | string;
-  defaultValue?: T;
-  default?: T;
-  value?: T;
-  min?: number;
-  max?: number;
-  required?: boolean;
-  description?: string;
-  [key: string]: any; // Allow additional properties for flexibility
-}
+// NodeSocket interface removed — canonical definition is in socket-types.ts
+// Re-exported above for backward compatibility.
+// Use `import { NodeSocket } from './socket-types'` directly in new code.
 
 /**
  * Node definition structure

@@ -334,7 +334,7 @@ export function unionBounds(a: Bound, b: Bound): Bound {
 
 /**
  * Bound analysis - analyze constraints to extract bounds
- * Alias for constraintBounds used by core-consolidated module
+ * Alias for constraintBounds
  */
 export const boundAnalysis = constraintBounds;
 

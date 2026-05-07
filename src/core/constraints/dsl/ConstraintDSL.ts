@@ -1437,12 +1437,19 @@ export function compileConstraint(
 ): (...args: any[]) => any {
   const ast = parseConstraintSource(source);
 
-  // Import evaluator – using require() for synchronous loading.
-  // This avoids circular-dependency issues at module-load time because
-  // the evaluator module is only loaded when compileConstraint() is
-  // actually called, not when ConstraintDSL.ts is first imported.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { evaluateProgram, evaluateConstraint, EvalContext } = require('./evaluator') as typeof import('./evaluator');
+  // Lazy-load evaluator module to avoid circular dependencies at import time.
+  // The evaluator is only needed when compileConstraint() is actually called,
+  // not when ConstraintDSL.ts is first imported by other modules.
+  let _evaluator: typeof import('./evaluator') | null = null;
+  function getEvaluator() {
+    if (!_evaluator) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      _evaluator = require('./evaluator');
+    }
+    return _evaluator;
+  }
+
+  const { evaluateProgram, evaluateConstraint, EvalContext } = getEvaluator();
 
   // Find top-level constraint declarations
   const constraintDecls = ast.body.filter(

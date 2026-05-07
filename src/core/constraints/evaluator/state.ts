@@ -137,8 +137,6 @@ export interface BVHCacheEntry {
  * Main solver state container
  */
 export class State {
-  objs: Map<string, ObjectState> = new Map();
-  /** Alias for objs - many consumers use state.objects */
   objects: Map<string, ObjectState> = new Map();
   problem?: any; // Problem reference for moves
   trimeshScene: any = null; // Trimesh scene equivalent
@@ -152,7 +150,6 @@ export class State {
     bvhCache?: Map<[string[], Set<any>], BVHCacheEntry>
   ) {
     if (objects) {
-      this.objs = objects;
       this.objects = objects;
     }
     this.problem = problem;
@@ -165,35 +162,42 @@ export class State {
    * Get object by key
    */
   get(key: string): ObjectState | undefined {
-    return this.objs.get(key);
+    return this.objects.get(key);
   }
 
   /**
    * Set object
    */
   set(key: string, value: ObjectState): void {
-    this.objs.set(key, value);
+    this.objects.set(key, value);
   }
 
   /**
    * Delete object
    */
   delete(key: string): boolean {
-    return this.objs.delete(key);
+    return this.objects.delete(key);
+  }
+
+  /**
+   * Clear all objects
+   */
+  clear(): void {
+    this.objects.clear();
   }
 
   /**
    * Get number of objects
    */
   get size(): number {
-    return this.objs.size;
+    return this.objects.size;
   }
 
   /**
    * Get an ObjectState by name/key - alias for get()
    */
   getObject(key: string): ObjectState | undefined {
-    return this.objs.get(key);
+    return this.objects.get(key);
   }
 
   /**
@@ -201,7 +205,7 @@ export class State {
    */
   getActiveObjectNames(): string[] {
     const result: string[] = [];
-    for (const [name, obj] of this.objs.entries()) {
+    for (const [name, obj] of this.objects.entries()) {
       if (obj.active) {
         result.push(name);
       }
@@ -214,7 +218,7 @@ export class State {
    */
   toJSON(): any {
     return {
-      objs: Array.from(this.objs.entries()).map(([name, obj]) => ({
+      objs: Array.from(this.objects.entries()).map(([name, obj]) => ({
         name,
         tags: obj.tags.toArray().map(t => t.toString()),
         active: obj.active,
@@ -319,7 +323,7 @@ export class State {
         );
       });
       
-      state.objs.set(objData.name, objState);
+      state.objects.set(objData.name, objState);
     }
     
     return state;
@@ -331,7 +335,7 @@ export class State {
  * This is used to optimize solving by skipping objects that don't affect violations
  */
 export function poseAffectsScore(state: State, objName: string): boolean {
-  const obj = state.objs.get(objName);
+  const obj = state.objects.get(objName);
   if (!obj) return false;
   
   if ((obj as any)._poseAffectsScore !== null) {
@@ -357,7 +361,7 @@ export function poseAffectsScore(state: State, objName: string): boolean {
   }
   
   // Also check if any other object has a relation targeting this object
-  for (const [otherName, otherObj] of state.objs.entries()) {
+  for (const [otherName, otherObj] of state.objects.entries()) {
     if (otherName === objName) continue;
     
     for (const rel of otherObj.relations) {

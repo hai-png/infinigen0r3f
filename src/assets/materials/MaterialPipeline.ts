@@ -8,7 +8,7 @@
  * 1. MaterialPresetLibrary — 50+ named material presets with PBR parameters
  * 2. NodeGraphMaterialBridge — Converts NodeEvaluator BSDF output to MeshPhysicalMaterial
  * 3. NodeGraphTextureBridge — Converts texture node outputs to Three.js Textures
- * 4. TextureBakePipeline — Bakes full PBR texture sets from material parameters
+ * 4. MaterialTexturePipeline — Unified texture generation (GPU GLSL / Canvas / NodeGraph)
  * 5. Material3DEvaluator — Runtime GLSL shader pipeline for 3D material evaluation
  * 6. RuntimeMaterialBuilder — Node graph → GLSL ShaderMaterial conversion
  *
@@ -35,10 +35,12 @@ import * as THREE from 'three';
 import { MaterialPresetLibrary, type MaterialPreset, type MaterialCategory, type PresetVariation } from './MaterialPresetLibrary';
 import { NodeGraphMaterialBridge, type BSDFOutput, type NodeEvaluationOutput } from '../../core/nodes/execution/NodeGraphMaterialBridge';
 import { NodeGraphTextureBridge, type TextureNodeOutput } from '../../core/nodes/execution/NodeGraphTextureBridge';
-import { TextureBakePipeline, type PBRTextureSet, type CanvasPBRTextureSet, type BakeResolution, type MaterialPBRParams, type PresetBakeOptions } from './textures/TextureBakePipeline';
+import { MaterialTexturePipeline, type UnifiedPBRTextureSet, type TextureBackend, type GenerateTextureOptions } from './MaterialTexturePipeline';
+import { type PBRTextureSet, type CanvasPBRTextureSet, type BakeResolution, type MaterialPBRParams, type PresetBakeOptions } from './textures/TextureBakePipeline';
+import { TextureBakePipeline } from './textures/TextureBakePipeline';
 import { Material3DEvaluator, CoordinateSpace, type Material3DConfig, DEFAULT_3D_CONFIG } from './Material3DEvaluator';
 import { RuntimeMaterialBuilder, type NodeGraph3DConfig } from './RuntimeMaterialBuilder';
-import { NodeGraph, NodeEvaluator, EvaluationMode } from '../../core/nodes/execution/NodeEvaluator';
+import { NodeGraph, NodeEvaluator, EvaluationMode } from '../../core/nodes/execution/';
 import { evaluateToMaterial, type EvaluateToMaterialOptions, type EvaluateToMaterialResult } from '../../core/nodes/execution/EvaluateToMaterial';
 
 // ============================================================================
@@ -97,6 +99,7 @@ export class MaterialPipeline {
   private materialBridge = new NodeGraphMaterialBridge();
   private textureBridge = new NodeGraphTextureBridge();
   private presetLibrary = new MaterialPresetLibrary();
+  private texturePipeline = new MaterialTexturePipeline();
   private bakePipeline = new TextureBakePipeline();
   private evaluator3D = new Material3DEvaluator();
   private runtimeBuilder = new RuntimeMaterialBuilder();
@@ -126,8 +129,10 @@ export class MaterialPipeline {
       resolution?: BakeResolution;
       /** Use category-aware procedural bake instead of generic (default: true) */
       useProcedural?: boolean;
+      /** Preferred texture generation backend (default: auto-select best) */
+      backend?: TextureBackend;
     }
-  ): THREE.MeshPhysicalMaterial {
+  ): Promise<THREE.MeshPhysicalMaterial> | THREE.MeshPhysicalMaterial {
     if (typeof nameOrGraph === 'string') {
       return this.createMaterialFromName(nameOrGraph, options);
     } else {
@@ -137,38 +142,36 @@ export class MaterialPipeline {
 
   /**
    * Create a material from a preset name with full PBR textures.
-   * Uses the TextureBakePipeline.bakeProceduralSet() for category-aware
-   * noise patterns (voronoi for scales, domain warp for wood, etc).
+   * Uses the MaterialTexturePipeline for unified texture generation
+   * (GPU GLSL / Canvas / NodeGraph — same parameters regardless of backend).
    */
-  private createMaterialFromName(
+  private async createMaterialFromName(
     name: string,
     options?: {
       variation?: Partial<PresetVariation>;
       resolution?: BakeResolution;
       useProcedural?: boolean;
+      backend?: TextureBackend;
     }
-  ): THREE.MeshPhysicalMaterial {
+  ): Promise<THREE.MeshPhysicalMaterial> {
     const preset = this.presetLibrary.getPreset(name);
     if (!preset) {
       console.warn(`MaterialPipeline: Unknown preset "${name}", returning default material`);
-      return this.createDefaultMaterial();
+      return Promise.resolve(this.createDefaultMaterial());
     }
 
     const resolution = options?.resolution ?? 512;
     const useProcedural = options?.useProcedural ?? true;
     const params = this.applyVariation(preset.params, options?.variation);
 
-    // Use the named preset pipeline: name → category detection → procedural bake → material
-    const textureSet = this.bakePipeline.bakeFromPresetName(name, params, {
-      category: preset.category,
+    // Use the unified texture pipeline: name → category detection → best backend → material
+    const material = await this.texturePipeline.generateMaterial(preset.category, params, {
       resolution,
       useProcedural,
-      outputFormat: 'data', // MeshPhysicalMaterial works with DataTexture
-    }) as PBRTextureSet;
+      backend: options?.backend,
+    });
 
-    const material = this.bakePipeline.createMaterial(textureSet, params);
     this.applyPhysicalOverrides(material, preset.physicalOverrides);
-
     material.name = `Pipeline_${name}`;
     return material;
   }
@@ -238,7 +241,7 @@ export class MaterialPipeline {
    * parameter overrides (moisture, temperature, elevation), and bakes
    * procedural PBR textures.
    */
-  createTerrainMaterial(biomeOrConfig: TerrainMaterialConfig['biome'] | TerrainMaterialConfig): THREE.MeshPhysicalMaterial {
+  async createTerrainMaterial(biomeOrConfig: TerrainMaterialConfig['biome'] | TerrainMaterialConfig): Promise<THREE.MeshPhysicalMaterial> {
     const config: TerrainMaterialConfig = typeof biomeOrConfig === 'string'
       ? { biome: biomeOrConfig }
       : biomeOrConfig;
@@ -256,7 +259,7 @@ export class MaterialPipeline {
     const presetName = biomePresets[config.biome] ?? 'dirt';
     const preset = this.presetLibrary.getPreset(presetName);
     if (!preset) {
-      return this.createDefaultMaterial();
+      return Promise.resolve(this.createDefaultMaterial());
     }
 
     // Apply biome-specific overrides
@@ -287,13 +290,12 @@ export class MaterialPipeline {
     const variation = config.variation;
     params = this.applyVariation(params, variation);
 
-    const textureSet = this.bakePipeline.bakeFromPresetName(presetName, params, {
-      category: 'terrain',
+    // Use the unified texture pipeline for terrain materials
+    const material = await this.texturePipeline.generateMaterial('terrain', params, {
       resolution: config.resolution ?? 512,
       useProcedural: true,
-    }) as PBRTextureSet;
+    });
 
-    const material = this.bakePipeline.createMaterial(textureSet, params);
     this.applyPhysicalOverrides(material, preset.physicalOverrides);
     material.name = `Pipeline_Terrain_${config.biome}`;
     return material;
@@ -310,10 +312,10 @@ export class MaterialPipeline {
    * Maps skin type to the best creature preset, applies pattern/color overrides,
    * and bakes procedural PBR textures with voronoi (scales) or musgrave (skin) noise.
    */
-  createCreatureMaterial(
+  async createCreatureMaterial(
     typeOrConfig: CreatureMaterialConfig['skinType'] | CreatureMaterialConfig,
     skinConfig?: Partial<Omit<CreatureMaterialConfig, 'skinType'>>
-  ): THREE.MeshPhysicalMaterial {
+  ): Promise<THREE.MeshPhysicalMaterial> {
     const config: CreatureMaterialConfig = typeof typeOrConfig === 'string'
       ? { skinType: typeOrConfig, ...skinConfig }
       : typeOrConfig;
@@ -329,7 +331,7 @@ export class MaterialPipeline {
     const presetName = skinPresets[config.skinType] ?? 'fur';
     const preset = this.presetLibrary.getPreset(presetName);
     if (!preset) {
-      return this.createDefaultMaterial();
+      return Promise.resolve(this.createDefaultMaterial());
     }
 
     // Apply creature-specific overrides
@@ -369,13 +371,12 @@ export class MaterialPipeline {
     const variation = config.variation;
     params = this.applyVariation(params, variation);
 
-    const textureSet = this.bakePipeline.bakeFromPresetName(presetName, params, {
-      category: 'creature',
+    // Use the unified texture pipeline for creature materials
+    const material = await this.texturePipeline.generateMaterial('creature', params, {
       resolution: config.resolution ?? 512,
       useProcedural: true,
-    }) as PBRTextureSet;
+    });
 
-    const material = this.bakePipeline.createMaterial(textureSet, params);
     this.applyPhysicalOverrides(material, preset.physicalOverrides);
     material.name = `Pipeline_Creature_${config.skinType}`;
     return material;
@@ -391,7 +392,7 @@ export class MaterialPipeline {
    * Maps indoor category to appropriate presets, applies wear/age,
    * and bakes procedural PBR textures.
    */
-  createIndoorMaterial(categoryOrConfig: IndoorMaterialConfig['category'] | IndoorMaterialConfig): THREE.MeshPhysicalMaterial {
+  async createIndoorMaterial(categoryOrConfig: IndoorMaterialConfig['category'] | IndoorMaterialConfig): Promise<THREE.MeshPhysicalMaterial> {
     const config: IndoorMaterialConfig = typeof categoryOrConfig === 'string'
       ? { category: categoryOrConfig }
       : categoryOrConfig;
@@ -408,7 +409,7 @@ export class MaterialPipeline {
     const presetName = indoorPresets[config.category] ?? 'table_wood';
     const preset = this.presetLibrary.getPreset(presetName);
     if (!preset) {
-      return this.createDefaultMaterial();
+      return Promise.resolve(this.createDefaultMaterial());
     }
 
     // Apply indoor-specific overrides
@@ -435,14 +436,13 @@ export class MaterialPipeline {
     const variation = config.variation;
     params = this.applyVariation(params, variation);
 
-    const category = preset.category; // Use the preset's actual category for procedural bake
-    const textureSet = this.bakePipeline.bakeFromPresetName(presetName, params, {
-      category,
+    // Use the unified texture pipeline for indoor materials
+    const category = preset.category;
+    const material = await this.texturePipeline.generateMaterial(category, params, {
       resolution: config.resolution ?? 512,
       useProcedural: true,
-    }) as PBRTextureSet;
+    });
 
-    const material = this.bakePipeline.createMaterial(textureSet, params);
     this.applyPhysicalOverrides(material, preset.physicalOverrides);
     material.name = `Pipeline_Indoor_${config.category}`;
     return material;
@@ -468,27 +468,23 @@ export class MaterialPipeline {
 
   /**
    * Create material from a preset name with full PBR texture bake.
-   * Uses TextureBakePipeline to generate albedo, normal, roughness, metallic, AO, height maps.
+   * Uses MaterialTexturePipeline for unified texture generation.
    */
-  fromPresetBaked(name: string, resolution: BakeResolution = 512, variation?: Partial<PresetVariation>): THREE.MeshPhysicalMaterial {
+  async fromPresetBaked(name: string, resolution: BakeResolution = 512, variation?: Partial<PresetVariation>): Promise<THREE.MeshPhysicalMaterial> {
     const preset = this.presetLibrary.getPreset(name);
     if (!preset) {
       console.warn(`MaterialPipeline: Unknown preset "${name}", returning default material`);
-      return this.createDefaultMaterial();
+      return Promise.resolve(this.createDefaultMaterial());
     }
 
     // Apply variation to params
     const params = this.applyVariation(preset.params, variation);
 
-    // Bake PBR texture set using the named pipeline
-    const textureSet = this.bakePipeline.bakeFromPresetName(name, params, {
-      category: preset.category,
+    // Use the unified texture pipeline
+    const material = await this.texturePipeline.generateMaterial(preset.category, params, {
       resolution,
       useProcedural: true,
-    }) as PBRTextureSet;
-
-    // Create material with baked textures
-    const material = this.bakePipeline.createMaterial(textureSet, params);
+    });
 
     // Apply physical overrides from preset
     this.applyPhysicalOverrides(material, preset.physicalOverrides);
@@ -789,6 +785,13 @@ export class MaterialPipeline {
 
   getBakePipeline(): TextureBakePipeline {
     return this.bakePipeline;
+  }
+
+  /**
+   * Get the unified texture pipeline for advanced usage
+   */
+  getTexturePipeline(): MaterialTexturePipeline {
+    return this.texturePipeline;
   }
 
   /**

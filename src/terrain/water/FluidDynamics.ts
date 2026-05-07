@@ -9,7 +9,7 @@
 
 import * as THREE from 'three';
 import { createNoise3D, NoiseFunction3D } from 'simplex-noise';
-import { SeededRandom } from '../../core/util/math/index';
+import { SeededRandom } from '@/core/util/MathUtils';
 import { SPHSurfaceExtractor } from '../../sim/fluid/SPHSurfaceExtractor';
 import type { SPHSurfaceExtractorConfig } from '../../sim/fluid/SPHSurfaceExtractor';
 

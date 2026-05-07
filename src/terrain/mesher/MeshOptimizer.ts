@@ -8,7 +8,7 @@
  */
 
 import { BufferGeometry, Vector3, Vector2, BufferAttribute } from 'three';
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 export interface OptimizationConfig {
   targetFaceCount: number;

@@ -1,6 +1,10 @@
 /**
  * Socket Types for Node System
  * Based on infinigen/core/nodes/node_info.py socket mappings
+ *
+ * @deprecated Use `import { SocketType, NodeSocket, SocketDefinition, GeometryDataType } from '../registry/socket-types'`
+ * or the clean top-level `import { SocketTypeEnum, NodeSocket, SocketDefinition } from '../registry'` instead.
+ * This file is kept for backward compatibility until all consumers migrate.
  */
 
 export enum SocketType {

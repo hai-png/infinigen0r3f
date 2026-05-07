@@ -82,8 +82,8 @@ export function evaluateDistance(
   const obj1Name = childVals.get('obj1');
   const obj2Name = childVals.get('obj2');
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return Infinity;
@@ -140,8 +140,8 @@ export function evaluateTouching(
   const obj1Name = childVals.get('obj1');
   const obj2Name = childVals.get('obj2');
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 1; // Not touching
@@ -192,8 +192,8 @@ export function evaluateSupportedBy(
   const obj1Name = childVals.get('obj1');
   const obj2Name = childVals.get('obj2');
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 1;
@@ -277,8 +277,8 @@ export function evaluateStableAgainst(
   const obj1Name = childVals.get('obj1');
   const obj2Name = childVals.get('obj2');
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 1;
@@ -389,8 +389,8 @@ export function evaluateCoverage(
   const obj1Name = childVals.get('obj1');
   const obj2Name = childVals.get('obj2');
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 0;
@@ -467,8 +467,8 @@ export function evaluateCoPlanar(
   const obj2Name = childVals.get('obj2');
   const plane = childVals.get('plane') || 'top';
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 1;
@@ -563,8 +563,8 @@ export function evaluateFacing(
   const obj1Name = childVals.get('obj1');
   const obj2Name = childVals.get('obj2');
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 1;
@@ -622,8 +622,8 @@ export function evaluateAccessibleFrom(
   const obj1Name = childVals.get('obj1');
   const obj2Name = childVals.get('obj2');
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 1;
@@ -649,7 +649,7 @@ export function evaluateAccessibleFrom(
 
       // Get all other objects in the scene as potential obstacles
       const obstacles: THREE.Object3D[] = [];
-      for (const [name, objState] of state.objs.entries()) {
+      for (const [name, objState] of state.objects.entries()) {
         if (name !== obj1Name && name !== obj2Name && objState.obj) {
           obstacles.push(objState.obj);
         }
@@ -684,8 +684,8 @@ export function evaluateVisible(
   const objName = childVals.get('obj');
   const viewerName = childVals.get('viewer');
 
-  const objState = state.objs.get(objName);
-  const viewerState = viewerName ? state.objs.get(viewerName) : null;
+  const objState = state.objects.get(objName);
+  const viewerState = viewerName ? state.objects.get(viewerName) : null;
 
   if (!objState || !objState.obj) {
     return 1;
@@ -722,7 +722,7 @@ export function evaluateVisible(
 
       // Get all other objects as potential occluders
       const occluders: THREE.Object3D[] = [];
-      for (const [name, os] of state.objs.entries()) {
+      for (const [name, os] of state.objects.entries()) {
         if (name !== objName && name !== viewerName && os.obj) {
           occluders.push(os.obj);
         }
@@ -773,8 +773,8 @@ export function evaluateHasLineOfSight(
   const obj1Name = childVals.get('obj1');
   const obj2Name = childVals.get('obj2');
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 1; // No line of sight
@@ -790,7 +790,7 @@ export function evaluateHasLineOfSight(
 
     // Get all other objects as potential obstacles
     const obstacles: THREE.Object3D[] = [];
-    for (const [name, os] of state.objs.entries()) {
+    for (const [name, os] of state.objects.entries()) {
       if (name !== obj1Name && name !== obj2Name && os.obj) {
         obstacles.push(os.obj);
       }
@@ -822,8 +822,8 @@ export function evaluateContains(
   const obj1Name = childVals.get('obj1'); // Container
   const obj2Name = childVals.get('obj2'); // Contained
 
-  const obj1State = state.objs.get(obj1Name);
-  const obj2State = state.objs.get(obj2Name);
+  const obj1State = state.objects.get(obj1Name);
+  const obj2State = state.objects.get(obj2Name);
 
   if (!obj1State || !obj2State || !obj1State.obj || !obj2State.obj) {
     return 1; // Not contained

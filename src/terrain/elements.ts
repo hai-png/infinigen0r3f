@@ -1,13 +1,28 @@
 /**
  * Terrain Elements - Terrain feature and element generation
- * 
- * Provides generators for terrain elements like rocks, boulders,
- * cliffs, vegetation patches, and other surface features.
- * 
- * Also re-exports the Unified Element Composition System from
- * the SDF module for composable terrain generation.
+ *
+ * Provides the TerrainElement data interface used by TerrainElementGenerators
+ * and re-exports the Unified Element Composition System from the SDF module
+ * for composable terrain generation.
+ *
+ * NOTE: The legacy stub generators (RockElementGenerator, VegetationPatchGenerator)
+ * that returned empty arrays have been removed. Use either:
+ * - The SDF element system (GroundElement, MountainElement, etc.) for SDF-based terrain
+ * - The generator functions in TerrainElementGenerators.ts for placement-based elements
+ *
+ * Two element paradigms coexist:
+ * 1. TerrainElement (position/rotation/scale tuples) — for scatter/placement use cases
+ * 2. SDFTerrainElement (SDF evaluation with material IDs) — for volumetric terrain composition
  */
 
+// ---------------------------------------------------------------------------
+// Placement-based element interface (used by TerrainElementGenerators.ts)
+// ---------------------------------------------------------------------------
+
+/**
+ * A terrain element descriptor with position, rotation, scale, and properties.
+ * Used for scatter/placement-based element generation (rocks, cliffs, etc.).
+ */
 export interface TerrainElement {
   type: string;
   position: [number, number, number];
@@ -16,25 +31,10 @@ export interface TerrainElement {
   properties: Record<string, any>;
 }
 
-export interface ElementGenerator {
-  generate(seed: number, bounds: { minX: number; maxX: number; minZ: number; maxZ: number }): TerrainElement[];
-}
+// ---------------------------------------------------------------------------
+// SDF Element Composition System (re-exports)
+// ---------------------------------------------------------------------------
 
-class RockElementGenerator implements ElementGenerator {
-  generate(seed: number, bounds: { minX: number; maxX: number; minZ: number; maxZ: number }): TerrainElement[] {
-    return [];
-  }
-}
-
-class VegetationPatchGenerator implements ElementGenerator {
-  generate(seed: number, bounds: { minX: number; maxX: number; minZ: number; maxZ: number }): TerrainElement[] {
-    return [];
-  }
-}
-
-export { RockElementGenerator, VegetationPatchGenerator };
-
-// Re-export from the Unified Element Composition System
 export type {
   ElementEvalResult,
   SceneCompositionConfig,

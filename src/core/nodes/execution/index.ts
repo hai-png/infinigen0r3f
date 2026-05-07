@@ -1,23 +1,49 @@
 /**
- * Node Execution Layer - Index
+ * Node Execution Layer — Barrel Export
  *
  * Provides the complete node evaluation pipeline for converting
  * node graphs into renderable Three.js materials, textures, and geometry.
  *
+ * ## Clean API
+ *
+ * The three primary sub-modules are:
+ * - `./executor-registry` — O(1) Map-lookup executor registry
+ * - `./NodeEvaluator`     — Topological sort and graph evaluation
+ * - `./csg-boolean`       — CSG boolean operations (three-bvh-csg)
+ *
+ * ## Backward Compatibility
+ *
+ * The nine legacy executor module files are re-exported as namespace
+ * objects so that existing `import * as X from './X'` usage continues
+ * to work while consumers migrate to the clean API.
+ *
  * @module @infinigen/r3f/nodes/execution
  */
 
-// ExecutorTypes — Shared type definitions for the node execution subsystem
-export type {
-  NodeInputs,
-  NodeOutput,
-  Vector3Like,
-  ColorLike,
-  GeometryLike,
-  NodeExecutorFunction,
-} from './ExecutorTypes';
+// ============================================================================
+// Clean API — Executor Registry
+// ============================================================================
 
-// NodeEvaluator - Topological sort and graph evaluation
+export type {
+  NodeExecutor,
+  ExecutorContext,
+} from './executor-registry';
+
+export {
+  registerExecutor,
+  registerExecutorRaw,
+  registerExecutorAliases,
+  getExecutor,
+  hasExecutor,
+  executeNode,
+  registerAllExecutors,
+  getExecutorCount,
+} from './executor-registry';
+
+// ============================================================================
+// Clean API — Node Evaluator
+// ============================================================================
+
 export {
   NodeEvaluator,
   EvaluationMode,
@@ -30,6 +56,64 @@ export type {
   NodeEvaluationResult,
   NodeGraph,
 } from './NodeEvaluator';
+
+// ============================================================================
+// Clean API — CSG Boolean Operations
+// ============================================================================
+
+export {
+  performCSGBoolean,
+  mergeGeometries,
+} from './csg-boolean';
+
+export type {
+  BooleanOperation,
+} from './csg-boolean';
+
+// ============================================================================
+// Backward-Compatible Executor Module Re-exports
+// ============================================================================
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as CoreNodeExecutors from './CoreNodeExecutors';
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as ExtendedNodeExecutors from './ExtendedNodeExecutors';
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as AdditionalNodeExecutors from './AdditionalNodeExecutors';
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as ExpandedNodeExecutors from './ExpandedNodeExecutors';
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as EssentialNodeExecutors from './EssentialNodeExecutors';
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as SpecializedNodeExecutors from './SpecializedNodeExecutors';
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as P1NodeExecutors from './P1NodeExecutors';
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as P2NodeExecutors from './P2NodeExecutors';
+
+/** @deprecated Import individual executors from `./executor-registry` instead */
+export * as ShaderNodeExecutors from './ShaderNodeExecutors';
+
+// ============================================================================
+// Extended Pipeline — kept for consumers that need the full execution stack
+// ============================================================================
+
+// ExecutorTypes — Shared type definitions for the node execution subsystem
+export type {
+  NodeInputs,
+  NodeOutput,
+  Vector3Like,
+  ColorLike,
+  GeometryLike,
+  NodeExecutorFunction,
+} from './ExecutorTypes';
 
 // ShaderCompiler - GLSL shader generation from node graphs
 export {
@@ -183,8 +267,9 @@ export {
 } from './ExtendedNodeExecutors';
 
 // AdditionalNodeExecutors - 30 additional texture coordinate, geometry operation, texture/evaluation, color/mix, and math/utility executors
+// Note: AdditionalNodeExecutors namespace is re-exported above for backward compatibility
 export {
-  AdditionalNodeExecutors,
+  // AdditionalNodeExecutors is exported as a namespace above
   executeTextureCoordinate,
   executeMapping,
   executeUVMap,
@@ -217,11 +302,10 @@ export {
   executeAccumulateField,
 } from './AdditionalNodeExecutors';
 
-
-
 // ExpandedNodeExecutors - 30 additional mesh topology, attribute, curve modifier, instance, volume/point, geometry, and shader input executors
+// Note: ExpandedNodeExecutors namespace is re-exported above for backward compatibility
 export {
-  ExpandedNodeExecutors,
+  // ExpandedNodeExecutors is exported as a namespace above
   executeDualMesh,
   executeEdgeNeighbors,
   executeEdgeVertices,
@@ -255,8 +339,9 @@ export {
 } from './ExpandedNodeExecutors';
 
 // EssentialNodeExecutors - 32 essential executors for Infinigen pipelines
+// Note: EssentialNodeExecutors namespace is re-exported above for backward compatibility
 export {
-  EssentialNodeExecutors,
+  // EssentialNodeExecutors is exported as a namespace above
   executeJoinGeometry,
   executeSeparateGeometry,
   executeDeleteGeometry,
@@ -293,8 +378,9 @@ export {
 } from './EssentialNodeExecutors';
 
 // SpecializedNodeExecutors - 41 specialized executors for shader inputs, topology, light data, etc.
+// Note: SpecializedNodeExecutors namespace is re-exported above for backward compatibility
 export {
-  SpecializedNodeExecutors,
+  // SpecializedNodeExecutors is exported as a namespace above
   executeLayerWeight,
   executeLightPath,
   executeWireframe,

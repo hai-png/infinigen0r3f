@@ -72,7 +72,8 @@ import { GroundCoverGenerator, type GroundCoverType } from '@/assets/objects/sca
 import { LeafLitterGenerator, type LeafLitterConfig } from '@/assets/objects/scatter/ground/LeafLitterGenerator';
 import { PebbleGenerator, type PebbleConfig } from '@/assets/objects/scatter/ground/PebbleGenerator';
 
-// Existing generators — underwater
+// Existing generators — underwater (CoralGenerator is deprecated; canonical import is objects/coral/)
+/** @deprecated Use BranchingCoralGenerator/BrainCoralGenerator/FanCoralGenerator from objects/coral/ instead */
 import { CoralGenerator, type CoralSpecies } from '@/assets/objects/underwater/CoralGenerator';
 import { SeaweedGenerator } from '@/assets/objects/underwater/SeaweedGenerator';
 

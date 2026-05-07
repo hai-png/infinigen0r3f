@@ -6,7 +6,7 @@
  */
 
 import { Vector3, Quaternion, Color, MathUtils, Box3 } from 'three';
-import { TerrainGenerator, type TerrainConfig, type TerrainData } from '@/terrain/core/TerrainGenerator';
+import { TerrainGenerator, type TerrainGeneratorConfig, type TerrainData } from '@/terrain/core/TerrainGenerator';
 import { BiomeSystem, type BiomeType, type BiomeGrid } from '@/terrain/biomes/core/BiomeSystem';
 import { BiomeFramework, BiomeInterpolator, BiomeScatterer, type ScatteredAsset } from '@/terrain/biomes/core/BiomeFramework';
 import { BiomeScatterMapping, type BiomeScatterProfile, type ScatterEntry, type BiomeScatterConfig, getScatterConfigForBiome, BIOME_SCATTER_CONFIGS } from '@/terrain/biomes/core/BiomeScatterMapping';
@@ -366,20 +366,17 @@ export class NatureSceneComposer {
 
     if (!heightData || !slopeData) return null;
 
-    // Use the BiomeGrid from TerrainGenerator if available (avoids double-computation)
-    let biomeGrid: BiomeGrid;
-    if (terrain.biomeGrid) {
-      biomeGrid = terrain.biomeGrid;
-    } else {
-      // Fallback: generate biome grid using BiomeSystem directly
-      biomeGrid = this.biomeSystem.generateBiomeGrid(
-        heightData,
-        slopeData,
-        w,
-        h,
-        { seed: this.seed, seaLevel: this.result.terrainParams.seaLevel }
-      );
-    }
+    // Always generate full BiomeGrid from BiomeSystem.
+    // The simplified BiomeGrid in TerrainData is for lightweight lookup only;
+    // NatureSceneComposer needs the full grid with temperature, moisture,
+    // blend weights, and biomeIndexToType.
+    const biomeGrid = this.biomeSystem.generateBiomeGrid(
+      heightData,
+      slopeData,
+      w,
+      h,
+      { seed: this.seed, seaLevel: this.result.terrainParams.seaLevel }
+    );
 
     this.result.biomeGrid = biomeGrid;
 

@@ -123,7 +123,9 @@ export {
   type Season,
 } from './scatter/ForestFloorScatter';
 
-// Coral Growth Algorithms (differential growth, reaction-diffusion, Laplacian growth)
+// Coral Growth Algorithms — @deprecated Import from `@/assets/objects/coral/` instead.
+// The objects/coral/ module is now the canonical import location for ALL coral generators,
+// combining both class-based (Branching, Fan, Brain) and algorithm-based generators.
 export {
   DifferentialGrowth,
   GrayScottReactionDiffusion,
@@ -140,7 +142,7 @@ export {
   type GrayScottParams,
 } from './coral';
 
-// Coral Growth Algorithms (Phase 2: vertex-based reaction-diffusion, differential growth)
+// Coral Growth Algorithms Phase 2 — @deprecated Import from `@/assets/objects/coral/` instead.
 export {
   ReactionDiffusionCoralGenerator,
   generateReactionDiffusionCoral,

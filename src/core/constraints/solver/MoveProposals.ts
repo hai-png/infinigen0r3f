@@ -239,7 +239,6 @@ export class AdditionMove extends MoveOperator {
   private getObjectsMap(state: any): Map<string, any> | null {
     if (!state) return null;
     if (state.objects instanceof Map) return state.objects;
-    if (state.objs instanceof Map) return state.objs;
     if (state.assignments instanceof Map) return state.assignments;
     return null;
   }
@@ -317,7 +316,6 @@ export class DeletionMove extends MoveOperator {
   private getObjectsMap(state: any): Map<string, any> | null {
     if (!state) return null;
     if (state.objects instanceof Map) return state.objects;
-    if (state.objs instanceof Map) return state.objs;
     return null;
   }
 }
@@ -382,7 +380,6 @@ export class SwapMove extends MoveOperator {
   private getObjectsMap(state: any): Map<string, any> | null {
     if (!state) return null;
     if (state.objects instanceof Map) return state.objects;
-    if (state.objs instanceof Map) return state.objs;
     return null;
   }
 }
@@ -445,7 +442,6 @@ export class ReassignmentMove extends MoveOperator {
   private getObjectsMap(state: any): Map<string, any> | null {
     if (!state) return null;
     if (state.objects instanceof Map) return state.objects;
-    if (state.objs instanceof Map) return state.objs;
     return null;
   }
 }
@@ -592,7 +588,6 @@ export class PoseMove extends MoveOperator {
   private getObjectsMap(state: any): Map<string, any> | null {
     if (!state) return null;
     if (state.objects instanceof Map) return state.objects;
-    if (state.objs instanceof Map) return state.objs;
     return null;
   }
 }
@@ -678,7 +673,6 @@ export class PlaneChangeMove extends MoveOperator {
   private getObjectsMap(state: any): Map<string, any> | null {
     if (!state) return null;
     if (state.objects instanceof Map) return state.objects;
-    if (state.objs instanceof Map) return state.objs;
     return null;
   }
 
@@ -759,7 +753,6 @@ export class ResampleMove extends MoveOperator {
   private getObjectsMap(state: any): Map<string, any> | null {
     if (!state) return null;
     if (state.objects instanceof Map) return state.objects;
-    if (state.objs instanceof Map) return state.objs;
     return null;
   }
 }

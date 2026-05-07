@@ -25,7 +25,7 @@ export {
 // Socket types (canonical source for SocketType and NodeSocket)
 export * from './socket-types';
 
-// Node type identifiers
+// Node type identifiers (legacy — use CanonicalNodeType for new code)
 export { NodeTypes } from './node-types';
 export { default as NodeTypesDefault } from './node-types';
 
@@ -46,6 +46,19 @@ export * from './NodeCodeSerializer';
 
 // Node definition registry
 export * from './node-definition-registry';
+
+// Unified NodeType registry — eliminates the dual-enum problem
+export {
+  type NodeType as CanonicalNodeType,
+  resolveNodeType,
+  isKnownNodeType,
+  registerNodeType,
+  getCanonicalNodeTypeNames,
+  getAliasesForCanonical,
+  getRegistryStats,
+  isSameNodeType,
+  resolveNodeTypes,
+} from './NodeTypeRegistry';
 
 // Per-vertex streaming
 export { AttributeStream, type AttributeDataType, type AttributeDomain as StreamAttributeDomain } from './attribute-stream';

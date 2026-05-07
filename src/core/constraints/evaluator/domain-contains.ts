@@ -26,7 +26,7 @@ export function domainContains(dom: Domain, state: State, obj: ObjectState): boo
     if (rel instanceof NegatedRelation) {
       // For negated relations, check that NO relation satisfies the constraint
       const hasViolation = obj.relations.some((relState: RelationState) => {
-        const targetObj = state.objs.get(relState.targetName);
+        const targetObj = state.objects.get(relState.targetName);
         if (!targetObj) return false;
         
         return relState.relation.intersects(rel.rel) &&
@@ -40,7 +40,7 @@ export function domainContains(dom: Domain, state: State, obj: ObjectState): boo
     } else {
       // For positive relations, check that AT LEAST ONE relation satisfies
       const hasSatisfying = obj.relations.some((relState: RelationState) => {
-        const targetObj = state.objs.get(relState.targetName);
+        const targetObj = state.objects.get(relState.targetName);
         if (!targetObj) return false;
         
         return relState.relation.intersects(rel) &&
@@ -63,7 +63,7 @@ export function domainContains(dom: Domain, state: State, obj: ObjectState): boo
 export function objKeysInDom(dom: Domain, state: State): string[] {
   const result: string[] = [];
   
-  for (const [key, obj] of state.objs.entries()) {
+  for (const [key, obj] of state.objects.entries()) {
     if (obj.active && domainContains(dom, state, obj)) {
       result.push(key);
     }

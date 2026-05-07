@@ -44,7 +44,7 @@ function computeNodeVal(node: Node, state: State, memo: Map<any, any>): any {
   // Handle special case nodes using type string checks
   if (node.type === 'SceneConstant') {
     return new Set(
-      Array.from(state.objs.entries())
+      Array.from(state.objects.entries())
         .filter(([_, obj]) => obj.active)
         .map(([name, _]) => name)
     );
@@ -100,7 +100,7 @@ function computeNodeVal(node: Node, state: State, memo: Map<any, any>): any {
     return res;
   }
 
-  throw new NotImplementedError(
+  throw new UnsupportedOperationError(
     `Couldnt compute value for ${node.constructor.name}. Please add it to nodeImpls or add a special case.`
   );
 }
@@ -121,7 +121,7 @@ export function relevant(node: Node, filter: Domain | null): boolean {
   if (node instanceof cl.ObjectSetExpression) {
     const d = constraintDomain(node);
     if (!domainFinalized(d as any)) {
-      throw new RuntimeError(`relevant encountered unfinalized domain: ${d}`);
+      throw new ConstraintRuntimeError(`relevant encountered unfinalized domain: ${d}`);
     }
     const res = d.intersects(filter as unknown as import('../language/types').Domain);
     console.debug(`relevant got ${res} for domain=${d}, filter=${filter}`);
@@ -162,7 +162,7 @@ function violCountBinopInteger(
       err = lhs - rhs + 1;
       break;
     default:
-      throw new ValueError(`Unhandled operator function: ${func}`);
+      throw new InvalidValueError(`Unhandled operator function: ${func}`);
   }
 
   return Math.max(err, 0);
@@ -270,7 +270,7 @@ export function violCount(
         res = 0;
       }
     } else {
-      throw new NotImplementedError(`Unhandled BoolOperatorExpression with func ${func}`);
+      throw new UnsupportedOperationError(`Unhandled BoolOperatorExpression with func ${func}`);
     }
   }
   
@@ -301,7 +301,7 @@ export function violCount(
   }
   
   else {
-    throw new NotImplementedError(
+    throw new UnsupportedOperationError(
       `Node is not supported for hard constraints. Please use an alternative.`
     );
   }
@@ -405,25 +405,25 @@ export function evaluateProblem(
   return new EvalResult(lossVals, violations);
 }
 
-// Custom error classes
-class NotImplementedError extends Error {
+// Custom error classes — TypeScript-native naming (not Python)
+class UnsupportedOperationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'NotImplementedError';
+    this.name = 'UnsupportedOperationError';
   }
 }
 
-class RuntimeError extends Error {
+class ConstraintRuntimeError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'RuntimeError';
+    this.name = 'ConstraintRuntimeError';
   }
 }
 
-class ValueError extends Error {
+class InvalidValueError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'ValueError';
+    this.name = 'InvalidValueError';
   }
 }
 

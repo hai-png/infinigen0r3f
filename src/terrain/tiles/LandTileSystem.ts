@@ -15,7 +15,7 @@
  */
 
 import * as THREE from 'three';
-import { SeededRandom, seededFbm, seededNoise2D, seededRidgedMultifractal } from '../../core/util/MathUtils';
+import { SeededRandom, seededFbm, seededNoise2D, seededRidgedMultifractal } from '@/core/util/MathUtils';
 import type { BiomeDefinition, BiomeBlend } from '../biomes/core/BiomeSystem';
 import { BiomeInterpolator } from '../biomes/core/BiomeFramework';
 import { HydraulicErosionProcess, ThermalWeatheringProcess, SedimentTransportProcess } from '../land-process';

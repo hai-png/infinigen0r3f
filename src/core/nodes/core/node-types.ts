@@ -1,4 +1,13 @@
 /**
+ * @deprecated Use `CanonicalNodeType` from './NodeTypeRegistry' for new code.
+ * This enum is kept for backward compatibility. New code should use canonical
+ * Blender-style identifiers (e.g., 'ShaderNodeTexNoise' instead of 'TextureNoiseNode').
+ * 
+ * Migration: Replace `NodeTypes.Foo` with the canonical string from NodeTypeRegistry.
+ * Example: NodeTypes.TextureNoise → 'ShaderNodeTexNoise' (import { CanonicalNodeType } from './NodeTypeRegistry')
+ */
+
+/**
  * Node Info - TypeScript equivalent of Blender node types
  * Based on infinigen/core/nodes/node_info.py
  * 
@@ -402,5 +411,11 @@ export enum NodeTypes {
   AmbientOcclusionOutput = AmbientOcclusion,
   LineOutput = FileOutput,
 }
+
+/**
+ * Re-export resolveNodeType for convenience.
+ * Use this to normalize any node type string to its canonical form.
+ */
+export { resolveNodeType } from './NodeTypeRegistry';
 
 export default NodeTypes;

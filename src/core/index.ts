@@ -1,32 +1,89 @@
 /**
  * Core Infinigen Engine Systems
- * 
+ *
  * This module contains the fundamental systems that power procedural generation:
  * - Nodes: Geometry node system for procedural modeling
  * - Constraints: Constraint-based reasoning and solving
  * - Placement: Object and camera placement algorithms
  * - Rendering: Rendering utilities and pipelines
  * - Util: Core utility functions
- * 
- * Note: Some names conflict between sub-modules. These are resolved here:
- * - Node: from ./constraints (abstract class, primary) — ./nodes has various Node-related types
- * - Tag: from ./constraints/tags (primary, class) — ./util/TaggingSystem has an interface Tag
+ *
+ * Name conflict: `Node` is exported by both `./constraints` (abstract class)
+ * and `./nodes` (interface). We resolve this by:
+ * 1. Not re-exporting the constraints' `Node` class at the top level
+ * 2. Making it available via the `constraints` namespace export
+ * 3. The nodes' `Node` interface is the top-level `Node` export
  */
 
-// Nodes - use the barrel which already resolves internal conflicts
+// Nodes — Node interface is the primary 'Node' export at this level
 export * from './nodes';
 
-// Constraints - primary source for: Node (class), Tag (class), VariableBinding, Expression
-// Node (class from constraints/language/types) conflicts with Node interface from nodes/core/types
-// Since nodes barrel was exported first, Node currently refers to nodes' Node interface
-// We explicitly re-export from constraints to make the class version take precedence
-export * from './constraints';
+// Constraints — available via namespace; individual exports may conflict with nodes
+// Use `import { constraints } from '@/core'` or import directly from submodule paths
+export * as constraints from './constraints';
+
+// Re-export commonly-used constraint symbols (excluding conflicting 'Node')
+export {
+  // Relations
+  Touching,
+  SupportedBy,
+  StableAgainst,
+  CoPlanar,
+  NegatedRelation,
+  GeometryRelation,
+  // Evaluator
+  ObjectState as ConstraintObjectState,
+  State as ConstraintState,
+  BVHQueryEngine,
+  // Solver
+  SimulatedAnnealingSolver,
+  GreedyPreSolver,
+  FullSolverLoop as MCMCSolver,
+  // Domain reasoning
+  BoxDomain,
+  SurfaceDomain,
+  RoomDomain,
+  // DSL
+  ConstraintLexer,
+  ConstraintParser,
+  TokenType as DSLTokenType,
+  ASTNodeType as DSLASTNodeType,
+  parseConstraintSource,
+  compileConstraint,
+  evaluateProgram,
+  EvalContext as DSLEvalContext,
+  // Unified system (import from constraints/unified directly if needed)
+  // UnifiedConstraintSystem,
+  // ConstraintProposalSystem,
+} from './constraints';
 
 // Placement
 export * from './placement';
 
 // Rendering
 export * from './rendering';
+
+// Unified Tag System — canonical source for Semantics, Subpart, Tag, TagSet
+export {
+  Semantics,
+  Subpart,
+  Tag as UnifiedTag,
+  TagSet as UnifiedTagSet,
+  toUnifiedTag,
+  toUnifiedTagSet,
+  UnifiedTaggingSystem,
+  createUnifiedTaggingSystem,
+} from './UnifiedTagSystem';
+
+export type {
+  TagOptions,
+  TagType as UnifiedTagType,
+  TagSetConfig,
+  TagDefinition,
+  TaggedObject as UnifiedTaggedObject,
+  TagQueryOptions as UnifiedTagQueryOptions,
+  TagRegistryConfig as UnifiedTagRegistryConfig,
+} from './UnifiedTagSystem';
 
 // Util - export selectively to avoid Tag interface conflict with constraints' Tag class
 export * from './util/MathUtils';

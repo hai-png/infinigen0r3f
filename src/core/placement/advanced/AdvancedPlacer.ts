@@ -11,7 +11,7 @@
 
 import { Vector3, Raycaster, Mesh, BufferGeometry, Matrix4 } from 'three';
 import { BBox } from '../../util/math/bbox';
-import type { Tag } from '../../tags';
+import type { Tag } from '../../UnifiedTagSystem';
 import { SeededRandom } from '../../util/MathUtils';
 
 /** Tag query type for semantic filtering in placement */

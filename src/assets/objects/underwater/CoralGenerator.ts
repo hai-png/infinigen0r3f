@@ -1,14 +1,21 @@
+/**
+ * Coral Generator for underwater reef systems
+ *
+ * @deprecated This generator uses a static API and returns BufferGeometry.
+ * For the canonical coral generators, use `objects/coral/` instead, which
+ * provides class-based generators that return THREE.Group:
+ *
+ *   import { BranchingCoralGenerator } from '@/assets/objects/coral';
+ *   import { BrainCoralGenerator } from '@/assets/objects/coral';
+ *   import { FanCoralGenerator } from '@/assets/objects/coral';
+ *
+ * This file is kept for backward compatibility only.
+ */
+
 import { SeededRandom } from '@/core/util/MathUtils';
 import { BaseGeneratorConfig } from '../utils/BaseObjectGenerator';
 import * as THREE from 'three';
 import { NoiseUtils } from '@/core/util/math/noise';
-
-/**
- * Coral Generator for underwater reef systems
- * 
- * Generates procedural coral formations with various species,
- * color morphs, and growth patterns.
- */
 
 export interface CoralParams extends BaseGeneratorConfig {
   species: CoralSpecies;
@@ -20,7 +27,7 @@ export interface CoralParams extends BaseGeneratorConfig {
   health: number; // 0-1, affects color vibrancy
 }
 
-export type CoralSpecies = 
+export type CoralSpecies =
   | 'branching'    // Staghorn, elkhorn
   | 'brain'        // Brain coral
   | 'plate'        // Plate coral, table coral
@@ -33,6 +40,13 @@ export interface CoralPreset {
   params: Partial<CoralParams>;
 }
 
+/**
+ * @deprecated Use `BranchingCoralGenerator`, `BrainCoralGenerator`, or
+ * `FanCoralGenerator` from `@/assets/objects/coral/` instead.
+ *
+ * This static generator returns raw BufferGeometry. The new generators
+ * return fully-materialized THREE.Group objects with materials applied.
+ */
 export class CoralGenerator {
   private static _rng = new SeededRandom(42);
   private static presets: Record<string, CoralPreset> = {
@@ -104,7 +118,8 @@ export class CoralGenerator {
   };
 
   /**
-   * Generate coral geometry based on parameters
+   * Generate coral geometry based on parameters.
+   * @deprecated Use generators from `@/assets/objects/coral/` instead.
    */
   static generate(params: Partial<CoralParams> = {}): THREE.BufferGeometry {
     const config: CoralParams = {
@@ -136,9 +151,6 @@ export class CoralGenerator {
     }
   }
 
-  /**
-   * Generate branching coral (staghorn, elkhorn)
-   */
   private static generateBranchingCoral(config: CoralParams): THREE.BufferGeometry {
     const positions: number[] = [];
     const normals: number[] = [];
@@ -170,7 +182,6 @@ export class CoralGenerator {
         config.size
       );
       
-      // Add secondary branches
       for (let j = 0; j < branches; j++) {
         const t = (j + 1) / (branches + 1);
         const offset = new THREE.Vector3(
@@ -262,9 +273,6 @@ export class CoralGenerator {
     }
   }
 
-  /**
-   * Generate brain coral with maze-like surface
-   */
   private static generateBrainCoral(config: CoralParams): THREE.BufferGeometry {
     const geometry = new THREE.SphereGeometry(
       config.size * 0.6,
@@ -298,9 +306,6 @@ export class CoralGenerator {
     return geometry;
   }
 
-  /**
-   * Generate plate/table coral
-   */
   private static generatePlateCoral(config: CoralParams): THREE.BufferGeometry {
     const positions: number[] = [];
     const normals: number[] = [];
@@ -335,9 +340,6 @@ export class CoralGenerator {
     return geometry;
   }
 
-  /**
-   * Generate massive/boulder coral
-   */
   private static generateMassiveCoral(config: CoralParams): THREE.BufferGeometry {
     const geometry = new THREE.DodecahedronGeometry(
       config.size * 0.5,
@@ -366,9 +368,6 @@ export class CoralGenerator {
     return geometry;
   }
 
-  /**
-   * Generate soft coral/sea fan
-   */
   private static generateSoftCoral(config: CoralParams): THREE.BufferGeometry {
     const positions: number[] = [];
     const normals: number[] = [];
@@ -377,9 +376,7 @@ export class CoralGenerator {
     const width = config.size;
     const height = config.size * 0.8;
     const segments = 20;
-    const branches = Math.floor(5 + config.branchDensity * 10);
     
-    // Main fan structure
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
       const y = t * height;
@@ -403,9 +400,6 @@ export class CoralGenerator {
     return geometry;
   }
 
-  /**
-   * Generate tube coral
-   */
   private static generateTubeCoral(config: CoralParams): THREE.BufferGeometry {
     const positions: number[] = [];
     const normals: number[] = [];
@@ -454,16 +448,10 @@ export class CoralGenerator {
     return geometry;
   }
 
-  /**
-   * Get preset by name
-   */
   static getPreset(name: string): CoralPreset | null {
     return this.presets[name.toLowerCase()] || null;
   }
 
-  /**
-   * Get all available presets
-   */
   static getPresets(): CoralPreset[] {
     return Object.values(this.presets);
   }

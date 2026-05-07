@@ -1,6 +1,12 @@
 /**
  * Greedy Solver for Constraint Satisfaction
  * Ported from original Infinigen's greedy solver implementation
+ *
+ * @deprecated This legacy solver uses the old ConstraintDomain/Constraint types
+ * from `./ConstraintTypes.ts`. New code should use the constraint language
+ * evaluation pipeline (`evaluator/`) with the modern move-based solvers in
+ * `solver/moves.ts` (GreedySolver, SimulatedAnnealingSolver).
+ * This file will be removed in a future release once all consumers migrate.
  */
 
 import { Constraint, ConstraintType, ConstraintDomain, ConstraintEvaluationResult, ConstraintViolation } from './ConstraintTypes';

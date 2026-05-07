@@ -214,7 +214,20 @@ export type {
 } from './assets/animation';
 export * from './assets/particles';
 export * from './assets/utils/streaming';
-export * from './core/constraints/tags';
+// Re-export constraint tags selectively to avoid Semantics conflict with core/UnifiedTagSystem
+export {
+  Tag as ConstraintTag,
+  TagSet as ConstraintTagSet,
+  SemanticsTag,
+  MaterialTag,
+  SurfaceTag,
+  RoomTag,
+  FunctionTag,
+  SizeTag,
+  StyleTag,
+  NegatedTag as ConstraintNegatedTag,
+  satisfies as tagSatisfies,
+} from './core/constraints/tags';
 // core/util/math is already exported via core → util → math
 // No need to re-export separately to avoid duplicate conflicts
 

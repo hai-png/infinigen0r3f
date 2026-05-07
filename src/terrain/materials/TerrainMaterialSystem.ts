@@ -106,10 +106,11 @@ export class TerrainMaterialSystem {
     const w = terrainData.width;
     const h = terrainData.height;
 
-    // Generate texture maps
-    const albedoCanvas = this.generateAlbedoMap(heightMap.data, slopeMap.data, biomeMask, w, h, textureResolution);
-    const normalCanvas = this.generateNormalMap(heightMap.data, slopeMap.data, biomeMask, w, h, textureResolution);
-    const roughnessCanvas = this.generateRoughnessMap(heightMap.data, slopeMap.data, biomeMask, w, h, textureResolution);
+    // Generate texture maps (biomeMask is Float32Array but values are integer biome IDs)
+    const biomeMaskData = biomeMask ?? new Float32Array(0);
+    const albedoCanvas = this.generateAlbedoMap(heightMap.data, slopeMap!.data, biomeMaskData, w, h, textureResolution);
+    const normalCanvas = this.generateNormalMap(heightMap.data, slopeMap!.data, biomeMaskData, w, h, textureResolution);
+    const roughnessCanvas = this.generateRoughnessMap(heightMap.data, slopeMap!.data, biomeMaskData, w, h, textureResolution);
 
     // Create Three.js textures
     this.albedoTexture = new THREE.CanvasTexture(albedoCanvas);
@@ -181,7 +182,7 @@ export class TerrainMaterialSystem {
   private generateAlbedoMap(
     heightData: Float32Array,
     slopeData: Float32Array,
-    biomeMask: Uint8Array,
+    biomeMask: Float32Array,
     terrainW: number,
     terrainH: number,
     resolution: number,
@@ -248,7 +249,7 @@ export class TerrainMaterialSystem {
   private generateNormalMap(
     heightData: Float32Array,
     slopeData: Float32Array,
-    biomeMask: Uint8Array,
+    biomeMask: Float32Array,
     terrainW: number,
     terrainH: number,
     resolution: number,
@@ -323,7 +324,7 @@ export class TerrainMaterialSystem {
   private generateRoughnessMap(
     heightData: Float32Array,
     slopeData: Float32Array,
-    biomeMask: Uint8Array,
+    biomeMask: Float32Array,
     terrainW: number,
     terrainH: number,
     resolution: number,

@@ -4,6 +4,10 @@
  * Advanced procedural coral generation using differential growth,
  * reaction-diffusion, and Laplacian growth algorithms.
  *
+ * @deprecated The canonical import path for ALL coral generators is now
+ * `@/assets/objects/coral/`. This module re-exports everything for
+ * backward compatibility, but new code should import from objects/coral/.
+ *
  * @module objects/vegetation/coral
  */
 

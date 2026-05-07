@@ -11,6 +11,8 @@
  */
 
 import * as THREE from 'three';
+import { SeededRandom } from '@/core/util/MathUtils';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded CSG imports
@@ -239,27 +241,6 @@ export function generateGroundMesh(
 }
 
 // ---------------------------------------------------------------------------
-// SeededRandom (local copy to avoid circular deps)
-// ---------------------------------------------------------------------------
-
-class SeededRandom {
-  private state: number;
-  constructor(seed: number) {
-    this.state = seed;
-  }
-  next(): number {
-    this.state = (this.state * 1664525 + 1013904223) & 0xffffffff;
-    return (this.state >>> 0) / 4294967296;
-  }
-  nextFloat(min: number, max: number): number {
-    return min + this.next() * (max - min);
-  }
-  nextInt(min: number, max: number): number {
-    return Math.floor(this.nextFloat(min, max + 1));
-  }
-}
-
-// ---------------------------------------------------------------------------
 // CSG Terrain Composer
 // ---------------------------------------------------------------------------
 
@@ -415,33 +396,87 @@ export class CSGTerrainComposer {
 
   /**
    * Fallback: merge terrain element geometries without CSG.
-   * Less accurate but always works.
+   * Collects all geometries, applies transforms, and merges them into a
+   * single BufferGeometry using mergeGeometries.
    */
   private composeFallback(): THREE.Mesh {
-    const group = new THREE.Group();
+    const geometries: THREE.BufferGeometry[] = [];
 
     for (const element of this.elements) {
-      const mesh = new THREE.Mesh(element.geometry, element.material);
+      const geom = element.geometry.clone();
+
+      // Apply transform to geometry if present
       if (element.transform) {
-        const pos = new THREE.Vector3();
-        const quat = new THREE.Quaternion();
-        const scale = new THREE.Vector3();
-        element.transform.decompose(pos, quat, scale);
-        mesh.position.copy(pos);
-        mesh.quaternion.copy(quat);
-        mesh.scale.copy(scale);
+        geom.applyMatrix4(element.transform);
       }
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
+
+      geometries.push(geom);
     }
 
-    // Return a simple wrapper mesh
-    // In a real implementation, we'd use BufferGeometryUtils.mergeGeometries
-    const wrapperMesh = new THREE.Mesh();
-    wrapperMesh.name = 'merged-terrain-fallback';
-    wrapperMesh.userData._group = group;
-    return wrapperMesh;
+    // Merge all geometries into one
+    let mergedGeometry: THREE.BufferGeometry;
+    if (geometries.length === 0) {
+      mergedGeometry = new THREE.BufferGeometry();
+    } else {
+      try {
+        mergedGeometry = mergeGeometries(geometries) ?? new THREE.BufferGeometry();
+      } catch {
+        // Fallback: if mergeGeometries fails (e.g. mismatched attributes),
+        // manually merge position and index arrays
+        mergedGeometry = this.manualMergeGeometries(geometries);
+      }
+    }
+
+    mergedGeometry.computeVertexNormals();
+
+    const material = new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.9, metalness: 0 });
+    const mesh = new THREE.Mesh(mergedGeometry, material);
+    mesh.name = 'merged-terrain-fallback';
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+  }
+
+  /**
+   * Manual geometry merge fallback when mergeGeometries fails
+   * (e.g., mismatched attribute layouts).
+   */
+  private manualMergeGeometries(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry {
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const indices: number[] = [];
+    let vertexOffset = 0;
+
+    for (const geom of geometries) {
+      const posAttr = geom.getAttribute('position');
+      const normAttr = geom.getAttribute('normal');
+      const idxAttr = geom.getIndex();
+
+      for (let i = 0; i < posAttr.count; i++) {
+        positions.push(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+        if (normAttr) {
+          normals.push(normAttr.getX(i), normAttr.getY(i), normAttr.getZ(i));
+        }
+      }
+
+      if (idxAttr) {
+        for (let i = 0; i < idxAttr.count; i++) {
+          indices.push(idxAttr.array[i] + vertexOffset);
+        }
+      }
+
+      vertexOffset += posAttr.count;
+    }
+
+    const merged = new THREE.BufferGeometry();
+    merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    if (normals.length > 0) {
+      merged.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    }
+    if (indices.length > 0) {
+      merged.setIndex(indices);
+    }
+    return merged;
   }
 
   /**

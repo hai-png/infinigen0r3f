@@ -117,7 +117,7 @@ export function resetBVHCache(state: State, filterName?: string): void {
       // Keep only entries with static objects
       let keep = true;
       for (const n of names as string[]) {
-        const ostate = state.objs.get(n);
+        const ostate = state.objects.get(n);
         if (!ostate || !ostate.tags.has(Semantics.Room) && !ostate.tags.has(Semantics.Cutter)) {
           keep = false;
           break;
@@ -156,7 +156,7 @@ export function evictMemoForMove(
         throw new Error(`Invalid null name in move: ${move}`);
       }
       
-      const obj = state.objs.get(name);
+      const obj = state.objects.get(name);
       if (obj) {
         evictMemoForObj(problem, memo, obj);
         resetBVHCache(state, name);
@@ -169,7 +169,7 @@ export function evictMemoForMove(
         throw new Error(`Invalid null name in move: ${move}`);
       }
       
-      const obj = state.objs.get(name);
+      const obj = state.objects.get(name);
       if (obj) {
         evictMemoForObj(problem, memo, obj);
       }
@@ -187,7 +187,7 @@ export function evictMemoForMove(
       }
     }
   } else {
-    throw new NotImplementedError(`Unsure what to evict for move: ${move}`);
+    throw new UnsupportedOperationError(`Unsure what to evict for move: ${move}`);
   }
 }
 
@@ -203,9 +203,9 @@ function implies(tags: Set<any>, required: Set<any>): boolean {
   return true;
 }
 
-class NotImplementedError extends Error {
+class UnsupportedOperationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'NotImplementedError';
+    this.name = 'UnsupportedOperationError';
   }
 }

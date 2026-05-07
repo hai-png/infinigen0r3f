@@ -24,7 +24,7 @@ import {
 
 import { SeededRandom } from './core/util/MathUtils';
 
-import { TerrainGenerator, type TerrainConfig, type TerrainData } from './terrain/core/TerrainGenerator';
+import { TerrainGenerator, type TerrainGeneratorConfig, type TerrainData } from './terrain/core/TerrainGenerator';
 
 import {
   WaterSystemManager,
@@ -126,7 +126,7 @@ export interface ScenePresetDefinition {
   category: 'nature' | 'indoor' | 'aquatic' | 'fantasy' | 'extreme';
 
   /** Terrain configuration overrides */
-  terrain: Partial<TerrainConfig> & { enabled: boolean };
+  terrain: Partial<TerrainGeneratorConfig> & { enabled: boolean };
 
   /** Water configuration */
   water: Partial<WaterSystemConfig> & { enabled: boolean };
@@ -1109,7 +1109,7 @@ export class SceneGenerationPipeline {
     }
 
     const terrainConfig = this.gin.getConfigurable('terrain/TerrainGenerator');
-    const config: TerrainConfig = {
+    const config: Partial<TerrainGeneratorConfig> = {
       seed: terrainConfig.seed as number,
       width: terrainConfig.width as number,
       height: terrainConfig.height as number,

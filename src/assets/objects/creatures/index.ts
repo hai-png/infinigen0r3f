@@ -11,6 +11,16 @@ export { ReptileGenerator } from './ReptileGenerator';
 export { InsectGenerator } from './InsectGenerator';
 export { UnderwaterGenerator } from './UnderwaterGenerator';
 
+// Consolidated generators — adapters that delegate to vegetation/ canonical implementations
+/** @deprecated Use `BeetleGenerator` from `@/assets/objects/vegetation/beetle/` instead */
+export { BeetleGenerator, type BeetleParams } from './BeetleGenerator';
+/** @deprecated Use `JellyfishGenerator` from `@/assets/objects/vegetation/jellyfish/` instead */
+export { JellyfishGenerator, type JellyfishParams } from './JellyfishGenerator';
+/** @deprecated Use `CrustaceanGenerator` from `@/assets/objects/vegetation/crustacean/` instead */
+export { CrustaceanGenerator, type CrustaceanParams, type CrustaceanSpecies } from './CrustaceanGenerator';
+/** @deprecated Use `DragonflyGenerator` from `@/assets/objects/vegetation/dragonfly/` instead */
+export { DragonflyGenerator, type DragonflyParams } from './DragonflyGenerator';
+
 // Body part generators
 export { BodyPartGenerator } from './parts/BodyPartGenerator';
 export { WingGenerator, FeatherGenerator, MembraneGenerator, type WingResult } from './parts/WingGenerator';

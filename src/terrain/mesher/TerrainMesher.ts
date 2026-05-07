@@ -14,7 +14,7 @@ import {
   Box3,
   Sphere
 } from 'three';
-import { HeightMap, NormalMap, TerrainData } from './TerrainGenerator';
+import type { HeightMap, NormalMap, TerrainData } from '../types';
 import { TerrainSurfaceShaderPipeline } from '../gpu/TerrainSurfaceShaderPipeline';
 import type { SignedDistanceField } from '../sdf/sdf-operations';
 
@@ -244,7 +244,17 @@ export class TerrainMesher {
    */
   public generateMesh(terrainData: TerrainData): BufferGeometry {
     const { heightMap, normalMap, width, height } = terrainData;
-    
+
+    // Validate heightMap data length matches declared dimensions
+    const expectedLength = width * height;
+    if (heightMap.data.length < expectedLength) {
+      throw new Error(
+        `[TerrainMesher] heightMap.data length (${heightMap.data.length}) ` +
+        `is less than width*height (${expectedLength}). ` +
+        `Cannot generate mesh.`
+      );
+    }
+
     const vertices: number[] = [];
     const normals: number[] = [];
     const uvs: number[] = [];
@@ -420,18 +430,11 @@ export class TerrainMesher {
    * Calculate appropriate LOD level based on distance
    */
   private calculateLOD(distance: number): number {
-    const thresholds = [
-      distance < 50 ? 0 :
-      distance < 100 ? 1 :
-      distance < 200 ? 2 :
-      distance < 400 ? 3 : 4
-    ];
-
-    for (let i = 0; i < thresholds.length; i++) {
-      if (thresholds[i]) return i;
-    }
-
-    return this.config.lodLevels - 1;
+    if (distance < 50) return 0;
+    if (distance < 100) return 1;
+    if (distance < 200) return 2;
+    if (distance < 400) return 3;
+    return Math.min(4, this.config.lodLevels - 1);
   }
 
   /**

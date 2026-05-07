@@ -1,5 +1,8 @@
 /**
- * Jellyfish Generator Module
+ * Jellyfish Generator Module — Canonical Location
+ *
+ * This is the CANONICAL implementation. The creatures/JellyfishGenerator
+ * is a deprecated adapter that delegates here.
  *
  * @module vegetation/jellyfish
  */

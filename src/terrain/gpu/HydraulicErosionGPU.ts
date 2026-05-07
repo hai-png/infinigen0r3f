@@ -10,7 +10,7 @@
  */
 
 import { Vector2, Vector3 } from 'three';
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 export interface ErosionConfig {
   seed: number;

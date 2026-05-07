@@ -16,12 +16,13 @@
 import * as THREE from 'three';
 import { SignedDistanceField, extractIsosurface, sdfBoolean, sdfSmoothUnion, sdfOffset } from './sdf-operations';
 import { NoiseUtils } from '@/core/util/math/noise';
-import { SeededRandom } from '../../core/util/MathUtils';
+import { SeededRandom } from '@/core/util/MathUtils';
 import {
   TerrainSurfaceShaderPipeline,
   TerrainSurfaceConfig,
   DEFAULT_TERRAIN_SURFACE_CONFIG,
 } from '../gpu/TerrainSurfaceShaderPipeline';
+import { smoothUnion } from './SDFCombinators';
 import {
   ElementRegistry,
   CompositionOperation,
@@ -660,22 +661,11 @@ export class SDFTerrainGenerator {
 
           // Smooth boolean union with terrain
           const currentVal = sdf.getValueAtGrid(gx, gy, gz);
-          const blended = this.smoothMin(currentVal, archDist, this.config.smoothBlend);
+          const blended = smoothUnion(currentVal, archDist, this.config.smoothBlend);
           sdf.setValueAtGrid(gx, gy, gz, blended);
         }
       }
     }
-  }
-
-  /**
-   * Smooth minimum (for smooth boolean union).
-   * polynomial smooth min from Inigo Quilez:
-   * https://iquilezles.org/articles/smin/
-   */
-  private smoothMin(a: number, b: number, k: number): number {
-    if (k <= 0) return Math.min(a, b);
-    const h = Math.max(0, Math.min(1, (b - a + k) / (2 * k)));
-    return b + (a - b) * h - k * h * (1 - h);
   }
 
   /**

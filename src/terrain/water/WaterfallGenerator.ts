@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { Vector3 } from 'three';
 import { NoiseUtils } from '@/core/util/math/noise';
 import { RiverPoint } from './RiverNetwork';
-import { SeededRandom } from '../../core/util/math/index';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 export interface WaterfallConfig {
   seed: number;

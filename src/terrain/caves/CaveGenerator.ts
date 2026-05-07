@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { SDFOperations } from '../sdf/SDFOperations';
-import { SeededRandom } from '../../core/util/math/index';
+import { SeededRandom } from '@/core/util/MathUtils';
 
 export interface CaveParams {
   /** Cave density (0-1) */
