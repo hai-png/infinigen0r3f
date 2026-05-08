@@ -7,7 +7,128 @@
 
 import { ScalarExpression, BoolExpression } from './expression';
 import { ObjectSetExpression } from './set-reasoning';
-import { ObjectSetDomain, Variable } from './types';
+import { ObjectSetDomain, Variable, Node } from './types';
+
+// ============================================================================
+// RoomConstants - Global room generation parameters
+// Ported from infinigen/core/constraints/constraint_language/constants.py
+// ============================================================================
+
+/**
+ * Room type definition with associated probability weight
+ */
+export interface RoomTypeConfig {
+  /** Human-readable room type name */
+  name: string;
+  /** Probability weight for this room type (relative to others) */
+  probability: number;
+  /** Minimum area for this room type (m²) */
+  minArea: number;
+  /** Maximum area for this room type (m²) */
+  maxArea: number;
+}
+
+/**
+ * Building dimensions configuration
+ */
+export interface BuildingDimensions {
+  /** Total building width (m) */
+  width: number;
+  /** Total building depth (m) */
+  depth: number;
+  /** Floor-to-floor height (m) */
+  height: number;
+  /** Number of floors */
+  nFloors: number;
+}
+
+/**
+ * Global room parameters for constraint solving.
+ *
+ * Ported from the original Infinigen's RoomConstants dataclass in
+ * constraint_language/constants.py. These parameters control the range
+ * and distribution of room properties during procedural generation.
+ */
+export class RoomConstants {
+  /** Allowed room area range [min, max] in m² */
+  roomArea: [number, number] = [6, 60];
+
+  /** Allowed room aspect ratio range [min, max] */
+  roomAspectRatio: [number, number] = [0.5, 5];
+
+  /** Allowed number of room vertices range [min, max] */
+  nRoomVerts: [number, number] = [4, 12];
+
+  /** Probability of generating a staircase on any floor */
+  staircaseProb: number = 0.3;
+
+  /** Allowed number of staircases range [min, max] */
+  nStaircases: [number, number] = [0, 2];
+
+  /** Room types with their probability weights */
+  roomTypes: RoomTypeConfig[] = [
+    { name: 'living_room', probability: 0.25, minArea: 15, maxArea: 50 },
+    { name: 'bedroom', probability: 0.25, minArea: 10, maxArea: 25 },
+    { name: 'kitchen', probability: 0.15, minArea: 8, maxArea: 20 },
+    { name: 'bathroom', probability: 0.15, minArea: 4, maxArea: 12 },
+    { name: 'hallway', probability: 0.10, minArea: 3, maxArea: 10 },
+    { name: 'dining_room', probability: 0.05, minArea: 10, maxArea: 30 },
+    { name: 'office', probability: 0.05, minArea: 8, maxArea: 20 },
+  ];
+
+  /** Building dimensions */
+  buildingDimensions: BuildingDimensions = {
+    width: 15,
+    depth: 12,
+    height: 3.0,
+    nFloors: 2,
+  };
+
+  /** Grid resolution for floor plan discretization (cells per meter) */
+  gridResolution: number = 0.5;
+
+  constructor(partial?: Partial<RoomConstants>) {
+    if (partial) {
+      Object.assign(this, partial);
+    }
+  }
+
+  /**
+   * Get the default room constants
+   */
+  static default(): RoomConstants {
+    return new RoomConstants();
+  }
+
+  /**
+   * Create a deep clone of this RoomConstants
+   */
+  clone(): RoomConstants {
+    const copy = new RoomConstants();
+    copy.roomArea = [...this.roomArea] as [number, number];
+    copy.roomAspectRatio = [...this.roomAspectRatio] as [number, number];
+    copy.nRoomVerts = [...this.nRoomVerts] as [number, number];
+    copy.staircaseProb = this.staircaseProb;
+    copy.nStaircases = [...this.nStaircases] as [number, number];
+    copy.roomTypes = this.roomTypes.map(rt => ({ ...rt }));
+    copy.buildingDimensions = { ...this.buildingDimensions };
+    copy.gridResolution = this.gridResolution;
+    return copy;
+  }
+
+  /**
+   * Get total probability weight across all room types
+   */
+  totalRoomTypeWeight(): number {
+    return this.roomTypes.reduce((sum, rt) => sum + rt.probability, 0);
+  }
+
+  toString(): string {
+    return `RoomConstants(area=${this.roomArea}, ratio=${this.roomAspectRatio}, ` +
+      `verts=${this.nRoomVerts}, building=${this.buildingDimensions.width}x${this.buildingDimensions.depth}x${this.buildingDimensions.height}/${this.buildingDimensions.nFloors}f, ` +
+      `grid=${this.gridResolution})`;
+  }
+}
 
 /**
  * Constant expressions for constraint language

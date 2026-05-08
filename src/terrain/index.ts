@@ -106,3 +106,36 @@ export {
   type AdaptiveMesherConfig,
   type TerrainChunk,
 } from './mesher/AdaptiveMesher';
+
+// Phase 3 — LandTiles Heightmap Tile Generators & Two-Phase Pipeline
+export {
+  TileGenerator,
+  MultiMountainsTileGenerator,
+  CoastTileGenerator,
+  MesaTileGenerator,
+  CanyonTileGenerator,
+  CliffTileGenerator,
+  RiverTileGenerator,
+  VolcanoTileGenerator,
+  TileGeneratorFactory,
+} from './tiles/TileGenerators';
+
+export type { TileType } from './tiles/TileGenerators';
+
+export {
+  TwoPhaseTerrainPipeline,
+  DEFAULT_TWO_PHASE_PIPELINE_CONFIG,
+} from './core/TwoPhaseTerrainPipeline';
+
+export type {
+  TwoPhasePipelineConfig,
+  CoarseTerrainParams,
+  CoarseTerrainResult,
+  FineTerrainParams,
+  FineTerrainResult,
+  FullTerrainParams,
+  FullTerrainResult,
+  TerrainData as PipelineTerrainData,
+  MaterialAssignment,
+  MaterialAssignmentMap,
+} from './core/TwoPhaseTerrainPipeline';

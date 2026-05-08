@@ -34,6 +34,10 @@ import {
   CaveElement,
   VoronoiRockElement,
   WaterbodyElement,
+  LandTilesElement,
+  WarpedRocksElement,
+  UpsideDownMountainNewElement,
+  AtmosphereElement,
   buildSDFFromElements,
 } from '@/terrain/sdf/TerrainElementSystem';
 import { SignedDistanceField, extractIsosurface } from '@/terrain/sdf/sdf-operations';
@@ -207,7 +211,7 @@ export interface UnifiedTerrainConfig {
   mode: TerrainGenerationMode;
   /** Random seed for reproducibility */
   seed: number;
-  /** Which elements to include (by name: 'Ground', 'Mountains', 'Caves', 'VoronoiRocks', 'Waterbody') */
+  /** Which elements to include (by name: 'Ground', 'Mountains', 'Caves', 'VoronoiRocks', 'Waterbody', 'LandTiles', 'WarpedRocks', 'UpsideDownMountains', 'Atmosphere') */
   elements: string[];
   /** World-space bounds for the terrain */
   bounds: {
@@ -334,7 +338,7 @@ const DEFAULT_PLANET_PARAMS: PlanetParams = {
 export const DEFAULT_UNIFIED_TERRAIN_CONFIG: UnifiedTerrainConfig = {
   mode: TerrainGenerationMode.HEIGHTMAP,
   seed: 42,
-  elements: ['Ground', 'Mountains', 'Caves', 'VoronoiRocks', 'Waterbody'],
+  elements: ['Ground', 'Mountains', 'Caves', 'VoronoiRocks', 'Waterbody', 'LandTiles', 'WarpedRocks', 'UpsideDownMountains', 'Atmosphere'],
   bounds: {
     minX: -50,
     maxX: 50,
@@ -1188,9 +1192,9 @@ export class UnifiedTerrainGenerator {
    * Build an ElementRegistry configured for the current mode.
    *
    * - HEIGHTMAP: GroundElement only
-   * - SDF_FLAT: GroundElement + WaterbodyElement
-   * - SDF_FULL: GroundElement + MountainElement + CaveElement + VoronoiRockElement + WaterbodyElement
-   * - PLANET: GroundElement (spherical) + MountainElement (spherical) + CaveElement
+   * - SDF_FLAT: GroundElement + WaterbodyElement + AtmosphereElement
+   * - SDF_FULL: GroundElement + MountainElement + CaveElement + VoronoiRockElement + WaterbodyElement + LandTilesElement + WarpedRocksElement + UpsideDownMountainNewElement + AtmosphereElement
+   * - PLANET: GroundElement (spherical) + MountainElement (spherical) + CaveElement + AtmosphereElement
    *
    * @param config - Effective configuration
    * @returns Configured ElementRegistry with initialized elements
@@ -1290,6 +1294,78 @@ export class UnifiedTerrainGenerator {
         waveFrequency: waterParams.waveFrequency,
       }, rng);
       registry.register(water);
+    }
+
+    // --- LandTiles Element ---
+    // Voronoi-tiled heightmap terrain — the most complex element in original Infinigen.
+    // Available in SDF_FULL mode only (requires significant computation).
+    if (elements.includes('LandTiles') && config.mode === TerrainGenerationMode.SDF_FULL) {
+      const landTiles = new LandTilesElement();
+      landTiles.init({
+        tileResolution: 64, // Lower default for performance in full mode
+        tileSize: 50,
+        latticeFrequency: 0.008,
+        latticeJitter: 0.5,
+        emptyBelow: -5,
+        heightRamp: 5,
+        maskEnabled: true,
+        maskOctaves: 3,
+        maskFrequency: 0.01,
+        blendWidth: 0.8,
+        latticeLayers: 2,
+      }, rng);
+      registry.register(landTiles);
+    }
+
+    // --- WarpedRocks Element ---
+    // Domain-warped Perlin noise with slope modulation.
+    // Available in SDF_FULL mode.
+    if (elements.includes('WarpedRocks') && config.mode === TerrainGenerationMode.SDF_FULL) {
+      const warpedRocks = new WarpedRocksElement();
+      warpedRocks.init({
+        frequency: 0.02,
+        amplitude: 5,
+        octaves: 5,
+        warpStrength: 0.5,
+        warpFrequency: 0.3,
+        slopeSuppression: 0.8,
+        contentScale: 1.0,
+        latticeFrequency: 0.01,
+        maskThreshold: 0.3,
+      }, rng);
+      registry.register(warpedRocks);
+    }
+
+    // --- UpsideDownMountains Element ---
+    // Floating mountain formations — separate from the UpsideDownMountainElement
+    // in TerrainElementSystem.ts (which uses reflection). This version uses
+    // pre-generated cone-like mountain meshes.
+    // Available in SDF_FULL mode.
+    if (elements.includes('UpsideDownMountains') && config.mode === TerrainGenerationMode.SDF_FULL) {
+      const floatingMountains = new UpsideDownMountainNewElement();
+      floatingMountains.init({
+        count: 3,
+        baseRadius: 8,
+        height: 10,
+        floatingHeight: 15,
+        perturbStrength: 0.3,
+        perturbFrequency: 0.1,
+      }, rng);
+      registry.register(floatingMountains);
+    }
+
+    // --- Atmosphere Element ---
+    // Atmosphere boundary sphere — primarily used for volumetric rendering.
+    // Available in all SDF modes.
+    if (elements.includes('Atmosphere') && config.mode !== TerrainGenerationMode.HEIGHTMAP) {
+      const atmosphere = new AtmosphereElement();
+      atmosphere.init({
+        height: 100,
+        radius: 200,
+        waterAware: true,
+        waterPlaneHeight: waterParams.waterPlaneHeight,
+      }, rng);
+      registry.register(atmosphere);
     }
 
     // Resolve dependencies (topological sort)

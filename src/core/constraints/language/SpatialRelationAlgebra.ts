@@ -172,6 +172,14 @@ export class Touching extends SpatialRelation {
     if (this.fromAbove && other.type === RelationType.SUPPORTED_BY) {
       return true;
     }
+    // Touching implies CoPlanar (touching objects are approximately coplanar)
+    if (other.type === RelationType.COPLANAR && other instanceof CoPlanar) {
+      return true;
+    }
+    // Touching implies SharedEdge (touching rooms share an edge)
+    if (other.type === RelationType.SHARED_EDGE) {
+      return true;
+    }
     // Same type implies itself
     if (other.type === RelationType.TOUCHING && other instanceof Touching) {
       return this.margin <= other.margin;
@@ -262,6 +270,10 @@ export class SupportedBy extends SpatialRelation {
     // SUPPORTED_BY implies TOUCHING (with appropriate margin)
     if (other.type === RelationType.TOUCHING && other instanceof Touching) {
       return this.margin <= other.margin;
+    }
+    // SUPPORTED_BY implies COPLANAR (supported objects are on same plane)
+    if (other.type === RelationType.COPLANAR) {
+      return true;
     }
     // Same type
     if (other.type === RelationType.SUPPORTED_BY && other instanceof SupportedBy) {
@@ -366,6 +378,10 @@ export class CoPlanar extends SpatialRelation {
       // More restrictive margin implies less restrictive
       return this.margin <= other.margin;
     }
+    // CoPlanar implies Touching (coplanar objects are typically touching)
+    if (other.type === RelationType.TOUCHING && other instanceof Touching) {
+      return true;
+    }
     return false;
   }
 
@@ -455,6 +471,10 @@ export class StableAgainst extends SpatialRelation {
     // STABLE_AGAINST implies TOUCHING
     if (other.type === RelationType.TOUCHING && other instanceof Touching) {
       return this.margin <= other.margin;
+    }
+    // STABLE_AGAINST implies COPLANAR
+    if (other.type === RelationType.COPLANAR) {
+      return true;
     }
     if (other.type === RelationType.STABLE_AGAINST && other instanceof StableAgainst) {
       return this.margin <= other.margin;
@@ -562,6 +582,14 @@ export class RoomNeighbour extends SpatialRelation {
       // If our connectors are a subset of other's, we imply other
       return other.connectorTypes.every(ct => this.connectorTypes.includes(ct));
     }
+    // RoomNeighbour implies SharedEdge (neighbouring rooms share an edge)
+    if (other.type === RelationType.SHARED_EDGE) {
+      return true;
+    }
+    // RoomNeighbour implies Traverse (neighbours are traversable)
+    if (other.type === RelationType.TRAVERSE && other instanceof Traverse) {
+      return other.maxPathLength >= 1; // Neighbours are traversable with path length ≥ 1
+    }
     return false;
   }
 
@@ -636,6 +664,10 @@ export class CutFrom extends SpatialRelation {
     if (other.type === RelationType.CUT_FROM && other instanceof CutFrom) {
       return this.parentId === other.parentId;
     }
+    // CutFrom implies SharedEdge (cut objects share edges with parent)
+    if (other.type === RelationType.SHARED_EDGE) {
+      return true;
+    }
     return false;
   }
 
@@ -696,6 +728,10 @@ export class SharedEdge extends SpatialRelation {
     }
     if (other.type === RelationType.SHARED_EDGE && other instanceof SharedEdge) {
       return this.margin <= other.margin;
+    }
+    // SharedEdge implies RoomNeighbour (rooms sharing an edge are neighbours)
+    if (other.type === RelationType.ROOM_NEIGHBOUR) {
+      return true;
     }
     return false;
   }
@@ -766,6 +802,10 @@ export class Traverse extends SpatialRelation {
     if (other.type === RelationType.ROOM_NEIGHBOUR) {
       // If we can traverse with path length ~0, we're neighbours
       return this.maxPathLength <= 0.1;
+    }
+    // Traverse implies SharedEdge (if path length is short)
+    if (other.type === RelationType.SHARED_EDGE) {
+      return this.maxPathLength <= 1;
     }
     if (other.type === RelationType.TRAVERSE && other instanceof Traverse) {
       return this.maxPathLength <= other.maxPathLength;

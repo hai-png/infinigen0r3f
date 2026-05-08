@@ -779,6 +779,63 @@ export class BoolIfElse extends BoolExpression {
   }
 }
 
+/**
+ * InRange expression: checks if a value falls within [low, high]
+ *
+ * Ported from the original Infinigen's constraint_bounding system.
+ * Used to derive cardinality bounds and express soft range constraints.
+ * When a mean is provided, it can be used for preferential optimization.
+ *
+ * evaluate(state) returns true iff value ∈ [low, high]
+ */
+export class InRangeExpression extends BoolExpression {
+  readonly type = 'InRangeExpression';
+
+  constructor(
+    public readonly value: ScalarExpression,
+    public readonly low: ScalarExpression,
+    public readonly high: ScalarExpression,
+    public readonly mean?: ScalarExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    const children = new Map<string, Node>([
+      ['value', this.value],
+      ['low', this.low],
+      ['high', this.high]
+    ]);
+    if (this.mean) {
+      children.set('mean', this.mean);
+    }
+    return children;
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const val = this.value.evaluate(state);
+    const lo = this.low.evaluate(state);
+    const hi = this.high.evaluate(state);
+    return val >= lo && val <= hi;
+  }
+
+  clone(): InRangeExpression {
+    return new InRangeExpression(
+      this.value.clone() as ScalarExpression,
+      this.low.clone() as ScalarExpression,
+      this.high.clone() as ScalarExpression,
+      this.mean?.clone() as ScalarExpression | undefined
+    );
+  }
+
+  toString(): string {
+    if (this.mean) {
+      return `inRange(${this.value}, ${this.low}, ${this.high}, mean=${this.mean})`;
+    }
+    return `inRange(${this.value}, ${this.low}, ${this.high})`;
+  }
+}
+
 // Re-export InRange from types for convenience
 export type { InRange } from './types';
 

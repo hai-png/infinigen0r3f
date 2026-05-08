@@ -40,3 +40,22 @@ export {
   type UnifiedTerrainConfig,
   type SDFGenerationResult,
 } from '../UnifiedTerrainGenerator';
+
+// Two-phase terrain generation pipeline
+export {
+  TwoPhaseTerrainPipeline,
+  DEFAULT_TWO_PHASE_PIPELINE_CONFIG,
+} from './TwoPhaseTerrainPipeline';
+
+export type {
+  TwoPhasePipelineConfig,
+  CoarseTerrainParams,
+  CoarseTerrainResult,
+  FineTerrainParams,
+  FineTerrainResult,
+  FullTerrainParams,
+  FullTerrainResult,
+  TerrainData as PipelineTerrainData,
+  MaterialAssignment,
+  MaterialAssignmentMap,
+} from './TwoPhaseTerrainPipeline';

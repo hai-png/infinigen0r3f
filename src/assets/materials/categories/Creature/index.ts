@@ -41,3 +41,7 @@ export { BeakMaterial } from './BeakMaterial';
 export type { BeakParams, BeakPreset } from './BeakMaterial';
 export { NoseMaterial } from './NoseMaterial';
 export type { NoseParams, NosePreset } from './NoseMaterial';
+
+// Expanded Creature Variants (unified generator)
+export { CreatureVariants } from './CreatureVariants';
+export type { CreatureVariantType, CreatureVariantParams } from './CreatureVariants';

@@ -1,9 +1,9 @@
 /**
  * Tile Materials Module Index
- * 
+ *
  * Procedural tile materials including ceramic tiles,
  * stone tiles, mosaics, and patterned surfaces.
- * 
+ *
  * @module materials/categories/tile
  */
 
@@ -13,8 +13,14 @@ export type { CeramicTileMaterialConfig as CeramicTileParams, CeramicTileMateria
 export { TileGenerator } from './TileGenerator';
 export type { TileParams } from './TileGenerator';
 
-// Tile Pattern Library — 9 procedural tile patterns
+// Tile Pattern Library — 11 procedural tile patterns
 export {
+  // Main class
+  TilePatternLibrary,
+
+  // Standalone convenience functions
+  createTileMaterial,
+  createTileMaterialFromPreset,
   generateBasketWeave,
   generateBrick,
   generateChevron,
@@ -25,8 +31,9 @@ export {
   generateSpanishBound,
   generateStar,
   generateTriangle,
-  createTileMaterial,
-  createTileMaterialFromPreset,
+  generateAdvancedTiles,
+
+  // Preset arrays
   BASKETWEAVE_PRESETS,
   BRICK_PRESETS,
   CHEVRON_PRESETS,
@@ -37,11 +44,12 @@ export {
   SPANISHBOUND_PRESETS,
   STAR_PRESETS,
   TRIANGLE_PRESETS,
+  ADVANCEDTILES_PRESETS,
   ALL_TILE_PRESETS,
 } from './TilePatternLibrary';
 
 export type {
-  TilePatternOptions,
+  TilePatternParams,
   TilePatternPreset,
   TilePatternType,
 } from './TilePatternLibrary';

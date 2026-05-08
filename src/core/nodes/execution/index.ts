@@ -58,6 +58,20 @@ export type {
 } from './NodeEvaluator';
 
 // ============================================================================
+// Clean API — NodeGroupEvaluator
+// ============================================================================
+
+export {
+  NodeGroupEvaluator,
+} from './NodeGroupEvaluator';
+
+export type {
+  NodeGroupInterfaceSocket,
+  NodeGroupDefinitionLike,
+  NodeGroupEvalResult,
+} from './NodeGroupEvaluator';
+
+// ============================================================================
 // Clean API — CSG Boolean Operations
 // ============================================================================
 
@@ -440,6 +454,53 @@ export {
   NODE_TYPE_GLSL_REQUIREMENTS,
   GLSL_SNIPPET_MAP,
 } from './glsl/GLSLNodeFunctions';
+
+// Expanded GLSL Functions - Additional node type GLSL implementations
+export {
+  ATTRIBUTE_NODES_GLSL,
+  CURVE_NODES_GLSL,
+  LIGHT_PATH_NODES_GLSL,
+  BUMP_NORMAL_NODES_GLSL,
+  MAP_RANGE_GLSL,
+  VECTOR_ROTATE_GLSL,
+  VOLUME_NODES_GLSL,
+  ADDITIONAL_MATH_GLSL,
+  EXTENDED_VERTEX_VARYINGS,
+  EXTENDED_VERTEX_MAIN_ADDITIONS,
+  EXTENDED_FRAGMENT_VARYINGS,
+  EXPANDED_NODE_TYPE_GLSL_REQUIREMENTS,
+  EXPANDED_GLSL_SNIPPET_MAP,
+  ALL_EXPANDED_GLSL_FUNCTIONS,
+} from './glsl/ExpandedGLSLFunctions';
+
+// GLSL Composer Integration - Merged maps, extended templates, helpers
+export {
+  MERGED_GLSL_SNIPPET_MAP,
+  MERGED_NODE_TYPE_GLSL_REQUIREMENTS,
+  EXTENDED_VERTEX_SHADER_TEMPLATE,
+  EXTENDED_FRAGMENT_VARYINGS_BLOCK,
+  MAP_RANGE_MODES,
+  VECTOR_ROTATE_MODES,
+  COMPARE_MODES,
+  BOOLEAN_MATH_MODES,
+  CLAMP_MODES,
+  isExpandedNodeType,
+  getRequiredSnippetsForType,
+  requiresExtendedVaryings,
+  resolveAllSnippets,
+  buildFunctionCode,
+} from './glsl/GLSLComposerIntegration';
+
+// Attribute System - Complete attribute management for Three.js BufferGeometry
+export {
+  AttributeSystem,
+} from '../../attributes/AttributeSystem';
+
+export type {
+  AttributeDomain as AttributeSystemDomain,
+  AttributeDataType as AttributeSystemDataType,
+  AttributeInfo as AttributeSystemInfo,
+} from '../../attributes/AttributeSystem';
 
 // GPU Per-Vertex Evaluation - WebGPU compute shader evaluation
 export {

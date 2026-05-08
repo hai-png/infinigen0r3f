@@ -849,3 +849,484 @@ export class AspectRatio extends GeometryPredicate {
     return new AspectRatio(this.obj.clone() as ObjectSetExpression, this.axis1, this.axis2);
   }
 }
+
+// ============================================================================
+// Missing Geometry Predicates
+// Ported from: constraint_language/geometry.py
+// ============================================================================
+
+/**
+ * MinDistanceInternal - Minimum pairwise distance within a set
+ *
+ * Port of: min_distance_internal(objs) in constraint_language/geometry.py
+ * Returns the minimum distance between any pair of objects in the set.
+ * O(n²) but typically small sets.
+ */
+export class MinDistanceInternal extends GeometryPredicate {
+  readonly type = 'MinDistanceInternal';
+  readonly predicateType = 'MinDistanceInternal';
+
+  constructor(public readonly objs: ObjectSetExpression) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objs', this.objs]]);
+  }
+
+  evaluate(state: Map<Variable, any>): number {
+    const ids = this.objs.evaluate(state);
+    const objects = retrieveSpatialObjects(state, ids);
+    if (objects.length <= 1) return Infinity;
+
+    let minDist = Infinity;
+    for (let i = 0; i < objects.length; i++) {
+      for (let j = i + 1; j < objects.length; j++) {
+        const d = spatialDistance(objects[i].position, objects[j].position);
+        if (d < minDist) minDist = d;
+      }
+    }
+    return minDist;
+  }
+
+  clone(): MinDistanceInternal {
+    return new MinDistanceInternal(this.objs.clone() as ObjectSetExpression);
+  }
+
+  toString(): string {
+    return `MinDistanceInternal(${this.objs})`;
+  }
+}
+
+/**
+ * FreeSpace2D - 2D free space metric
+ *
+ * Port of: freespace_2d(objs, others) in constraint_language/geometry.py
+ * Computes 2D free space metric (area not occupied by others).
+ */
+export class FreeSpace2D extends GeometryPredicate {
+  readonly type = 'FreeSpace2D';
+  readonly predicateType = 'FreeSpace2D';
+
+  constructor(
+    public readonly objs: ObjectSetExpression,
+    public readonly others: ObjectSetExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objs', this.objs], ['others', this.others]]);
+  }
+
+  evaluate(state: Map<Variable, any>): number {
+    const objIds = this.objs.evaluate(state);
+    const otherIds = this.others.evaluate(state);
+    const objects = retrieveSpatialObjects(state, objIds);
+    const otherObjs = retrieveSpatialObjects(state, otherIds);
+    if (objects.length === 0) return 0;
+
+    // Compute total bounding area of objs
+    let minX = Infinity, maxX = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    for (const obj of objects) {
+      const aabb = getAABB(obj);
+      minX = Math.min(minX, aabb.min[0]);
+      maxX = Math.max(maxX, aabb.max[0]);
+      minZ = Math.min(minZ, aabb.min[2]);
+      maxZ = Math.max(maxZ, aabb.max[2]);
+    }
+    const totalArea = Math.max(0, maxX - minX) * Math.max(0, maxZ - minZ);
+    if (totalArea <= 0) return 0;
+
+    // Subtract area occupied by others
+    let occupiedArea = 0;
+    for (const other of otherObjs) {
+      const aabb = getAABB(other);
+      const area = Math.max(0, aabb.max[0] - aabb.min[0]) * Math.max(0, aabb.max[2] - aabb.min[2]);
+      occupiedArea += area;
+    }
+
+    return Math.max(0, totalArea - occupiedArea);
+  }
+
+  clone(): FreeSpace2D {
+    return new FreeSpace2D(
+      this.objs.clone() as ObjectSetExpression,
+      this.others.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `FreeSpace2D(${this.objs}, ${this.others})`;
+  }
+}
+
+/**
+ * MinDistance2D - 2D minimum distance
+ *
+ * Port of: min_dist_2d(objs, others) in constraint_language/geometry.py
+ * Computes 2D (XZ plane) minimum distance between object sets.
+ */
+export class MinDistance2D extends GeometryPredicate {
+  readonly type = 'MinDistance2D';
+  readonly predicateType = 'MinDistance2D';
+
+  constructor(
+    public readonly objs: ObjectSetExpression,
+    public readonly others: ObjectSetExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objs', this.objs], ['others', this.others]]);
+  }
+
+  evaluate(state: Map<Variable, any>): number {
+    const objIds = this.objs.evaluate(state);
+    const otherIds = this.others.evaluate(state);
+    const objects = retrieveSpatialObjects(state, objIds);
+    const otherObjs = retrieveSpatialObjects(state, otherIds);
+    if (objects.length === 0 || otherObjs.length === 0) return Infinity;
+
+    let minDist = Infinity;
+    for (const a of objects) {
+      const aPos = toVec3(a.position);
+      for (const b of otherObjs) {
+        const bPos = toVec3(b.position);
+        // 2D distance on XZ plane
+        const dx = aPos[0] - bPos[0];
+        const dz = aPos[2] - bPos[2];
+        const d2d = Math.sqrt(dx * dx + dz * dz);
+        if (d2d < minDist) minDist = d2d;
+      }
+    }
+    return minDist;
+  }
+
+  clone(): MinDistance2D {
+    return new MinDistance2D(
+      this.objs.clone() as ObjectSetExpression,
+      this.others.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `MinDistance2D(${this.objs}, ${this.others})`;
+  }
+}
+
+/**
+ * RotationalAsymmetry - Rotational asymmetry score
+ *
+ * Port of: rotational_asymmetry(objs) in constraint_language/geometry.py
+ * Measures how asymmetric the object arrangement is around its centroid.
+ * Returns 0 for perfectly rotationally symmetric arrangements.
+ */
+export class RotationalAsymmetry extends GeometryPredicate {
+  readonly type = 'RotationalAsymmetry';
+  readonly predicateType = 'RotationalAsymmetry';
+
+  constructor(public readonly objs: ObjectSetExpression) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objs', this.objs]]);
+  }
+
+  evaluate(state: Map<Variable, any>): number {
+    const ids = this.objs.evaluate(state);
+    const objects = retrieveSpatialObjects(state, ids);
+    if (objects.length <= 1) return 0;
+
+    // Compute centroid
+    let cx = 0, cz = 0;
+    for (const obj of objects) {
+      const p = toVec3(obj.position);
+      cx += p[0]; cz += p[2];
+    }
+    cx /= objects.length;
+    cz /= objects.length;
+
+    // Compute angles of each object relative to centroid
+    const angles = objects.map(obj => {
+      const p = toVec3(obj.position);
+      return Math.atan2(p[2] - cz, p[0] - cx);
+    });
+
+    // Compute asymmetry as variance of angular distribution
+    // Perfect symmetry would have evenly-spaced angles
+    const sortedAngles = angles.sort((a, b) => a - b);
+    const n = sortedAngles.length;
+    const idealSpacing = (2 * Math.PI) / n;
+
+    let asymmetry = 0;
+    for (let i = 0; i < n; i++) {
+      const nextAngle = sortedAngles[(i + 1) % n];
+      const currAngle = sortedAngles[i];
+      const actualSpacing = nextAngle >= currAngle
+        ? nextAngle - currAngle
+        : (2 * Math.PI - currAngle) + nextAngle;
+      asymmetry += Math.abs(actualSpacing - idealSpacing);
+    }
+
+    return asymmetry / (2 * Math.PI); // Normalize to [0, 1]
+  }
+
+  clone(): RotationalAsymmetry {
+    return new RotationalAsymmetry(this.objs.clone() as ObjectSetExpression);
+  }
+
+  toString(): string {
+    return `RotationalAsymmetry(${this.objs})`;
+  }
+}
+
+/**
+ * ReflectionalAsymmetry - Reflectional asymmetry
+ *
+ * Port of: reflectional_asymmetry(objs, others, use_long_plane) in constraint_language/geometry.py
+ * Measures how asymmetric the arrangement is across a reflection plane.
+ * Returns 0 for perfectly reflectionally symmetric.
+ */
+export class ReflectionalAsymmetry extends GeometryPredicate {
+  readonly type = 'ReflectionalAsymmetry';
+  readonly predicateType = 'ReflectionalAsymmetry';
+
+  constructor(
+    public readonly objs: ObjectSetExpression,
+    public readonly others: ObjectSetExpression,
+    public readonly useLongPlane: boolean = true
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objs', this.objs], ['others', this.others]]);
+  }
+
+  evaluate(state: Map<Variable, any>): number {
+    const objIds = this.objs.evaluate(state);
+    const otherIds = this.others.evaluate(state);
+    const objects = retrieveSpatialObjects(state, objIds);
+    const otherObjs = retrieveSpatialObjects(state, otherIds);
+    const allObjs = [...objects, ...otherObjs];
+    if (allObjs.length <= 1) return 0;
+
+    // Compute centroid
+    let cx = 0, cz = 0;
+    for (const obj of allObjs) {
+      const p = toVec3(obj.position);
+      cx += p[0]; cz += p[2];
+    }
+    cx /= allObjs.length;
+    cz /= allObjs.length;
+
+    // Determine reflection plane axis
+    // Use long axis (direction of greatest spread) if useLongPlane
+    let spreadX = 0, spreadZ = 0;
+    for (const obj of allObjs) {
+      const p = toVec3(obj.position);
+      spreadX += (p[0] - cx) ** 2;
+      spreadZ += (p[2] - cz) ** 2;
+    }
+
+    // Reflection plane is perpendicular to the longer spread
+    const reflectAlongX = this.useLongPlane ? spreadX > spreadZ : spreadX <= spreadZ;
+
+    // Compute asymmetry: sum of distances of objects from their reflections
+    let asymmetry = 0;
+    for (const obj of allObjs) {
+      const p = toVec3(obj.position);
+      // Reflected position
+      const rx = reflectAlongX ? 2 * cx - p[0] : p[0];
+      const rz = reflectAlongX ? p[2] : 2 * cz - p[2];
+
+      // Find closest object to reflected position
+      let minDist = Infinity;
+      for (const other of allObjs) {
+        if (other === obj) continue;
+        const op = toVec3(other.position);
+        const d = Math.sqrt((op[0] - rx) ** 2 + (op[2] - rz) ** 2);
+        if (d < minDist) minDist = d;
+      }
+      asymmetry += minDist;
+    }
+
+    return asymmetry / allObjs.length;
+  }
+
+  clone(): ReflectionalAsymmetry {
+    return new ReflectionalAsymmetry(
+      this.objs.clone() as ObjectSetExpression,
+      this.others.clone() as ObjectSetExpression,
+      this.useLongPlane
+    );
+  }
+
+  toString(): string {
+    return `ReflectionalAsymmetry(${this.objs}, ${this.others})`;
+  }
+}
+
+/**
+ * CoplanarityCost - Co-planarity violation cost
+ *
+ * Port of: coplanarity_cost(objs) in constraint_language/geometry.py
+ * All objects should be on the same plane; cost = variance in Y positions.
+ */
+export class CoplanarityCost extends GeometryPredicate {
+  readonly type = 'CoplanarityCost';
+  readonly predicateType = 'CoplanarityCost';
+
+  constructor(public readonly objs: ObjectSetExpression) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objs', this.objs]]);
+  }
+
+  evaluate(state: Map<Variable, any>): number {
+    const ids = this.objs.evaluate(state);
+    const objects = retrieveSpatialObjects(state, ids);
+    if (objects.length <= 1) return 0;
+
+    // Compute mean Y
+    let sumY = 0;
+    for (const obj of objects) {
+      sumY += toVec3(obj.position)[1];
+    }
+    const meanY = sumY / objects.length;
+
+    // Compute variance
+    let variance = 0;
+    for (const obj of objects) {
+      const y = toVec3(obj.position)[1];
+      variance += (y - meanY) ** 2;
+    }
+
+    return variance / objects.length; // MSE = variance
+  }
+
+  clone(): CoplanarityCost {
+    return new CoplanarityCost(this.objs.clone() as ObjectSetExpression);
+  }
+
+  toString(): string {
+    return `CoplanarityCost(${this.objs})`;
+  }
+}
+
+/**
+ * CenterStableSurfaceDist - Distance from center of support surface
+ *
+ * Port of: center_stable_surface_dist(objs) in constraint_language/geometry.py
+ * Computes distance of objects from the center of their support surface.
+ */
+export class CenterStableSurfaceDist extends GeometryPredicate {
+  readonly type = 'CenterStableSurfaceDist';
+  readonly predicateType = 'CenterStableSurfaceDist';
+
+  constructor(public readonly objs: ObjectSetExpression) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objs', this.objs]]);
+  }
+
+  evaluate(state: Map<Variable, any>): number {
+    const ids = this.objs.evaluate(state);
+    const objects = retrieveSpatialObjects(state, ids);
+    if (objects.length === 0) return 0;
+
+    // Compute centroid of the support surface (XZ plane)
+    let cx = 0, cz = 0;
+    for (const obj of objects) {
+      const p = toVec3(obj.position);
+      cx += p[0]; cz += p[2];
+    }
+    cx /= objects.length;
+    cz /= objects.length;
+
+    // Compute average distance from centroid
+    let totalDist = 0;
+    for (const obj of objects) {
+      const p = toVec3(obj.position);
+      const dx = p[0] - cx;
+      const dz = p[2] - cz;
+      totalDist += Math.sqrt(dx * dx + dz * dz);
+    }
+
+    return totalDist / objects.length;
+  }
+
+  clone(): CenterStableSurfaceDist {
+    return new CenterStableSurfaceDist(this.objs.clone() as ObjectSetExpression);
+  }
+
+  toString(): string {
+    return `CenterStableSurfaceDist(${this.objs})`;
+  }
+}
+
+/**
+ * AngleAlignmentCost - Angular misalignment cost
+ *
+ * Port of: angle_alignment_cost(objs, others, others_tags) in constraint_language/geometry.py
+ * Computes angular misalignment cost between two object sets.
+ */
+export class AngleAlignmentCost extends GeometryPredicate {
+  readonly type = 'AngleAlignmentCost';
+  readonly predicateType = 'AngleAlignmentCost';
+
+  constructor(
+    public readonly objs: ObjectSetExpression,
+    public readonly others: ObjectSetExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objs', this.objs], ['others', this.others]]);
+  }
+
+  evaluate(state: Map<Variable, any>): number {
+    const objIds = this.objs.evaluate(state);
+    const otherIds = this.others.evaluate(state);
+    const objects = retrieveSpatialObjects(state, objIds);
+    const otherObjs = retrieveSpatialObjects(state, otherIds);
+    if (objects.length === 0 || otherObjs.length === 0) return 0;
+
+    // Compute average forward directions for each set
+    let totalCost = 0;
+    let count = 0;
+
+    for (const a of objects) {
+      const fwdA = getForward(a);
+      for (const b of otherObjs) {
+        const fwdB = getForward(b);
+        // Angular misalignment = 1 - |cos(angle)| between forward directions
+        const cosAngle = Math.abs(dot(fwdA, fwdB));
+        totalCost += 1 - cosAngle;
+        count++;
+      }
+    }
+
+    return count > 0 ? totalCost / count : 0;
+  }
+
+  clone(): AngleAlignmentCost {
+    return new AngleAlignmentCost(
+      this.objs.clone() as ObjectSetExpression,
+      this.others.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `AngleAlignmentCost(${this.objs}, ${this.others})`;
+  }
+}

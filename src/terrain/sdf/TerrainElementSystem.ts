@@ -31,6 +31,11 @@ import { NoiseUtils, SeededNoiseGenerator, NoiseType } from '@/core/util/math/no
 import { TERRAIN_MATERIALS } from './SDFPrimitives';
 import { smoothUnion, sdfSubtraction, sdfUnion, sdfIntersection } from './SDFCombinators';
 import { SignedDistanceField, extractIsosurface } from './sdf-operations';
+import { LandTilesElement, WarpedRocksElement, UpsideDownMountainNewElement, AtmosphereElement } from './MissingElements';
+import { LSystemCaveGenerator, DEFAULT_CAVE_GRAMMAR } from './LSystemCave';
+export { LandTilesElement, WarpedRocksElement, UpsideDownMountainNewElement, AtmosphereElement } from './MissingElements';
+export { LSystemCaveGenerator, DEFAULT_CAVE_GRAMMAR } from './LSystemCave';
+export type { CaveGrammarConfig, CaveTunnelData } from './LSystemCave';
 
 // ============================================================================
 // Core Types
@@ -1674,10 +1679,14 @@ export const DEFAULT_SCENE_COMPOSITION_CONFIG: SceneCompositionConfig = {
   resolution: 0.5,
   elementChances: {
     Ground: 1.0,
-    Mountains: 0.8,
-    Caves: 0.7,
-    VoronoiRocks: 0.6,
-    Waterbody: 0.5,
+    Mountains: 0.65,
+    LandTiles: 0.5,
+    Caves: 0.5,
+    VoronoiRocks: 0.5,
+    WarpedRocks: 0.35,
+    Waterbody: 0.4,
+    UpsideDownMountains: 0.15,
+    Atmosphere: 0.3,
   },
   elementParams: {},
 };
@@ -1744,9 +1753,13 @@ export class SceneComposer {
     > = {
       Ground: () => new GroundElement(),
       Mountains: () => new MountainElement(),
+      LandTiles: () => new LandTilesElement(),
       Caves: () => new CaveElement(),
       VoronoiRocks: () => new VoronoiRockElement(),
+      WarpedRocks: () => new WarpedRocksElement(),
       Waterbody: () => new WaterbodyElement(),
+      UpsideDownMountains: () => new UpsideDownMountainNewElement(),
+      Atmosphere: () => new AtmosphereElement(),
     };
 
     // --- Probabilistic element activation ---

@@ -14,6 +14,9 @@
  */
 
 import { SeededRandom } from '../../util/MathUtils';
+import { GreedyStage, updateActiveFlags, partitionConstraints, allSubstitutions } from './greedy';
+import { Problem, Constraint } from '../language/types';
+import { State } from '../evaluator/state';
 
 // ============================================================================
 // Types & Interfaces
@@ -390,6 +393,174 @@ export class GreedyPreSolver {
     this.partitioner = new ConstraintPartition();
     this.activeForStage = new ActiveForStage();
     this.rng = new SeededRandom(seed);
+  }
+
+  /**
+   * Solve a constraint problem using the greedy stage system.
+   *
+   * This method implements the full Infinigen greedy pipeline:
+   *  1. For each GreedyStage:
+   *     a. updateActiveFlags — activate objects matching the stage's domain
+   *     b. partitionConstraints — filter constraints relevant to this stage
+   *     c. allSubstitutions — enumerate valid variable→object assignments
+   *     d. For each substitution, evaluate constraints and pick the best
+   *  2. Return the state with all objects assigned
+   *
+   * @param problem  The constraint Problem to solve
+   * @param state    The current solver State
+   * @param stages   The ordered list of GreedyStage definitions
+   * @returns The modified State with assignments, or null if solving fails
+   */
+  solveWithStages(
+    problem: Problem,
+    state: State,
+    stages: GreedyStage[]
+  ): State | null {
+    if (stages.length === 0) {
+      // No stages — fall back to the basic solve
+      return state;
+    }
+
+    for (const stage of stages) {
+      // Step 1: Update active flags for this stage
+      updateActiveFlags(state, stage);
+
+      // Step 2: Partition constraints for this stage
+      const subProblem = partitionConstraints(problem, stage, state);
+
+      // Step 3: Enumerate all valid variable substitutions
+      const substitutions = allSubstitutions(stage, state);
+
+      if (substitutions.length === 0) {
+        // No valid substitutions for this stage — skip
+        continue;
+      }
+
+      // Step 4: Find the best substitution (fewest constraint violations)
+      let bestSubstitution: Map<string, string> | null = null;
+      let bestViolations = Infinity;
+
+      // Limit the number of substitutions to try based on nProposals
+      const maxProposals = Math.min(substitutions.length, stage.nProposals);
+
+      // Shuffle substitutions to add randomness (seeded)
+      const shuffledSubs = [...substitutions];
+      this.rng.shuffle(shuffledSubs);
+
+      for (let i = 0; i < maxProposals; i++) {
+        const substitution = shuffledSubs[i];
+
+        // Apply substitution to a temporary assignment
+        const assignment = new Map<string, any>();
+        for (const [varName, objName] of substitution.entries()) {
+          const objState = state.objects.get(objName);
+          if (objState) {
+            assignment.set(varName, objName);
+          }
+        }
+
+        // Evaluate violations for this substitution
+        const violations = this.evaluateSubProblemViolations(
+          subProblem.constraints,
+          assignment,
+          state
+        );
+
+        if (violations < bestViolations) {
+          bestViolations = violations;
+          bestSubstitution = substitution;
+        }
+
+        // Early exit if no violations
+        if (violations === 0) break;
+      }
+
+      // Step 5: Apply the best substitution to the state
+      if (bestSubstitution) {
+        this.applySubstitutionToState(state, bestSubstitution);
+      }
+    }
+
+    return state;
+  }
+
+  /**
+   * Evaluate violations for a list of constraints given a substitution.
+   */
+  private evaluateSubProblemViolations(
+    constraints: Constraint[],
+    assignment: Map<string, any>,
+    state: State
+  ): number {
+    let violations = 0;
+
+    for (const constraint of constraints) {
+      const satisfied = this.evaluateConstraintWithState(constraint, assignment, state);
+      if (!satisfied) {
+        violations++;
+      }
+    }
+
+    return violations;
+  }
+
+  /**
+   * Evaluate a constraint using both the assignment map and the solver state.
+   *
+   * This extends evaluateConstraint to also resolve object references
+   * from the State when the assignment doesn't contain a value.
+   */
+  private evaluateConstraintWithState(
+    constraint: any,
+    assignment: Map<string, any>,
+    state: State
+  ): boolean {
+    // Try the standard evaluation first
+    const result = this.evaluateConstraint(constraint, assignment);
+    if (result) return true;
+
+    // For constraints that reference objects by name, try resolving
+    // from the state
+    try {
+      if (typeof constraint.isSatisfied === 'function') {
+        // Build an extended assignment with object states
+        const extendedAssignment = new Map(assignment);
+        for (const [name, obj] of state.objects.entries()) {
+          if (!extendedAssignment.has(name)) {
+            extendedAssignment.set(name, obj);
+          }
+        }
+        return !!constraint.isSatisfied(extendedAssignment);
+      }
+    } catch {
+      // Ignore — fall through
+    }
+
+    return false;
+  }
+
+  /**
+   * Apply a variable→objectName substitution to the solver State.
+   *
+   * For each variable in the substitution, updates the corresponding
+   * object's pose and assignment in the state.
+   */
+  private applySubstitutionToState(
+    state: State,
+    substitution: Map<string, string>
+  ): void {
+    for (const [varName, objName] of substitution.entries()) {
+      const objState = state.objects.get(objName);
+      if (objState) {
+        // Mark this object as assigned/active
+        objState.active = true;
+
+        // Update the domain reference if available
+        if (!objState.domain) {
+          objState.domain = varName;
+        }
+      }
+    }
   }
 
   /**

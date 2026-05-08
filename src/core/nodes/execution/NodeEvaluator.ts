@@ -17,6 +17,9 @@ import * as THREE from 'three';
 import type { NodeInstance, NodeLink, NodeDefinition } from '../core/types';
 import { SocketType, areSocketsCompatible, getDefaultValueForType } from '../core/types';
 import { getExecutor, registerAllExecutors } from './ExecutorRegistry';
+import { NodeGroupEvaluator } from './NodeGroupEvaluator';
+import type { NodeGroupDefinitionLike } from './NodeGroupEvaluator';
+import { NodeGroupDefinition } from '../groups/NodeGroupComposition';
 
 // ============================================================================
 // Types
@@ -88,6 +91,12 @@ export class NodeEvaluator {
   private errors: string[] = [];
   private nodeDefinitions: Map<string, NodeDefinition> = new Map();
 
+  /** Node group definition registry — maps group IDs to definitions */
+  private groupDefinitions: Map<string, NodeGroupDefinition | NodeGroupDefinitionLike> = new Map();
+
+  /** NodeGroupEvaluator for delegated group evaluation */
+  private groupEvaluator: NodeGroupEvaluator = new NodeGroupEvaluator();
+
   /**
    * Ensure the ExecutorRegistry is populated on first instantiation.
    * `registerAllExecutors()` is idempotent — subsequent calls are no-ops.
@@ -110,6 +119,50 @@ export class NodeEvaluator {
     for (const def of definitions) {
       this.registerDefinition(def);
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // Group definition registration
+  // -----------------------------------------------------------------------
+
+  /** Register a node group definition for lookup during evaluation.
+   *
+   * When the evaluator encounters a node whose type matches a registered
+   * group definition ID, it delegates evaluation to the NodeGroupEvaluator.
+   *
+   * @param definition - The group definition (class instance or plain object)
+   */
+  registerGroupDefinition(definition: NodeGroupDefinition | NodeGroupDefinitionLike): void {
+    const id = definition instanceof NodeGroupDefinition ? definition.id : definition.id;
+    this.groupDefinitions.set(id, definition);
+    this.groupEvaluator.registerDefinition(definition);
+  }
+
+  /** Register multiple group definitions at once. */
+  registerGroupDefinitions(definitions: Array<NodeGroupDefinition | NodeGroupDefinitionLike>): void {
+    for (const def of definitions) {
+      this.registerGroupDefinition(def);
+    }
+  }
+
+  /** Unregister a group definition.
+   *
+   * @param id - The group definition ID to remove.
+   * @returns `true` if the definition existed and was removed.
+   */
+  unregisterGroupDefinition(id: string): boolean {
+    this.groupEvaluator.unregisterDefinition(id);
+    return this.groupDefinitions.delete(id);
+  }
+
+  /** Check whether a group definition is registered. */
+  hasGroupDefinition(typeId: string): boolean {
+    return this.groupDefinitions.has(typeId);
+  }
+
+  /** Get the underlying NodeGroupEvaluator for advanced usage. */
+  getGroupEvaluator(): NodeGroupEvaluator {
+    return this.groupEvaluator;
   }
 
   /**
@@ -657,6 +710,23 @@ export class NodeEvaluator {
     const executor = getExecutor(nodeType);
     if (executor) {
       return executor(inputs, { settings: node.settings ?? {}, node });
+    }
+
+    // ── Group definition lookup ──
+    // Before falling back to pass-through, check if the node type
+    // references a registered group definition.
+    if (this.groupDefinitions.has(nodeType)) {
+      const result = this.groupEvaluator.evaluateGroup(nodeType, inputs);
+
+      // Propagate warnings and errors from the group evaluation
+      for (const w of result.warnings) {
+        this.warnings.push(`[Group:${nodeType}] ${w}`);
+      }
+      for (const e of result.errors) {
+        this.errors.push(`[Group:${nodeType}] ${e}`);
+      }
+
+      return result.outputs;
     }
 
     // No executor found — pass through inputs as outputs

@@ -5,7 +5,8 @@
  * Ported from: infinigen/core/constraints/reasoning/domain_substitute.py (~1,100 LOC)
  * 
  * This module handles:
- * - Variable substitution in expressions
+ * - Variable substitution in SymbolicDomains (substituteAll)
+ * - Variable substitution in expression nodes
  * - Domain substitution when variables are bound
  * - Constraint simplification after substitution
  */
@@ -31,6 +32,81 @@ import {
 } from '../language/types';
 import { constraintDomain } from './constraint-domain';
 import { isConstant, evaluateConstant } from './constraint-constancy';
+import { SymbolicDomain, DomainTag } from './domain';
+
+// ─── Symbolic Domain Substitution ──────────────────────────────────────────
+
+/**
+ * Substitute all Variable tags in a SymbolicDomain with concrete domains
+ * from the assignments map.
+ *
+ * Ported from the original Infinigen's substituteAll():
+ *   def substitute_all(dom, assignments):
+ *       new_tags = set()
+ *       for t in dom.tags:
+ *           if isinstance(t, Variable) and t.name in assignments:
+ *               sub = assignments[t.name]
+ *               new_tags |= sub.tags
+ *               dom.relations += sub.relations
+ *           else:
+ *               new_tags.add(t)
+ *       ...
+ *
+ * This replaces Variable tags with concrete domains from the assignments map.
+ * Used during greedy stage execution to bind room/object variables.
+ *
+ * @param dom - The SymbolicDomain to substitute in
+ * @param assignments - Map of variable names to their concrete SymbolicDomains
+ * @returns New SymbolicDomain with Variable tags replaced
+ */
+export function substituteAll(
+  dom: SymbolicDomain,
+  assignments: Map<string, SymbolicDomain>
+): SymbolicDomain {
+  return dom.substitute(assignments);
+}
+
+/**
+ * Domain tag substitution - substitute tags in domain constraints
+ *
+ * This replaces string tags that match keys in the substitutions map
+ * with the tags from the replacement domain. Used for binding symbolic
+ * tag references to concrete tag values.
+ *
+ * @param dom - The SymbolicDomain to substitute in
+ * @param tagSubstitutions - Map of tag names to replacement SymbolicDomains
+ * @returns New SymbolicDomain with tags substituted
+ */
+export function domainTagSubstitute(
+  dom: SymbolicDomain,
+  tagSubstitutions: Map<string, SymbolicDomain>
+): SymbolicDomain {
+  const newTags = new Set<DomainTag>();
+  let newRelations = [...dom.relations];
+
+  for (const tag of dom.tags) {
+    if (typeof tag === 'string' && tagSubstitutions.has(tag)) {
+      const replacement = tagSubstitutions.get(tag)!;
+      // Merge replacement domain's tags
+      for (const rTag of replacement.tags) {
+        newTags.add(rTag);
+      }
+      // Merge replacement domain's relations
+      newRelations = [...newRelations, ...replacement.relations];
+    } else {
+      newTags.add(tag);
+    }
+  }
+
+  // Recursively substitute in nested relation domains
+  newRelations = newRelations.map(([rel, nestedDom]) =>
+    [rel, domainTagSubstitute(nestedDom, tagSubstitutions)] as const
+  );
+
+  return new SymbolicDomain(newTags, newRelations);
+}
+
+// ─── Expression Node Substitution ──────────────────────────────────────────
 
 /**
  * Substitution result containing the substituted node and success flag
@@ -133,12 +209,6 @@ export function substituteVariables(
       const rel = n as RelationNode;
       const args = rel.args.map(arg => substitute(arg));
       
-      // Check if relation can be evaluated (all args constant)
-      if (args.every(arg => isConstant(arg as Node))) {
-        // Could evaluate relation here if needed
-        // For now, keep as relation node
-      }
-      
       return {
         ...rel,
         args
@@ -231,8 +301,6 @@ export function applyDomainSubstitution(
 ): ExpressionNode {
   const substituteWithDomains = (n: ExpressionNode): ExpressionNode => {
     if (n.type === 'Variable') {
-      const varNode = n as Variable;
-      // Variable itself doesn't change, but domain info is used elsewhere
       return n;
     }
     
@@ -257,12 +325,6 @@ export function applyDomainSubstitution(
     if (n.type === 'Relation') {
       const rel = n as RelationNode;
       const args = rel.args.map(arg => substituteWithDomains(arg));
-      
-      // Check for domain-based relation simplification
-      const simplified = simplifyRelationWithDomains(rel, args, domains) as ExpressionNode | null;
-      if (simplified) {
-        return simplified;
-      }
       
       return {
         ...rel,
@@ -315,11 +377,6 @@ export function applyDomainSubstitution(
 
 /**
  * Simplify binary operation using domain information
- *
- * Implements constraint propagation through domain bounds:
- * - Detects contradictions (e.g., x > 5 when domain of x is [0, 3])
- * - Simplifies tautologies (e.g., x < 10 when domain of x is [0, 5])
- * - Tightens bounds based on comparison operators
  */
 function simplifyWithDomainInfo(
   node: BinaryOpNode,
@@ -334,12 +391,11 @@ function simplifyWithDomainInfo(
   const rightVars = extractVariablesFromNode(right);
 
   // Case 1: Variable compared to constant
-  // e.g., x < 5 where domain of x is NumericDomain
   for (const varName of leftVars) {
     const domain = domains.get(varName);
-    if (!domain || domain.type !== 'NumericDomain') continue;
+    if (!domain || domain.type !== 'numeric') continue;
     const numDomain = domain as NumericDomain;
-    if (numDomain.discrete) continue; // Skip discrete domains
+    if (numDomain.discrete) continue;
 
     const rightConst = tryGetConstantValue(right);
     if (rightConst === undefined || typeof rightConst !== 'number') continue;
@@ -353,14 +409,13 @@ function simplifyWithDomainInfo(
   // Case 2: Constant compared to variable
   for (const varName of rightVars) {
     const domain = domains.get(varName);
-    if (!domain || domain.type !== 'NumericDomain') continue;
+    if (!domain || domain.type !== 'numeric') continue;
     const numDomain = domain as NumericDomain;
     if (numDomain.discrete) continue;
 
     const leftConst = tryGetConstantValue(left);
     if (leftConst === undefined || typeof leftConst !== 'number') continue;
 
-    // Reverse the comparison for variable on the right
     const reversedOp = reverseComparison(compOp);
     if (reversedOp) {
       const result = evaluateComparisonWithDomain(reversedOp, numDomain, leftConst);
@@ -370,22 +425,21 @@ function simplifyWithDomainInfo(
     }
   }
 
-  // Case 3: Two variables with known domains — check if ranges can't satisfy comparison
+  // Case 3: Two variables with known domains
   if (leftVars.size === 1 && rightVars.size === 1) {
     const leftVar = Array.from(leftVars)[0];
     const rightVar = Array.from(rightVars)[0];
     const leftDom = domains.get(leftVar);
     const rightDom = domains.get(rightVar);
-    if (leftDom?.type === 'NumericDomain' && rightDom?.type === 'NumericDomain') {
+    if (leftDom?.type === 'numeric' && rightDom?.type === 'numeric') {
       const lDom = leftDom as NumericDomain;
       const rDom = rightDom as NumericDomain;
       if (!lDom.discrete && !rDom.discrete) {
-        // Check if comparison is impossible
+        // Check if comparison is impossible or always true
         if (compOp === 'lt' && lDom.min >= rDom.max) return createConstantNode(false);
         if (compOp === 'lte' && lDom.min > rDom.max) return createConstantNode(false);
         if (compOp === 'gt' && lDom.max <= rDom.min) return createConstantNode(false);
         if (compOp === 'gte' && lDom.max < rDom.min) return createConstantNode(false);
-        // Check if comparison is always true
         if (compOp === 'lt' && lDom.max < rDom.min) return createConstantNode(true);
         if (compOp === 'lte' && lDom.max <= rDom.min) return createConstantNode(true);
         if (compOp === 'gt' && lDom.min > rDom.max) return createConstantNode(true);
@@ -394,7 +448,7 @@ function simplifyWithDomainInfo(
     }
   }
 
-  return null; // No simplification possible
+  return null;
 }
 
 /**
@@ -407,27 +461,27 @@ function evaluateComparisonWithDomain(
   constant: number
 ): boolean | null {
   switch (op) {
-    case 'lt': // variable < constant
-      if (domain.max < constant) return true;  // All values < constant
-      if (domain.min >= constant) return false;  // No values < constant
+    case 'lt':
+      if (domain.max < constant) return true;
+      if (domain.min >= constant) return false;
       return null;
-    case 'lte': // variable <= constant
+    case 'lte':
       if (domain.max <= constant) return true;
       if (domain.min > constant) return false;
       return null;
-    case 'gt': // variable > constant
+    case 'gt':
       if (domain.min > constant) return true;
       if (domain.max <= constant) return false;
       return null;
-    case 'gte': // variable >= constant
+    case 'gte':
       if (domain.min >= constant) return true;
       if (domain.max < constant) return false;
       return null;
-    case 'eq': // variable == constant
+    case 'eq':
       if (domain.min === constant && domain.max === constant) return true;
       if (constant < domain.min || constant > domain.max) return false;
       return null;
-    case 'neq': // variable != constant
+    case 'neq':
       if (domain.min === constant && domain.max === constant) return false;
       if (constant < domain.min || constant > domain.max) return true;
       return null;
@@ -459,78 +513,6 @@ function tryGetConstantValue(node: ExpressionNode): any {
     return (node as any).value;
   }
   return undefined;
-}
-
-/**
- * Simplify relation using domain information
- *
- * Implements domain-aware relation simplification:
- * - Distance(x,y) >= 0 → always true (distance is non-negative)
- * - Containment(A, B) when A's domain is disjoint from B's → always false
- * - Facing(A, B) when A and B are in non-overlapping domains → always false
- */
-function simplifyRelationWithDomains(
-  node: RelationNode,
-  args: ExpressionNode[],
-  domains: Map<string, Domain>
-): ExpressionNode | null {
-  // Check if all arguments have known domains
-  const argDomains = args.map(arg => {
-    if (arg.type === 'Variable') {
-      return domains.get((arg as Variable).name);
-    }
-    return undefined;
-  });
-
-  // Distance is always non-negative — simplify Distance(x,y) >= 0 to true
-  if (node.relationType === 'Distance') {
-    // If the relation is used in a comparison like Distance >= 0, that's always true
-    // We can't fully simplify here without knowing the parent context,
-    // but we can note that Distance always returns >= 0
-  }
-
-  // Containment simplification: if objects have non-overlapping pose domains,
-  // containment is impossible
-  if (node.relationType === 'containment' && argDomains.length >= 2) {
-    const innerDom = argDomains[0];
-    const outerDom = argDomains[1];
-    if (innerDom?.type === 'bbox' && outerDom?.type === 'bbox') {
-      const innerBBox = innerDom as any;
-      const outerBBox = outerDom as any;
-      // If inner's min is larger than outer's max in any dimension, containment is impossible
-      if (innerBBox.mins && outerBBox.maxs) {
-        for (let i = 0; i < 3; i++) {
-          if (innerBBox.mins[i] > outerBBox.maxs[i]) {
-            return createConstantNode(false);
-          }
-        }
-      }
-    }
-  }
-
-  // Facing/lookAt simplification: if objects are too far apart based on pose domains,
-  // facing is unlikely (but not impossible)
-  if ((node.relationType === 'facing' || node.relationType === 'look_at') && argDomains.length >= 2) {
-    const dom1 = argDomains[0];
-    const dom2 = argDomains[1];
-    if (dom1?.type === 'pose' && dom2?.type === 'pose') {
-      const pos1 = (dom1 as any).positionDomain;
-      const pos2 = (dom2 as any).positionDomain;
-      if (pos1?.maxs && pos2?.mins) {
-        // Check if the objects' position domains are so far apart that
-        // they can't possibly face each other
-        const maxDist = Math.max(
-          pos1.maxs[0] - pos2.mins[0],
-          pos1.maxs[1] - pos2.mins[1],
-          pos1.maxs[2] - pos2.mins[2]
-        );
-        // If maximum possible distance is very large (>100), facing is unlikely
-        // but we can't definitively simplify — return null
-      }
-    }
-  }
-
-  return null; // No simplification possible
 }
 
 /**
@@ -642,7 +624,7 @@ export function normalizeConstraint(
   // Step 2: Substitute any constant variables
   const constBindings = new Map<string, any>();
   for (const [varName, domain] of domains.entries()) {
-    if (domain.type === 'NumericDomain') {
+    if (domain.type === 'numeric') {
       const numDomain = domain as NumericDomain;
       if (numDomain.lower !== -Infinity && numDomain.lower === numDomain.upper) {
         constBindings.set(varName, numDomain.lower);
@@ -655,23 +637,5 @@ export function normalizeConstraint(
     result = subResult.node as ExpressionNode;
   }
   
-  // Step 3: Simplify constants
-  // (Already done during substitution via isConstant checks)
-  
   return result;
-}
-
-/**
- * Domain tag substitution - substitute tags in domain constraints
- * Alias for applyDomainSubstitution with simplified signature
- */
-export function domainTagSubstitute(
-  node: ExpressionNode,
-  tagSubstitutions: Map<string, ExpressionNode>
-): ExpressionNode {
-  const domains = new Map<string, Domain>();
-  tagSubstitutions.forEach((replacement, varName) => {
-    domains.set(varName, new ObjectSetDomain());
-  });
-  return applyDomainSubstitution(node, domains);
 }

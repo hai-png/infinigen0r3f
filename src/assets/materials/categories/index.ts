@@ -32,3 +32,23 @@ export type { CeramicTileMaterialConfig as CeramicTileParams, CeramicTileMateria
 // Fur materials (Shell-texture fur)
 export { ShellTextureFurMaterial, ShellTextureFurRenderer, createFurConfig, DEFAULT_FUR_CONFIG } from './Fur/ShellTextureFur';
 export type { ShellTextureFurConfig } from './Fur/ShellTextureFur';
+
+// Fruit surface materials
+export { FruitMaterialLibrary } from './Fruit/FruitMaterialLibrary';
+export type { FruitMaterialParams, FruitType } from './Fruit/FruitMaterialLibrary';
+
+// Expanded Wood variants
+export { WoodVariants } from './Wood/WoodVariants';
+export type { WoodVariantType, WoodVariantParams } from './Wood/WoodVariants';
+
+// Expanded Metal variants
+export { MetalVariants } from './Metal/MetalVariants';
+export type { MetalVariantType, MetalVariantParams } from './Metal/MetalVariants';
+
+// Expanded Fabric variants
+export { FabricVariants } from './Fabric/FabricVariants';
+export type { FabricVariantType, FabricVariantParams } from './Fabric/FabricVariants';
+
+// Expanded Creature variants
+export { CreatureVariants } from './Creature/CreatureVariants';
+export type { CreatureVariantType, CreatureVariantParams } from './Creature/CreatureVariants';

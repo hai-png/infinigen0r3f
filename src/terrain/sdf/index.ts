@@ -29,8 +29,18 @@ export {
   SceneComposer,
   DEFAULT_SCENE_COMPOSITION_CONFIG,
   buildSDFFromElements,
+  LandTilesElement,
+  WarpedRocksElement,
+  UpsideDownMountainNewElement,
+  AtmosphereElement,
+  LSystemCaveGenerator,
+  DEFAULT_CAVE_GRAMMAR,
 } from './TerrainElementSystem';
 export type {
   ElementEvalResult,
   SceneCompositionConfig,
 } from './TerrainElementSystem';
+export type {
+  CaveGrammarConfig,
+  CaveTunnelData,
+} from './LSystemCave';

@@ -442,11 +442,13 @@ export * from './simulation';
 export * from './volume';
 
 // ============================================================================
-// Transpiler - export explicitly to exclude VariableBinding (conflicts with constraints)
+// Transpiler — new NodeTranspiler + legacy re-exports
 // ============================================================================
 
-export { NodeTranspiler, transpileNodeTree } from './transpiler';
-export type { TranspilerOptions } from './transpiler';
+export { NodeTranspiler, CodeGenerator, LabelExpressionParser, transpileNodeTree } from './transpiler';
+export type { TranspileOptions, TranspileResult, ImportEntry, LabelExpression, DistributionType } from './transpiler';
+export type { LegacyTranspilerOptions } from './transpiler';
+export { LegacyNodeTranspiler } from './transpiler';
 
 // ============================================================================
 // Code Serializer / Transpiler (NodeWrangler graph → TypeScript code)

@@ -9,6 +9,9 @@
 import type { ConstraintNode, Problem, Domain } from './types';
 import type { State } from '../evaluator/state';
 import type { Move } from '../solver/moves';
+import { Node, Variable } from './types';
+import { ScalarExpression, BoolExpression } from './expression';
+import { RoomConstants } from './constants';
 
 /**
  * Represents the status of a constraint evaluation
@@ -490,4 +493,148 @@ export function compareSolutions(a: Solution, b: Solution): number {
   
   // Finally compare scores
   return a.finalScore - b.finalScore;
+}
+
+// ============================================================================
+// ProblemNode - Top-level AST container for constraints
+// Ported from: constraint_language/result.py
+// ============================================================================
+
+/**
+ * ProblemNode - The top-level AST Node container for constraint problems.
+ *
+ * In the original Infinigen, the `Problem` class (in constraint_language/result.py)
+ * is a @nodedataclass that extends Node and holds the complete problem definition.
+ * The R3F port already has a `Problem` interface in types.ts and a `Problem` class
+ * in constants.ts. This `ProblemNode` class provides the proper AST Node implementation
+ * matching the original, named ProblemNode to avoid conflicts with existing types.
+ *
+ * Like the original:
+ *   constraints: dict[str, BoolExpression]  # Hard constraints
+ *   score_terms: dict[str, ScalarExpression]  # Soft objectives
+ *   constants: RoomConstants  # Global room parameters
+ */
+export class ProblemNode extends Node {
+  readonly type = 'ProblemNode';
+
+  /** Hard constraints that must be satisfied */
+  constraints: Map<string, BoolExpression>;
+
+  /** Soft score terms / objectives to optimize */
+  scoreTerms: Map<string, ScalarExpression>;
+
+  /** Global room configuration parameters */
+  constants: RoomConstants;
+
+  constructor(
+    constraints?: Map<string, BoolExpression>,
+    scoreTerms?: Map<string, ScalarExpression>,
+    constants?: RoomConstants
+  ) {
+    super();
+    this.constraints = constraints ?? new Map();
+    this.scoreTerms = scoreTerms ?? new Map();
+    this.constants = constants ?? RoomConstants.default();
+  }
+
+  /**
+   * Add a hard constraint with a given name
+   */
+  addConstraint(name: string, expr: BoolExpression): void {
+    this.constraints.set(name, expr);
+  }
+
+  /**
+   * Add a soft score term with a given name
+   */
+  addScoreTerm(name: string, expr: ScalarExpression): void {
+    this.scoreTerms.set(name, expr);
+  }
+
+  /**
+   * Set the room constants for this problem
+   */
+  setConstants(c: RoomConstants): void {
+    this.constants = c;
+  }
+
+  /**
+   * Get all children as a Map of field names to child nodes.
+   * Constraints and score terms are all AST Nodes.
+   */
+  children(): Map<string, Node> {
+    const children = new Map<string, Node>();
+    for (const [name, expr] of this.constraints) {
+      children.set(`constraint:${name}`, expr);
+    }
+    for (const [name, expr] of this.scoreTerms) {
+      children.set(`scoreTerm:${name}`, expr);
+    }
+    return children;
+  }
+
+  /**
+   * Deep clone this ProblemNode and all its expressions
+   */
+  clone(): ProblemNode {
+    const clonedConstraints = new Map<string, BoolExpression>();
+    for (const [name, expr] of this.constraints) {
+      clonedConstraints.set(name, expr.clone() as BoolExpression);
+    }
+
+    const clonedScoreTerms = new Map<string, ScalarExpression>();
+    for (const [name, expr] of this.scoreTerms) {
+      clonedScoreTerms.set(name, expr.clone() as ScalarExpression);
+    }
+
+    return new ProblemNode(
+      clonedConstraints,
+      clonedScoreTerms,
+      this.constants.clone()
+    );
+  }
+
+  /**
+   * Get all expressions (constraints and score terms) as a generator
+   */
+  *allExpressions(): Generator<BoolExpression | ScalarExpression> {
+    for (const expr of this.constraints.values()) {
+      yield expr;
+    }
+    for (const expr of this.scoreTerms.values()) {
+      yield expr;
+    }
+  }
+
+  /**
+   * Count total number of AST nodes in the problem
+   */
+  totalNodes(): number {
+    let count = 0;
+    for (const expr of this.allExpressions()) {
+      count += expr.size();
+    }
+    return count;
+  }
+
+  /**
+   * Get all variables referenced in the problem
+   */
+  getVariables(): Set<Variable> {
+    const vars = new Set<Variable>();
+    for (const expr of this.allExpressions()) {
+      if ('getVariables' in expr && typeof (expr as any).getVariables === 'function') {
+        for (const v of (expr as any).getVariables()) {
+          vars.add(v);
+        }
+      }
+    }
+    return vars;
+  }
+
+  toString(): string {
+    const constraintNames = Array.from(this.constraints.keys());
+    const scoreTermNames = Array.from(this.scoreTerms.keys());
+    return `ProblemNode(constraints=[${constraintNames.join(', ')}], scoreTerms=[${scoreTermNames.join(', ')}], constants=${this.constants})`;
+  }
 }

@@ -21,6 +21,10 @@ export {
   BoxDomain,
   SurfaceDomain,
   RoomDomain,
+  // Symbolic domain for constraint reasoning
+  SymbolicDomain,
+  type DomainTag,
+  domainFinalized,
 } from './domain';
 
 // Domain extraction from constraints
@@ -30,7 +34,8 @@ export {
   containsVariable,
   getFreeVariables,
   analyzeConstraintComplexity,
-  type ConstraintComplexity
+  type ConstraintComplexity,
+  domainFinalized as domainFinalizedFromDomain,
 } from './constraint-domain';
 
 // Constancy analysis
@@ -57,6 +62,8 @@ export {
 
 // Domain substitution
 export {
+  substituteAll,
+  domainTagSubstitute,
   substituteVariables,
   substituteVariable,
   applyDomainSubstitution,
@@ -67,3 +74,10 @@ export {
   type SubstitutionResult,
   type VariableBinding
 } from './domain-substitute';
+
+// Expression equality
+export {
+  exprEqual,
+  exprEqualBool,
+  type ExprEqualResult,
+} from './expression';

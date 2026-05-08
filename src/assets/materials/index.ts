@@ -34,6 +34,15 @@ export type { WeatheringParams } from './weathering/Weathering';
 export { WearGenerator } from './wear/WearGenerator';
 export type { WearParams } from './wear/WearGenerator';
 
+export { EdgeWearMaterial } from './wear/EdgeWearMaterial';
+export type { EdgeWearParams } from './wear/EdgeWearMaterial';
+
+export { ScratchesMaterial } from './wear/ScratchesMaterial';
+export type { ScratchParams } from './wear/ScratchesMaterial';
+
+export { FruitMaterialLibrary } from './categories/Fruit/FruitMaterialLibrary';
+export type { FruitMaterialParams, FruitType } from './categories/Fruit/FruitMaterialLibrary';
+
 export { PatternGenerator } from './patterns/PatternGenerator';
 export type { PatternParams } from './patterns/PatternGenerator';
 
@@ -97,3 +106,28 @@ export {
   FRAGMENT_VARYINGS_3D,
   buildVertexShaderWithDisplacement,
 } from './shaders/TriplanarProjection';
+
+// Terrain materials — 12 terrain types (ChunkyRock, CobbleStone, CrackedGround, etc.)
+export { TerrainMaterialLibrary } from './categories/Terrain/TerrainMaterialLibrary';
+export type { TerrainParams as TerrainSurfaceParams, TerrainType } from './categories/Terrain/TerrainMaterialLibrary';
+
+// Tile patterns — 11 tile pattern types (BasketWeave, Chevron, Herringbone, etc.)
+export { TilePatternLibrary } from './categories/Tile/TilePatternLibrary';
+export type { TilePatternParams, TilePatternType } from './categories/Tile/TilePatternLibrary';
+
+// Expanded material variants
+export { WoodVariants } from './categories/Wood/WoodVariants';
+export type { WoodVariantType, WoodVariantParams } from './categories/Wood/WoodVariants';
+
+export { MetalVariants } from './categories/Metal/MetalVariants';
+export type { MetalVariantType, MetalVariantParams } from './categories/Metal/MetalVariants';
+
+export { FabricVariants } from './categories/Fabric/FabricVariants';
+export type { FabricVariantType, FabricVariantParams } from './categories/Fabric/FabricVariants';
+
+export { CreatureVariants } from './categories/Creature/CreatureVariants';
+export type { CreatureVariantType, CreatureVariantParams } from './categories/Creature/CreatureVariants';
+
+// Material assignment system — tag-based material selection and assignment
+export { MaterialAssignmentSystem } from './assignment/MaterialAssignmentSystem';
+export type { MaterialAssignmentEntry, MaterialAssignmentList } from './assignment/MaterialAssignmentSystem';

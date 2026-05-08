@@ -59,3 +59,20 @@ export {
 export type {
   VolcanoTileConfig,
 } from './VolcanoTile';
+
+// Heightmap tile generators for LandTilesElement
+export {
+  TileGenerator,
+  MultiMountainsTileGenerator,
+  CoastTileGenerator,
+  MesaTileGenerator,
+  CanyonTileGenerator,
+  CliffTileGenerator,
+  RiverTileGenerator,
+  VolcanoTileGenerator,
+  TileGeneratorFactory,
+} from './TileGenerators';
+
+export type {
+  TileType,
+} from './TileGenerators';

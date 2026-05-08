@@ -3,9 +3,16 @@
  * 
  * Ported from: infinigen/core/constraints/reasoning/domain.py
  * Defines the Domain class hierarchy used for variable domain analysis.
+ *
+ * Two kinds of domains exist:
+ * 1. Spatial domains (BoxDomain, SurfaceDomain, RoomDomain) - represent physical regions
+ * 2. SymbolicDomain - represents the symbolic domain of a constraint variable,
+ *    consisting of tags and relations (ported from the original Infinigen's Domain class)
  */
 
 import { Node, Variable } from '../language/types';
+import { Tag } from '../tags';
+import { Relation } from '../language/relations';
 
 /**
  * Base Domain class - represents the domain of a variable in constraint solving
@@ -483,4 +490,232 @@ function sampleRange(min: number, max: number, seed: number): number {
 
 function surfaceDistance(surface: SurfaceDomain, point: [number, number, number]): number {
   return Math.abs(point[surface.normalAxis] - surface.offset);
+}
+
+// ─── Symbolic Domain ─────────────────────────────────────────────────────────
+
+/**
+ * Tag types that can appear in a symbolic domain
+ */
+export type DomainTag =
+  | string                          // Plain string tag (e.g. 'furniture', 'chair')
+  | Variable;                       // Variable tag (unresolved placeholder)
+
+/**
+ * SymbolicDomain - Represents the symbolic domain of a constraint variable.
+ *
+ * Ported from infinigen/core/constraints/reasoning/domain.py
+ *
+ * In the original Infinigen, the Domain class used for constraint reasoning
+ * is fundamentally different from the Domain in language/types.ts. This
+ * symbolic domain tracks:
+ * - tags: a set of symbolic tags (strings or Variable references) that
+ *   constrain what kind of objects the variable can refer to
+ * - relations: a list of (Relation, SymbolicDomain) pairs indicating that
+ *   objects in this domain must be related (via the given relation) to
+ *   objects in the paired domain
+ *
+ * This is used by the greedy solver to determine which objects satisfy
+ * a given variable's constraints.
+ */
+export class SymbolicDomain {
+  readonly tags: Set<DomainTag>;
+  readonly relations: Array<readonly [Relation, SymbolicDomain]>;
+
+  constructor(
+    tags?: Set<DomainTag> | DomainTag[],
+    relations?: Array<readonly [Relation, SymbolicDomain]>
+  ) {
+    if (tags instanceof Set) {
+      this.tags = new Set(tags);
+    } else if (Array.isArray(tags)) {
+      this.tags = new Set(tags);
+    } else {
+      this.tags = new Set();
+    }
+    this.relations = relations ? [...relations] : [];
+  }
+
+  /**
+   * Create a new SymbolicDomain with additional tags
+   */
+  withTags(newTags: DomainTag[] | Set<DomainTag>): SymbolicDomain {
+    const merged = new Set(this.tags);
+    for (const tag of newTags) {
+      merged.add(tag);
+    }
+    return new SymbolicDomain(merged, this.relations);
+  }
+
+  /**
+   * Create a new SymbolicDomain with an additional relation
+   */
+  addRelation(relation: Relation, domain: SymbolicDomain): SymbolicDomain {
+    return new SymbolicDomain(
+      this.tags,
+      [...this.relations, [relation, domain] as const]
+    );
+  }
+
+  /**
+   * Intersect this domain with another, combining tags and relations
+   */
+  intersect(other: SymbolicDomain): SymbolicDomain {
+    const mergedTags = new Set([...this.tags, ...other.tags]);
+    const mergedRelations = [...this.relations, ...other.relations];
+    return new SymbolicDomain(mergedTags, mergedRelations);
+  }
+
+  /**
+   * Check if this domain intersects with another (has any compatible tags/relations)
+   * Compatible for use with the language/types Domain interface
+   */
+  intersects(other: any): boolean {
+    if (other instanceof SymbolicDomain) {
+      // Symbolic domains intersect if they share any tags or have compatible relations
+      if (this.tags.size === 0 || other.tags.size === 0) return true;
+      for (const tag of this.tags) {
+        if (other.tags.has(tag)) return true;
+      }
+      return false;
+    }
+    // For language/types Domain objects, delegate to their intersects method
+    if (other && typeof other === 'object' && typeof other.intersects === 'function') {
+      return other.intersects(this as any);
+    }
+    return true;
+  }
+
+  /**
+   * Difference of this domain with another (removes other's tags)
+   */
+  difference(other: SymbolicDomain): SymbolicDomain {
+    const resultTags = new Set<DomainTag>();
+    for (const tag of this.tags) {
+      if (!other.tags.has(tag)) {
+        resultTags.add(tag);
+      }
+    }
+    // Keep only relations not in other
+    const otherRelKeys = new Set(other.relations.map(r => relationKey(r)));
+    const resultRelations = this.relations.filter(r => !otherRelKeys.has(relationKey(r)));
+    return new SymbolicDomain(resultTags, resultRelations);
+  }
+
+  /**
+   * Check if this domain has any unresolved Variable tags
+   */
+  hasVariableTags(): boolean {
+    for (const tag of this.tags) {
+      if (tag instanceof Variable) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check if this domain is finalized (no unresolved Variable tags)
+   */
+  isFinalized(): boolean {
+    if (this.hasVariableTags()) return false;
+    // Also check nested domains in relations
+    for (const [, dom] of this.relations) {
+      if (!dom.isFinalized()) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Substitute Variable tags with concrete domains from assignments
+   */
+  substitute(assignments: Map<string, SymbolicDomain>): SymbolicDomain {
+    const newTags = new Set<DomainTag>();
+    for (const tag of this.tags) {
+      if (tag instanceof Variable) {
+        const replacement = assignments.get(tag.name);
+        if (replacement) {
+          // Merge the replacement domain's tags and relations
+          for (const rTag of replacement.tags) {
+            newTags.add(rTag);
+          }
+        } else {
+          newTags.add(tag); // Keep unresolved
+        }
+      } else {
+        newTags.add(tag);
+      }
+    }
+
+    const newRelations = this.relations.map(([rel, dom]) =>
+      [rel, dom.substitute(assignments)] as const
+    );
+
+    // Also merge in relations from substituted variable domains
+    for (const tag of this.tags) {
+      if (tag instanceof Variable) {
+        const replacement = assignments.get(tag.name);
+        if (replacement) {
+          for (const rel of replacement.relations) {
+            newRelations.push(rel);
+          }
+        }
+      }
+    }
+
+    return new SymbolicDomain(newTags, newRelations);
+  }
+
+  /**
+   * Check structural equality with another SymbolicDomain
+   */
+  equals(other: SymbolicDomain): boolean {
+    if (this.tags.size !== other.tags.size) return false;
+    for (const tag of this.tags) {
+      if (!other.tags.has(tag)) return false;
+    }
+    if (this.relations.length !== other.relations.length) return false;
+    for (let i = 0; i < this.relations.length; i++) {
+      const [thisRel, thisDom] = this.relations[i];
+      const [otherRel, otherDom] = other.relations[i];
+      if (thisRel.type !== otherRel.type) return false;
+      if (!thisDom.equals(otherDom)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Clone this domain
+   */
+  clone(): SymbolicDomain {
+    return new SymbolicDomain(
+      new Set(this.tags),
+      this.relations.map(([rel, dom]) => [rel, dom.clone()] as const)
+    );
+  }
+
+  toString(): string {
+    const tagStr = Array.from(this.tags).map(t =>
+      t instanceof Variable ? `Var(${t.name})` : String(t)
+    ).join(', ');
+    const relStr = this.relations.map(([rel, dom]) =>
+      `${rel.type}(${dom})`
+    ).join(', ');
+    return `Dom({${tagStr}}${relStr ? ', [' + relStr + ']' : ''})`;
+  }
+}
+
+/**
+ * Helper to create a relation key for comparison
+ */
+function relationKey(relation: readonly [Relation, SymbolicDomain]): string {
+  return `${relation[0].type}:${relation[1].toString()}`;
+}
+
+/**
+ * Check if a SymbolicDomain is finalized (has no unresolved Variable tags)
+ * Convenience function that mirrors the original Infinigen's domainFinalized()
+ */
+export function domainFinalized(domain: SymbolicDomain): boolean {
+  return domain.isFinalized();
 }

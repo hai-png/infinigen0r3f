@@ -37,7 +37,8 @@ export {
   ScalarMaxExpression,
   BoolNotExpression,
   ScalarIfElse,
-  BoolIfElse
+  BoolIfElse,
+  InRangeExpression
 } from './expression';
 
 // Relations
@@ -66,7 +67,11 @@ export {
   SupportCoverage,
   Stability,
   Containment,
-  Proximity
+  Proximity,
+  RoomNeighbour as ConstraintRoomNeighbour,
+  CutFrom as ConstraintCutFrom,
+  SharedEdge as ConstraintSharedEdge,
+  Traverse as ConstraintTraverse
 } from './relations';
 
 // Set Reasoning
@@ -86,7 +91,11 @@ export {
   MeanOver,
   MaxOver,
   MinOver,
-  CountExpression
+  CountExpression,
+  SceneSetExpression,
+  RelatedToExpression,
+  TaggedSetExpression,
+  ExcludesExpression
 } from './set-reasoning';
 
 // Geometry Predicates
@@ -110,7 +119,15 @@ export {
   ReachabilityScore,
   OrientationAlignment,
   Compactness,
-  AspectRatio
+  AspectRatio,
+  MinDistanceInternal,
+  FreeSpace2D,
+  MinDistance2D,
+  RotationalAsymmetry,
+  ReflectionalAsymmetry,
+  CoplanarityCost,
+  CenterStableSurfaceDist,
+  AngleAlignmentCost
 } from './geometry';
 
 // Constants and Problem Definition
@@ -133,8 +150,21 @@ export {
   Problem,
   NamedConstraint,
   NamedScoreTerm,
-  buildProblem
+  buildProblem,
+  RoomConstants,
+  type RoomTypeConfig,
+  type BuildingDimensions
 } from './constants';
+
+// DSL Entry Functions - Ported from Infinigen constraint_language/__init__.py
+export {
+  scene,
+  taggedSet,
+  union,
+  excludes,
+  relatedTo,
+  inRange
+} from './dsl-functions';
 
 // Utilities
 export {
@@ -173,7 +203,8 @@ export {
   formatSolution,
   formatViolationReport,
   mergeEvaluationResults,
-  compareSolutions
+  compareSolutions,
+  ProblemNode
 } from './result';
 
 // Spatial Relation Algebra (geometry-focused relation classes)
@@ -189,9 +220,9 @@ export {
   CoPlanar as SpatialCoPlanar,
   StableAgainst as SpatialStableAgainst,
   RoomNeighbour as SpatialRoomNeighbour,
-  CutFrom,
-  SharedEdge,
-  Traverse,
+  CutFrom as SpatialCutFrom,
+  SharedEdge as SpatialSharedEdge,
+  Traverse as SpatialTraverse,
   NegatedRelation as SpatialNegatedRelation,
   createRelation as createSpatialRelation,
 } from './SpatialRelationAlgebra';
@@ -227,5 +258,18 @@ export {
   validateRoomConfig,
   type RoomFunction,
   type PrivacyLevel,
-  type RoomAdjacency
+  type RoomAdjacency,
+  // Room-specific scalar expressions
+  RoomArea,
+  RoomAspectRatio,
+  RoomConvexity,
+  RoomNVerts,
+  RoomAccessAngle,
+  RoomSharedLength,
+  RoomLength,
+  RoomSameLevel,
+  RoomIntersection,
+  RoomGridLineCount,
+  RoomNarrowness,
+  RoomGraphCoherent
 } from './rooms';

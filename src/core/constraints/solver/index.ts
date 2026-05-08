@@ -45,6 +45,23 @@ export {
   type ConstraintGroup,
 } from './GreedyPreSolver';
 
+// Greedy Stage System
+export {
+  type GreedyStage,
+  updateActiveFlags,
+  partitionConstraints,
+  allSubstitutions,
+} from './greedy';
+
+// DOF Solver
+export { DOFSolver } from './dof';
+
+// Plane Extraction
+export { PlaneExtractor, type Plane } from './planes';
+
+// Stability Checking
+export { StabilityChecker } from './stability';
+
 // Complete Move Proposal System (enhanced with full move set)
 // Note: MoveProposals provides the full Infinigen-compatible move operator system.
 // We use aliases to avoid conflicts with the simpler move types from ./moves.
@@ -61,3 +78,42 @@ export {
   retryAttemptProposals,
 } from './MoveProposals';
 export type { MoveProposal, MoveOperator } from './MoveProposals';
+
+// Relation-Based Proposal Strategies (SAT-like + DOF-projected)
+export {
+  ProposeRelations,
+  DOFProjectedContinuousProposer,
+  type AssignmentVariable,
+  type RelationConstraint,
+  type AssignmentResult,
+} from './proposals/RelationProposer';
+
+// Usage Lookup (Asset Factory ↔ Tag bidirectional mapping)
+export {
+  AssetFactoryRegistry,
+  TagUsageLookup,
+  createDefaultFactoryProfiles,
+  type AssetFactoryProfile,
+} from './proposals/UsageLookup';
+
+// Pre-Solve Problem Validation
+export {
+  ProblemValidator,
+  type ConstraintProblem,
+  type ValidationResult,
+  type ValidationError,
+  type ValidationWarning,
+  type ProblemStats,
+} from './proposals/ProblemValidator';
+
+// Populate System (Placeholder → real asset spawning)
+export {
+  PopulateSystem,
+  PlaceholderResolver,
+  AssetSpawner,
+  DEFAULT_POPULATE_CONFIG,
+  type Placeholder,
+  type SpawnedAsset,
+  type PopulateResult,
+  type PopulateConfig,
+} from './proposals/PopulateSystem';

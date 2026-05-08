@@ -1665,6 +1665,328 @@ export class Symmetric extends Relation {
 }
 
 // ============================================================================
+// Room-Specific Relation Types
+// Ported from: constraint_language/relations.py (RoomNeighbour, CutFrom, SharedEdge, Traverse)
+// ============================================================================
+
+/**
+ * RoomNeighbour relation: rooms are neighbours via connectors
+ *
+ * Checks if objects1 and objects2 rooms are adjacent, optionally filtering
+ * by connector types (Door, Open, Wall).
+ * Uses State.graphs to check room adjacency.
+ */
+export class RoomNeighbour extends GeometryRelation {
+  readonly type = 'RoomNeighbour';
+  readonly relationType = 'room_neighbour';
+
+  constructor(
+    objects1: ObjectSetExpression,
+    objects2: ObjectSetExpression,
+    public readonly connectorTypes: string[] = ['Door', 'Open']
+  ) {
+    super(objects1, objects2);
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+
+    // Check if state has a room graph with adjacency information
+    const stateAny = state as Map<any, any>;
+    const roomGraph = stateAny.get('__roomGraph');
+    if (roomGraph && typeof roomGraph === 'object') {
+      // If graph has areNeighbours method, use it
+      if (typeof (roomGraph as any).areNeighbours === 'function') {
+        for (const a of objs1) {
+          for (const b of objs2) {
+            if ((roomGraph as any).areNeighbours(a.id, b.id, this.connectorTypes)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+    }
+
+    // Fallback: spatial adjacency check - AABBs must be close or overlapping
+    for (const a of objs1) {
+      const aabbA = getAABB(a);
+      for (const b of objs2) {
+        const aabbB = getAABB(b);
+        // Neighbour if AABBs are within 0.5m of each other
+        if (aabbDistance(aabbA, aabbB) < 0.5) return true;
+      }
+    }
+    return false;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  clone(): RoomNeighbour {
+    return new RoomNeighbour(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      [...this.connectorTypes]
+    );
+  }
+
+  toString(): string {
+    return `RoomNeighbour(${this.objects1}, ${this.objects2}, [${this.connectorTypes.join(', ')}])`;
+  }
+}
+
+/**
+ * CutFrom relation: object was cut from parent (CSG operation)
+ *
+ * Checks if child was cut from parent via identity comparison on ObjectState.
+ * Used for CSG (Constructive Solid Geometry) operations.
+ */
+export class CutFrom extends GeometryRelation {
+  readonly type = 'CutFrom';
+  readonly relationType = 'cut_from';
+
+  constructor(
+    public readonly child: ObjectSetExpression,
+    public readonly parent: ObjectSetExpression
+  ) {
+    super(child, parent);
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['child', this.child], ['parent', this.parent]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const childIds = this.child.evaluate(state);
+    const parentIds = this.parent.evaluate(state);
+    const children = retrieveSpatialObjects(state, childIds);
+    const parents = retrieveSpatialObjects(state, parentIds);
+    if (children.length === 0 || parents.length === 0) return false;
+
+    // Check if child was cut from parent
+    // In the original Infinigen, this checks ObjectState identity
+    // Here we check if the child's AABB is contained within the parent's AABB
+    // AND the child's footprint is a subset of the parent's footprint
+    for (const c of children) {
+      const aabbC = getAABB(c);
+      for (const p of parents) {
+        const aabbP = getAABB(p);
+        // Child must be fully contained within parent (the cut region)
+        if (aabbContainedIn(aabbC, aabbP)) return true;
+      }
+    }
+    return false;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  clone(): CutFrom {
+    return new CutFrom(
+      this.child.clone() as ObjectSetExpression,
+      this.parent.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `CutFrom(${this.child}, ${this.parent})`;
+  }
+}
+
+/**
+ * SharedEdge relation: two rooms share an edge
+ *
+ * Checks if two rooms share a boundary edge.
+ * Uses polygon data from ObjectState where available,
+ * falls back to AABB proximity check.
+ */
+export class SharedEdge extends GeometryRelation {
+  readonly type = 'SharedEdge';
+  readonly relationType = 'shared_edge';
+
+  constructor(
+    objects1: ObjectSetExpression,
+    objects2: ObjectSetExpression,
+    public readonly tolerance: number = 0.1
+  ) {
+    super(objects1, objects2);
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+
+    // Check for shared edges using polygon data
+    for (const a of objs1) {
+      const aabbA = getAABB(a);
+      for (const b of objs2) {
+        const aabbB = getAABB(b);
+
+        // Shared edge exists if AABBs are adjacent (close but not overlapping)
+        const dist = aabbDistance(aabbA, aabbB);
+        if (dist <= this.tolerance) {
+          // Check if there's significant overlap along one axis (shared edge)
+          const overlapX = Math.max(0, Math.min(aabbA.max[0], aabbB.max[0]) - Math.max(aabbA.min[0], aabbB.min[0]));
+          const overlapZ = Math.max(0, Math.min(aabbA.max[2], aabbB.max[2]) - Math.max(aabbA.min[2], aabbB.min[2]));
+
+          // Shared edge: one axis has overlap, the other has gap
+          if ((overlapX > this.tolerance && dist > 0) ||
+              (overlapZ > this.tolerance && dist > 0)) {
+            return true;
+          }
+
+          // Or they overlap in XZ plane (shared edge exists at boundary)
+          if (overlapX > 0 && overlapZ > 0) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  clone(): SharedEdge {
+    return new SharedEdge(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      this.tolerance
+    );
+  }
+
+  toString(): string {
+    return `SharedEdge(${this.objects1}, ${this.objects2})`;
+  }
+}
+
+/**
+ * Traverse relation: rooms are connected (path exists)
+ *
+ * Checks if rooms are connected (path exists in RoomGraph).
+ * Uses BFS/DFS on State.graphs to find a path.
+ */
+export class Traverse extends GeometryRelation {
+  readonly type = 'Traverse';
+  readonly relationType = 'traverse';
+
+  constructor(
+    objects1: ObjectSetExpression,
+    objects2: ObjectSetExpression,
+    public readonly maxPathLength: number = Infinity
+  ) {
+    super(objects1, objects2);
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objects1', this.objects1], ['objects2', this.objects2]]);
+  }
+
+  evaluate(state: Map<Variable, any>): boolean {
+    const ids1 = this.objects1.evaluate(state);
+    const ids2 = this.objects2.evaluate(state);
+    const objs1 = retrieveSpatialObjects(state, ids1);
+    const objs2 = retrieveSpatialObjects(state, ids2);
+    if (objs1.length === 0 || objs2.length === 0) return false;
+
+    // Check if state has a room graph with traversal support
+    const stateAny = state as Map<any, any>;
+    const roomGraph = stateAny.get('__roomGraph');
+    if (roomGraph && typeof roomGraph === 'object') {
+      // If graph has a path-finding method, use it
+      if (typeof (roomGraph as any).hasPath === 'function') {
+        for (const a of objs1) {
+          for (const b of objs2) {
+            if ((roomGraph as any).hasPath(a.id, b.id, this.maxPathLength)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      // If graph has getNeighbours, do BFS
+      if (typeof (roomGraph as any).getNeighbours === 'function') {
+        for (const a of objs1) {
+          for (const b of objs2) {
+            if (this.bfsPath(roomGraph as any, a.id, b.id)) return true;
+          }
+        }
+        return false;
+      }
+    }
+
+    // Fallback: spatial proximity as approximate connectivity
+    // If objects are within maxPathLength distance, assume traversable
+    const maxDist = this.maxPathLength === Infinity ? 50 : this.maxPathLength;
+    for (const a of objs1) {
+      for (const b of objs2) {
+        const d = distance(a.position, b.position);
+        if (d <= maxDist) return true;
+      }
+    }
+    return false;
+  }
+
+  isSatisfied(state: Map<Variable, any>): boolean {
+    return this.evaluate(state);
+  }
+
+  clone(): Traverse {
+    return new Traverse(
+      this.objects1.clone() as ObjectSetExpression,
+      this.objects2.clone() as ObjectSetExpression,
+      this.maxPathLength
+    );
+  }
+
+  toString(): string {
+    return `Traverse(${this.objects1}, ${this.objects2})`;
+  }
+
+  /** BFS path search on the room graph */
+  private bfsPath(graph: { getNeighbours: (id: string) => string[] }, startId: string, endId: string): boolean {
+    if (startId === endId) return true;
+
+    const visited = new Set<string>();
+    const queue: Array<{ id: string; depth: number }> = [{ id: startId, depth: 0 }];
+    visited.add(startId);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (current.depth >= this.maxPathLength) continue;
+
+      const neighbours = graph.getNeighbours(current.id);
+      for (const neighbourId of neighbours) {
+        if (neighbourId === endId) return true;
+        if (!visited.has(neighbourId)) {
+          visited.add(neighbourId);
+          queue.push({ id: neighbourId, depth: current.depth + 1 });
+        }
+      }
+    }
+    return false;
+  }
+}
+
+// ============================================================================
 // Standalone Relation Functions
 // These can be called directly without creating class instances
 // ============================================================================

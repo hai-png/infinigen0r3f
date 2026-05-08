@@ -85,6 +85,34 @@ export type {
   TagRegistryConfig as UnifiedTagRegistryConfig,
 } from './UnifiedTagSystem';
 
+// Attribute System — complete attribute management for Three.js BufferGeometry
+export {
+  AttributeSystem,
+} from './attributes/AttributeSystem';
+
+export type {
+  AttributeDomain,
+  AttributeDataType,
+  AttributeInfo,
+} from './attributes/AttributeSystem';
+
+// Tag System — semantic and subpart tagging for objects and mesh faces
+export {
+  SemanticTag,
+  SubpartTag,
+  Tag as InfinigenTag,
+  TagSet as InfinigenTagSet,
+  TagQuery as InfinigenTagQuery,
+  semanticTag,
+  subpartTag,
+  notTag,
+  FaceTagger,
+} from './tags';
+
+export type {
+  TagType as InfinigenTagType,
+} from './tags';
+
 // Util - export selectively to avoid Tag interface conflict with constraints' Tag class
 export * from './util/MathUtils';
 export * from './util/GeometryUtils';
