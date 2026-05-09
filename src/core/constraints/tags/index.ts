@@ -400,6 +400,13 @@ export class TagSet {
   }
 
   /**
+   * Iterate over tags in this set
+   */
+  [Symbol.iterator](): Iterator<Tag> {
+    return this.tags[Symbol.iterator]();
+  }
+
+  /**
    * Convert to array
    */
   toArray(): Tag[] {

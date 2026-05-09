@@ -186,3 +186,61 @@ export type {
   SurfaceDisplacementConfig,
   SurfaceAttributeType,
 } from './surface/SurfaceRegistry';
+
+// Phase 5 — Enhanced Surface Kernel & Node Graph Integration
+export {
+  TerrainSurfaceKernel,
+  DEFAULT_TERRAIN_SURFACE_KERNEL_CONFIG,
+} from './surface/TerrainSurfaceKernel';
+
+export type {
+  TerrainSurfaceKernelConfig,
+  SurfaceEvaluationContext,
+} from './surface/TerrainSurfaceKernel';
+
+// Phase 5 — Enhanced Noise Sources
+export {
+  VoronoiNoiseSource,
+  sampleHeightField3D,
+} from './source';
+
+// Phase 5 — Node-Terrain Surface Bridge
+export {
+  NodeTerrainSurfaceBridge,
+  SurfaceApplicationMode,
+} from './surface/NodeTerrainSurfaceBridge';
+
+export type {
+  SurfaceSelection,
+} from './surface/NodeTerrainSurfaceBridge';
+
+// Phase 5 — Cave Occupancy Pipeline
+export {
+  CaveOccupancyVolume,
+  CaveOccupancyPipeline,
+  DEFAULT_CAVE_LATTICE_CONFIG,
+} from './caves';
+
+export type {
+  CaveLSystemRule,
+  CaveLatticeConfig,
+  CaveInstancePlacement,
+} from './caves';
+
+// Phase 5 — Enhanced Ocean
+export {
+  FFTOceanEnhanced,
+  OceanFoamGenerator,
+  CascadedOceanLOD,
+  OceanSpectrumType,
+  jonswapSpectrum,
+  piersonMoskowitzSpectrum,
+} from './water';
+
+export type {
+  FFTOceanEnhancedConfig,
+  OceanEvaluationResult,
+  OceanCascadeLevel,
+  JONSWAPParams,
+  OceanFoamConfig,
+} from './water';

@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 import { State, ObjectState, RelationState } from '../evaluator/state';
 import { Relation } from '../language/relations';
-import { TagSet } from '../tags/index';
+import { TagSet, Tag } from '../tags/index';
 import { PlaneExtractor, Plane } from '../solver/planes';
 import { DOFSolver } from '../solver/dof';
 import { Domain } from '../language/types';

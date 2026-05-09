@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { SimulatedAnnealingSolver } from '../index';
 import {
-  SimulatedAnnealingSolver,
   MoveOperatorFactory,
   retryAttemptProposals,
   type MoveProposal,
-} from '../index';
+} from '../core/constraints/solver';
 import { violCount, evaluateProblem } from '../core/constraints/evaluator/evaluate';
 import type { ObjectState } from '../core/constraints/evaluator/state';
-import type { State as ConstraintState } from '../core/constraints/evaluator/state';
+import { State as ConstraintState } from '../core/constraints/evaluator/state';
 import type { Relation as RelationType } from '../core/constraints/language/relations';
-import { SeededRandom } from '../core/constraints/../../util/MathUtils';
+import { SeededRandom } from '../core/util/MathUtils';
 
 // The integration layer uses its own extended SolverState that includes
 // SA iteration tracking on top of the base ConstraintState

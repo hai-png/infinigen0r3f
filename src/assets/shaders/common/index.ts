@@ -30,3 +30,13 @@ export {
 export { BLACKBODY_GLSL } from './BlackbodyGLSL';
 
 export { PBR_GLSL } from './PBRGLSL';
+
+export {
+  WAVE_TEXTURE_GLSL,
+  BRICK_TEXTURE_GLSL,
+  COLOR_RAMP_GLSL,
+  FLOAT_CURVE_GLSL,
+  MUSGRAVE_TEXTURE_GLSL,
+  GRADIENT_TEXTURE_GLSL,
+  ENHANCED_TEXTURE_GLSL,
+} from './EnhancedGLSLTextures';

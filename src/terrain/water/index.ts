@@ -17,6 +17,27 @@ export { WaterfallGenerator } from './WaterfallGenerator';
 export { OceanSurface, OceanSystem } from './OceanSystem';
 export { CausticsRenderer } from './CausticsRenderer';
 export { FFTOceanSpectrum } from './FFTOceanSpectrum';
+
+export {
+  OceanSpectrumType,
+  jonswapSpectrum,
+  piersonMoskowitzSpectrum,
+  OceanFoamGenerator,
+  CascadedOceanLOD,
+  FFTOceanEnhanced,
+} from './FFTOceanEnhanced';
+
+export type {
+  JONSWAPParams,
+  PiersonMoskowitzParams,
+  PhillipsConfig,
+  OceanFoamConfig,
+  CascadedLODConfig,
+  FFTOceanEnhancedConfig,
+  OceanEvaluationResult,
+  OceanFoamResult,
+  OceanCascadeLevel,
+} from './FFTOceanEnhanced';
 export { RiverMeshRenderer } from './RiverMeshRenderer';
 export { LakeMeshRenderer } from './LakeMeshRenderer';
 export { WaterfallMeshRenderer } from './WaterfallMeshRenderer';

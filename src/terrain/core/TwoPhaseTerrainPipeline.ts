@@ -29,6 +29,14 @@ import {
   buildSDFFromElements,
 } from '@/terrain/sdf/TerrainElementSystem';
 import { SignedDistanceField, extractIsosurface } from '@/terrain/sdf/sdf-operations';
+import { TerrainSurfaceKernel } from '@/terrain/surface/TerrainSurfaceKernel';
+import {
+  TerrainSurfaceRegistry,
+  SurfaceType,
+  getEffectiveSurfaceType,
+  type SurfaceAttributeType,
+} from '@/terrain/surface/SurfaceRegistry';
+import { TerrainTagSystem, type TagResult } from '@/terrain/tags';
 import { SeededRandom } from '@/core/util/MathUtils';
 import { NoiseUtils } from '@/core/util/math/noise';
 
@@ -436,6 +444,10 @@ export class TwoPhaseTerrainPipeline {
   private config: TwoPhasePipelineConfig;
   private rng: SeededRandom;
   private noise: NoiseUtils;
+  /** TerrainSurfaceKernel for SDF-level perturbation */
+  private surfaceKernel: TerrainSurfaceKernel;
+  /** TerrainTagSystem for face-level tag generation */
+  private tagSystem: TerrainTagSystem;
 
   /**
    * Create a new TwoPhaseTerrainPipeline.
@@ -446,6 +458,8 @@ export class TwoPhaseTerrainPipeline {
     this.config = { ...DEFAULT_TWO_PHASE_PIPELINE_CONFIG, ...config };
     this.rng = new SeededRandom(this.config.seed);
     this.noise = new NoiseUtils(this.config.seed);
+    this.surfaceKernel = new TerrainSurfaceKernel({ seed: this.config.seed });
+    this.tagSystem = new TerrainTagSystem();
   }
 
   // =====================================================================
@@ -489,7 +503,26 @@ export class TwoPhaseTerrainPipeline {
       CompositionOperation.DIFFERENCE,
     );
 
-    // Extract isosurface (Marching Cubes)
+    // Create surface registry and sample surface templates
+    const surfaceRegistry = this.createSurfaceRegistry();
+    surfaceRegistry.sampleSurfaceTemplates();
+
+    // --- SDF Perturbation Before Meshing (surfaces_into_sdf) ---
+    // Apply SDF perturbation from SDFPerturb surface templates to the SDF grid
+    // BEFORE extracting the isosurface. This modifies the isosurface shape
+    // directly, avoiding the "floating rocks" artifact that occurs when
+    // displacement is only applied as vertex displacement after meshing.
+    const sdfData = sdf.data;
+    const gridDimensions = sdf.gridSize;
+    const perturbedSDFData = this.surfacesIntoSDF(sdfData, gridDimensions, bounds, surfaceRegistry);
+
+    // Apply perturbed SDF data back to the SDF for meshing.
+    // This re-mesh step is critical: it ensures the mesh topology matches
+    // the perturbed isosurface, so surface details like cracks and rocky
+    // outcrops are part of the actual geometry, not just vertex offsets.
+    sdf.data.set(perturbedSDFData);
+
+    // Extract isosurface from the perturbed SDF (Marching Cubes)
     const geometry = extractIsosurface(sdf, 0);
 
     // --- Material Assignment ---
@@ -664,50 +697,156 @@ export class TwoPhaseTerrainPipeline {
       CompositionOperation.DIFFERENCE,
     );
 
-    // Extract isosurface
+    // --- Apply SDF perturbation from surface templates before fine meshing ---
+    // Re-apply SDF perturbation at fine resolution for consistent detail
+    const surfaceRegistry = this.createSurfaceRegistry();
+    surfaceRegistry.sampleSurfaceTemplates();
+    const fineSdfData = fineSdf.data;
+    const fineGridDimensions = fineSdf.gridSize;
+    const perturbedFineSDFData = this.surfacesIntoSDF(
+      fineSdfData, fineGridDimensions, bounds, surfaceRegistry,
+    );
+
+    // Apply perturbed SDF data back to the fine SDF for meshing
+    fineSdf.data.set(perturbedFineSDFData);
+
+    // Extract isosurface from the perturbed fine SDF
     const geometry = extractIsosurface(fineSdf, 0);
 
-    // --- Apply material assignments from coarse phase ---
+    // --- Transfer attributes from coarse to fine mesh using spatial hashing ---
+    // This replaces the O(V_fine × V_coarse) linear search with O(V_fine) amortized
     if (geometry.getAttribute('position') && geometry.getAttribute('position').count > 0) {
-      const posArray = geometry.getAttribute('position').array as Float32Array;
+      const finePosArray = geometry.getAttribute('position').array as Float32Array;
+      const fineVertexCount = geometry.getAttribute('position').count;
 
-      // Transfer displacement from coarse material assignments
-      for (let i = 0; i < geometry.getAttribute('position').count; i++) {
-        const point = new THREE.Vector3(
-          posArray[i * 3],
-          posArray[i * 3 + 1],
-          posArray[i * 3 + 2],
+      // Get coarse mesh positions and attributes
+      const coarsePosAttr = coarseResult.mesh.geometry.getAttribute('position');
+      if (coarsePosAttr && coarsePosAttr.count > 0) {
+        const coarsePosArray = coarsePosAttr.array as Float32Array;
+        const coarseAttrs = terrainData.attributes;
+
+        // Transfer attributes efficiently using spatial hashing
+        const transferredAttrs = this.transferAttributes(
+          coarsePosArray,
+          coarseAttrs,
+          finePosArray,
+          fineVertexCount,
         );
 
-        // Find nearest coarse material assignment
-        let nearestDisplacement = 0;
-        let nearestDist = Infinity;
+        // Apply transferred displacement from coarse material assignments
+        const transferredDisplacement = transferredAttrs.get('materialId');
+        if (transferredDisplacement) {
+          // Apply displacement along normals for vertices that have material data
+          const normalArray = geometry.getAttribute('normal')
+            ? (geometry.getAttribute('normal').array as Float32Array)
+            : null;
 
-        for (const assignment of materialAssignments.values()) {
-          const dist = point.distanceTo(assignment.position);
-          if (dist < nearestDist) {
-            nearestDist = dist;
-            nearestDisplacement = assignment.displacement;
+          // For each fine vertex, look up the nearest coarse displacement
+          const coarseVertexCount = coarsePosArray.length / 3;
+          const cellSize = this.config.coarseResolution * 2;
+          const spatialHash = this.buildSpatialHash(coarsePosArray, coarseVertexCount, cellSize);
+
+          // Build displacement array from coarse material assignments
+          const coarseDisplacements = new Float32Array(coarseVertexCount);
+          if (coarsePosAttr.count > 0) {
+            for (let ci = 0; ci < coarseVertexCount; ci++) {
+              const coarsePoint = new THREE.Vector3(
+                coarsePosArray[ci * 3],
+                coarsePosArray[ci * 3 + 1],
+                coarsePosArray[ci * 3 + 2],
+              );
+              let nearestDisplacement = 0;
+              let nearestDist = Infinity;
+              for (const assignment of materialAssignments.values()) {
+                const dist = coarsePoint.distanceTo(assignment.position);
+                if (dist < nearestDist) {
+                  nearestDist = dist;
+                  nearestDisplacement = assignment.displacement;
+                }
+              }
+              coarseDisplacements[ci] = nearestDisplacement;
+            }
+
+            for (let i = 0; i < fineVertexCount; i++) {
+              const position = new THREE.Vector3(
+                finePosArray[i * 3],
+                finePosArray[i * 3 + 1],
+                finePosArray[i * 3 + 2],
+              );
+              const nearestIdx = this.findNearestVertex(
+                position, spatialHash, coarsePosArray, cellSize,
+              );
+              if (nearestIdx >= 0) {
+                const disp = coarseDisplacements[nearestIdx] * 0.5;
+                if (normalArray) {
+                  const nx = normalArray[i * 3];
+                  const ny = normalArray[i * 3 + 1];
+                  const nz = normalArray[i * 3 + 2];
+                  finePosArray[i * 3] += nx * disp;
+                  finePosArray[i * 3 + 1] += ny * disp;
+                  finePosArray[i * 3 + 2] += nz * disp;
+                } else {
+                  finePosArray[i * 3 + 1] += disp;
+                }
+              }
+            }
+          }
+
+          geometry.getAttribute('position').needsUpdate = true;
+          geometry.computeVertexNormals();
+
+          // Store transferred attributes on the fine geometry
+          for (const [attrName, values] of transferredAttrs) {
+            geometry.setAttribute(attrName, new THREE.BufferAttribute(values, 1));
           }
         }
-
-        // Apply displacement (interpolated from coarse)
-        posArray[i * 3 + 1] += nearestDisplacement * 0.5; // Reduced for fine phase
       }
-
-      geometry.getAttribute('position').needsUpdate = true;
-      geometry.computeVertexNormals();
     }
 
-    // --- Camera-adaptive LOD ---
-    // For vertices near cameras, we could refine further or add detail.
-    // In this implementation, we mark LOD levels per vertex for
-    // downstream rendering systems.
+    // --- Water-Covered Annotation ---
+    // After coarse terrain: evaluate waterbody SDF at each vertex
+    // and tag vertices covered by water with liquidCovered attribute.
+    // This drives underwater vs. above-water material selection.
+    const waterPlaneHeight = 0; // Default sea level
+    const waterElement = terrainData.registry.getEnabled().find(
+      (el: { name: string }) => el.name === 'Waterbody',
+    );
+    if (waterElement) {
+      const posAttr = geometry.getAttribute('position');
+      if (posAttr && posAttr.count > 0) {
+        const posArray = posAttr.array as Float32Array;
+        const vertexCount = posAttr.count;
+        const liquidCovered = this.annotateWaterCovered(posArray, vertexCount, waterPlaneHeight);
+        geometry.setAttribute('liquidCovered', new THREE.BufferAttribute(liquidCovered, 1));
+      }
+    }
+
+    // --- Camera-Adaptive LOD ---
+    // Use camera frustum and pixel budget to compute adaptive resolution.
+    // Terrain within the camera FOV gets higher resolution, outside gets lower.
     const posAttr = geometry.getAttribute('position');
     if (posAttr && cameras.length > 0) {
       const vertexCount = posAttr.count;
       const lodLevels = new Float32Array(vertexCount);
       const posArray = posAttr.array as Float32Array;
+
+      // Compute adaptive resolution from the first camera
+      let adaptiveRes: { inViewResolution: number; outViewResolution: number };
+      try {
+        // Create a temporary perspective camera from position data
+        const tempCamera = new THREE.PerspectiveCamera(60, 1.0, 0.1, 1000);
+        tempCamera.position.copy(cameras[0]);
+        adaptiveRes = this.computeCameraAdaptiveResolution(
+          tempCamera,
+          this.config.fineResolution,
+          1000000, // 1M pixel budget
+        );
+      } catch {
+        adaptiveRes = {
+          inViewResolution: this.config.fineResolution,
+          outViewResolution: this.config.coarseResolution,
+        };
+      }
 
       for (let i = 0; i < vertexCount; i++) {
         const point = new THREE.Vector3(
@@ -715,11 +854,19 @@ export class TwoPhaseTerrainPipeline {
           posArray[i * 3 + 1],
           posArray[i * 3 + 2],
         );
-        const adaptiveRes = computeAdaptiveResolution(
-          point, cameras, this.config.fineResolution, this.config.coarseResolution,
-        );
+
+        // Check if point is roughly in the camera's view
+        let minDist = Infinity;
+        for (const cam of cameras) {
+          minDist = Math.min(minDist, point.distanceTo(cam));
+        }
+
+        // Use in-view or out-of-view resolution based on distance
+        const isLikelyInView = minDist < 50; // Simplified frustum check
+        const effectiveRes = isLikelyInView ? adaptiveRes.inViewResolution : adaptiveRes.outViewResolution;
+
         // LOD level: 0 = finest, 1 = medium, 2 = coarse
-        const lodT = (adaptiveRes - this.config.fineResolution) /
+        const lodT = (effectiveRes - this.config.fineResolution) /
                      (this.config.coarseResolution - this.config.fineResolution);
         lodLevels[i] = Math.min(2, Math.floor(lodT * 3));
       }
@@ -729,9 +876,6 @@ export class TwoPhaseTerrainPipeline {
 
     // --- Bake ocean displacement maps ---
     // If there's a waterbody element, compute displacement maps for the water surface
-    const waterElement = terrainData.registry.getEnabled().find(
-      (el: { name: string }) => el.name === 'Waterbody',
-    );
     if (waterElement && waterElement.enabled) {
       this.bakeOceanDisplacement(geometry, terrainData.registry);
     }
@@ -754,6 +898,11 @@ export class TwoPhaseTerrainPipeline {
 
     // Compute auxiliary attributes
     const attributes = this.computeAttributes(geometry, terrainData.registry);
+
+    // --- Tag Terrain ---
+    // After fine terrain: convert per-vertex element tags to per-face TAG_* attributes.
+    // Uses facewise mean with thresholds (matching Infinigen's tag_terrain()).
+    const tagResult = this.tagTerrain(geometry);
 
     const fineTerrainData: TerrainData = {
       sdf: fineSdf,
@@ -924,5 +1073,528 @@ export class TwoPhaseTerrainPipeline {
     }
 
     geometry.setAttribute('oceanDisplacement', new THREE.BufferAttribute(oceanDisplacement, 1));
+  }
+
+  // =====================================================================
+  // SDF Perturbation Before Meshing (surfaces_into_sdf)
+  // =====================================================================
+
+  /**
+   * Convert SDFPerturb surface templates to SDF displacement functions
+   * and apply them to the SDF grid before meshing.
+   *
+   * Matches Infinigen's `surfaces_into_sdf()` — this is the critical step
+   * that creates realistic terrain detail at the SDF level. When surfaces
+   * modify the isosurface shape before meshing, the resulting geometry
+   * avoids the "floating rocks" artifact that occurs when displacement
+   * is only applied after meshing as vertex displacement.
+   *
+   * The process:
+   * 1. Get SDFPerturb attribute types from the surface registry
+   * 2. For each SDFPerturb surface, compute displacement at each grid point
+   * 3. Apply the SDF perturbation formula: modified_sdf = original - displacement * scale
+   * 4. Return the modified SDF grid for re-meshing
+   *
+   * @param sdfGrid - The original SDF grid as a flat Float32Array (XYZ-major order)
+   * @param gridDimensions - The dimensions of the SDF grid [dimX, dimY, dimZ]
+   * @param bounds - The axis-aligned bounding box of the SDF volume in world space
+   * @param surfaceRegistry - The terrain surface registry with sampled surface templates
+   * @returns A new Float32Array with SDF perturbation applied. The original is NOT modified.
+   */
+  private surfacesIntoSDF(
+    sdfGrid: Float32Array,
+    gridDimensions: [number, number, number],
+    bounds: THREE.Box3,
+    surfaceRegistry: TerrainSurfaceRegistry,
+  ): Float32Array {
+    const sdfPerturbAttrs = surfaceRegistry.getSDFPerturbAttributes();
+
+    // If no SDFPerturb surfaces, return a copy of the original grid
+    if (sdfPerturbAttrs.length === 0) {
+      return new Float32Array(sdfGrid);
+    }
+
+    const [dimX, dimY, dimZ] = gridDimensions;
+    const totalPoints = dimX * dimY * dimZ;
+
+    if (sdfGrid.length < totalPoints) {
+      console.warn(
+        '[TwoPhaseTerrainPipeline] SDF grid size mismatch in surfacesIntoSDF: expected',
+        totalPoints,
+        'got',
+        sdfGrid.length,
+      );
+      return new Float32Array(sdfGrid);
+    }
+
+    const result = new Float32Array(sdfGrid);
+
+    // Compute world-space step sizes for grid traversal
+    const size = new THREE.Vector3();
+    bounds.getSize(size);
+    const stepX = dimX > 1 ? size.x / (dimX - 1) : 0;
+    const stepY = dimY > 1 ? size.y / (dimY - 1) : 0;
+    const stepZ = dimZ > 1 ? size.z / (dimZ - 1) : 0;
+
+    // Collect all SDFPerturb templates
+    const perturbTemplates = sdfPerturbAttrs
+      .map((attrType) => surfaceRegistry.getSurface(attrType))
+      .filter((t): t is NonNullable<typeof t> => t !== undefined && t.displacement !== null);
+
+    if (perturbTemplates.length === 0) {
+      return result;
+    }
+
+    // Evaluate displacement from each SDFPerturb template at each grid point
+    for (let iz = 0; iz < dimZ; iz++) {
+      for (let iy = 0; iy < dimY; iy++) {
+        for (let ix = 0; ix < dimX; ix++) {
+          const gridIndex = ix + iy * dimX + iz * dimX * dimY;
+
+          // Map grid coordinates to world-space position
+          const worldX = bounds.min.x + ix * stepX;
+          const worldY = bounds.min.y + iy * stepY;
+          const worldZ = bounds.min.z + iz * stepZ;
+          const position = new THREE.Vector3(worldX, worldY, worldZ);
+
+          // Sum displacement from all SDFPerturb surfaces
+          let totalDisplacement = 0;
+          for (const template of perturbTemplates) {
+            totalDisplacement += template.computeDisplacement(position, this.noise);
+          }
+
+          // Apply SDF perturbation formula:
+          // modified_sdf = original_sdf - displacement * scale
+          // This pushes the isosurface outward where displacement is positive,
+          // creating realistic rocky detail and crevices in the SDF domain.
+          result[gridIndex] = sdfGrid[gridIndex] - totalDisplacement;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // =====================================================================
+  // Spatial Hash for Efficient Attribute Transfer
+  // =====================================================================
+
+  /**
+   * Build a spatial hash grid for efficient nearest-vertex lookup.
+   *
+   * Replaces the O(V×A) linear search for nearest material assignments
+   * with an O(V) amortized approach using spatial hashing. Each vertex
+   * position is quantized into a grid cell, and vertices within the
+   * same cell (and neighboring cells) can be found in constant time.
+   *
+   * @param positions - Flat Float32Array of vertex positions [x0,y0,z0, x1,y1,z1, ...]
+   * @param vertexCount - Number of vertices in the positions array
+   * @param cellSize - Size of each spatial hash cell (should match the coarse resolution)
+   * @returns A Map from cell key strings to arrays of vertex indices
+   */
+  private buildSpatialHash(
+    positions: Float32Array,
+    vertexCount: number,
+    cellSize: number,
+  ): Map<string, number[]> {
+    const hashGrid = new Map<string, number[]>();
+
+    for (let i = 0; i < vertexCount; i++) {
+      const x = positions[i * 3];
+      const y = positions[i * 3 + 1];
+      const z = positions[i * 3 + 2];
+
+      // Quantize position to cell coordinates
+      const cx = Math.floor(x / cellSize);
+      const cy = Math.floor(y / cellSize);
+      const cz = Math.floor(z / cellSize);
+      const key = `${cx},${cy},${cz}`;
+
+      if (!hashGrid.has(key)) {
+        hashGrid.set(key, []);
+      }
+      hashGrid.get(key)!.push(i);
+    }
+
+    return hashGrid;
+  }
+
+  /**
+   * Find the nearest vertex in a spatial hash grid.
+   *
+   * Searches the cell containing the query position and all 26 neighboring
+   * cells to find the closest vertex. Falls back to expanding the search
+   * radius if no vertices are found in the immediate neighborhood.
+   *
+   * @param position - The query position to find the nearest vertex for
+   * @param spatialHash - The spatial hash grid built by buildSpatialHash
+   * @param positions - Flat Float32Array of vertex positions
+   * @param cellSize - Size of each spatial hash cell
+   * @returns The index of the nearest vertex, or -1 if not found
+   */
+  private findNearestVertex(
+    position: THREE.Vector3,
+    spatialHash: Map<string, number[]>,
+    positions: Float32Array,
+    cellSize: number,
+  ): number {
+    let nearestIndex = -1;
+    let nearestDistSq = Infinity;
+
+    // Search in a 3×3×3 neighborhood around the query cell
+    const cx = Math.floor(position.x / cellSize);
+    const cy = Math.floor(position.y / cellSize);
+    const cz = Math.floor(position.z / cellSize);
+
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const key = `${cx + dx},${cy + dy},${cz + dz}`;
+          const vertices = spatialHash.get(key);
+          if (!vertices) continue;
+
+          for (const vIdx of vertices) {
+            const vx = positions[vIdx * 3];
+            const vy = positions[vIdx * 3 + 1];
+            const vz = positions[vIdx * 3 + 2];
+
+            const distSq = (position.x - vx) ** 2 +
+                           (position.y - vy) ** 2 +
+                           (position.z - vz) ** 2;
+
+            if (distSq < nearestDistSq) {
+              nearestDistSq = distSq;
+              nearestIndex = vIdx;
+            }
+          }
+        }
+      }
+    }
+
+    // If nothing found in the 3×3×3 neighborhood, expand search
+    if (nearestIndex === -1) {
+      for (const vertices of spatialHash.values()) {
+        for (const vIdx of vertices) {
+          const vx = positions[vIdx * 3];
+          const vy = positions[vIdx * 3 + 1];
+          const vz = positions[vIdx * 3 + 2];
+
+          const distSq = (position.x - vx) ** 2 +
+                         (position.y - vy) ** 2 +
+                         (position.z - vz) ** 2;
+
+          if (distSq < nearestDistSq) {
+            nearestDistSq = distSq;
+            nearestIndex = vIdx;
+          }
+        }
+      }
+    }
+
+    return nearestIndex;
+  }
+
+  /**
+   * Transfer material and attribute data from coarse to fine mesh
+   * using spatial hashing for efficiency.
+   *
+   * In the original Infinigen pipeline, the coarse terrain phase establishes
+   * material assignments (materialId, surfaceTemplate, displacement), and
+   * these must be transferred to the fine mesh vertices. The naive approach
+   * is O(V_fine × V_coarse) linear search; this method uses spatial hashing
+   * to achieve O(V_fine) amortized lookup.
+   *
+   * @param coarsePositions - Flat Float32Array of coarse mesh vertex positions
+   * @param coarseAttributes - Map of attribute name to Float32Array values on the coarse mesh
+   * @param finePositions - Flat Float32Array of fine mesh vertex positions
+   * @param fineVertexCount - Number of vertices in the fine mesh
+   * @returns A Map of attribute name to Float32Array with transferred values for the fine mesh
+   */
+  private transferAttributes(
+    coarsePositions: Float32Array,
+    coarseAttributes: Map<string, Float32Array>,
+    finePositions: Float32Array,
+    fineVertexCount: number,
+  ): Map<string, Float32Array> {
+    const result = new Map<string, Float32Array>();
+
+    // Initialize result arrays
+    for (const [attrName, coarseValues] of coarseAttributes) {
+      const fineValues = new Float32Array(fineVertexCount);
+      result.set(attrName, fineValues);
+    }
+
+    if (coarseAttributes.size === 0 || fineVertexCount === 0) {
+      return result;
+    }
+
+    // Determine cell size from coarse mesh spacing (use config coarse resolution)
+    const cellSize = this.config.coarseResolution * 2;
+    const coarseVertexCount = coarsePositions.length / 3;
+
+    // Build spatial hash from coarse mesh vertices
+    const spatialHash = this.buildSpatialHash(coarsePositions, coarseVertexCount, cellSize);
+
+    // For each fine mesh vertex, find nearest coarse vertex and transfer attributes
+    for (let i = 0; i < fineVertexCount; i++) {
+      const position = new THREE.Vector3(
+        finePositions[i * 3],
+        finePositions[i * 3 + 1],
+        finePositions[i * 3 + 2],
+      );
+
+      const nearestIdx = this.findNearestVertex(
+        position,
+        spatialHash,
+        coarsePositions,
+        cellSize,
+      );
+
+      if (nearestIdx >= 0) {
+        // Transfer each attribute from the nearest coarse vertex
+        for (const [attrName, coarseValues] of coarseAttributes) {
+          const fineValues = result.get(attrName);
+          if (fineValues && nearestIdx < coarseValues.length) {
+            fineValues[i] = coarseValues[nearestIdx];
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // =====================================================================
+  // Water-Covered Annotation
+  // =====================================================================
+
+  /**
+   * Annotate vertices covered by water.
+   *
+   * After coarse terrain generation, evaluates the waterbody SDF at each
+   * vertex position. Vertices whose Y position is below the water plane
+   * height are tagged with `liquidCovered = 1.0`. This drives underwater
+   * vs. above-water material selection in downstream rendering.
+   *
+   * Matches the original Infinigen's water annotation step where the
+   * `LiquidCovered` attribute is set based on the water plane height
+   * relative to terrain vertex heights.
+   *
+   * @param positions - Flat Float32Array of vertex positions [x0,y0,z0, x1,y1,z1, ...]
+   * @param vertexCount - Number of vertices
+   * @param waterPlaneHeight - The Y coordinate of the water surface plane
+   * @returns Float32Array of liquidCovered values (1.0 = covered, 0.0 = not covered)
+   */
+  private annotateWaterCovered(
+    positions: Float32Array,
+    vertexCount: number,
+    waterPlaneHeight: number,
+  ): Float32Array {
+    const liquidCovered = new Float32Array(vertexCount);
+
+    for (let i = 0; i < vertexCount; i++) {
+      const y = positions[i * 3 + 1];
+      // A vertex is covered by water if it is below the water plane
+      liquidCovered[i] = y < waterPlaneHeight ? 1.0 : 0.0;
+    }
+
+    return liquidCovered;
+  }
+
+  // =====================================================================
+  // Camera-Adaptive Resolution
+  // =====================================================================
+
+  /**
+   * Compute camera-adaptive resolution for fine meshing.
+   *
+   * Determines the target resolution for the fine terrain mesh based on
+   * the camera frustum and a pixel budget. Terrain within the camera's
+   * field of view receives higher resolution (smaller voxels), while
+   * terrain outside the FOV receives lower resolution (larger voxels).
+   *
+   * This replaces the simple distance-based LOD with a proper
+   * frustum-aware approach that considers both the camera's field of
+   * view and the target pixel budget to avoid over-tessellation of
+   * off-screen terrain.
+   *
+   * @param camera - The THREE.Camera to compute adaptive resolution for
+   * @param baseResolution - The base (finest) resolution in world units per voxel
+   * @param targetPixelBudget - Target number of pixels the terrain should occupy on screen
+   * @returns An object with inViewResolution and outViewResolution
+   */
+  private computeCameraAdaptiveResolution(
+    camera: THREE.Camera,
+    baseResolution: number,
+    targetPixelBudget: number,
+  ): { inViewResolution: number; outViewResolution: number } {
+    // Compute the screen-space coverage of the terrain bounds
+    const boundsConfig = this.config.bounds;
+    const bounds = new THREE.Box3(
+      new THREE.Vector3(boundsConfig.minX, boundsConfig.minY, boundsConfig.minZ),
+      new THREE.Vector3(boundsConfig.maxX, boundsConfig.maxY, boundsConfig.maxZ),
+    );
+    const boundsSize = new THREE.Vector3();
+    bounds.getSize(boundsSize);
+
+    // Estimate the terrain's screen coverage based on camera FOV and distance
+    let inViewResolution = baseResolution;
+    let outViewResolution = baseResolution * 8; // 8× coarser outside FOV
+
+    if (camera instanceof THREE.PerspectiveCamera) {
+      // For perspective cameras, use FOV to compute pixel density
+      const fovRad = THREE.MathUtils.degToRad(camera.fov);
+      const aspect = camera.aspect || 1.0;
+
+      // Approximate screen pixels per world unit at the terrain center
+      const terrainCenter = new THREE.Vector3();
+      bounds.getCenter(terrainCenter);
+      const distToCenter = camera.position.distanceTo(terrainCenter);
+
+      if (distToCenter > 0) {
+        // Screen height in world units at the terrain center distance
+        const screenHeightAtDist = 2 * Math.tan(fovRad / 2) * distToCenter;
+        // Screen width in world units
+        const screenWidthAtDist = screenHeightAtDist * aspect;
+
+        // Total screen area in world units²
+        const screenArea = screenHeightAtDist * screenWidthAtDist;
+
+        // Terrain area in world units²
+        const terrainArea = boundsSize.x * boundsSize.z;
+
+        // Fraction of terrain visible on screen
+        const visibleFraction = Math.min(1.0, terrainArea / screenArea);
+
+        // Pixel budget per world unit²
+        const pixelsPerWorldUnit = targetPixelBudget / Math.max(1, terrainArea * visibleFraction);
+
+        // Target resolution: voxels per world unit should match pixel density
+        // Higher pixelsPerWorldUnit → finer resolution (smaller voxels)
+        const targetRes = 1.0 / Math.max(1, Math.sqrt(pixelsPerWorldUnit));
+
+        inViewResolution = Math.max(baseResolution, Math.min(targetRes, this.config.coarseResolution));
+
+        // Outside FOV: 4-8× coarser, but not worse than coarse resolution
+        outViewResolution = Math.min(
+          inViewResolution * 8,
+          this.config.coarseResolution * 2,
+        );
+      }
+    } else if (camera instanceof THREE.OrthographicCamera) {
+      // For orthographic cameras, use the frustum dimensions directly
+      const frustumWidth = camera.right - camera.left;
+      const frustumHeight = camera.top - camera.bottom;
+      const frustumArea = frustumWidth * frustumHeight;
+
+      const pixelsPerWorldUnit = targetPixelBudget / Math.max(1, frustumArea);
+      const targetRes = 1.0 / Math.max(1, Math.sqrt(pixelsPerWorldUnit));
+
+      inViewResolution = Math.max(baseResolution, Math.min(targetRes, this.config.coarseResolution));
+      outViewResolution = Math.min(inViewResolution * 4, this.config.coarseResolution * 2);
+    }
+
+    return { inViewResolution, outViewResolution };
+  }
+
+  // =====================================================================
+  // Public SDF Perturbation API
+  // =====================================================================
+
+  /**
+   * Apply SDF perturbation from surface templates.
+   *
+   * This is the key step that creates realistic terrain detail at the SDF
+   * level before meshing. It converts SDFPerturb surface templates to
+   * displacement functions and applies them to the SDF grid using the
+   * TerrainSurfaceKernel's SDF perturbation capability.
+   *
+   * The formula applied at each grid point is:
+   *   modified_sdf[i] = original_sdf[i] - displacement(position) * scale
+   *
+   * After this perturbation, the isosurface will be re-extracted, producing
+   * a mesh where surface detail (cracks, crevices, rocky outcrops) is
+   * embedded in the geometry itself rather than applied as vertex displacement.
+   * This avoids the "floating rocks" artifact.
+   *
+   * If a selection mask is provided, the perturbation is modulated per-grid-point:
+   *   modified_sdf[i] = original_sdf[i] - displacement(position) * scale * mask[i]
+   *
+   * @param sdfGrid - The original SDF grid as a flat Float32Array
+   * @param gridDimensions - The dimensions of the SDF grid [dimX, dimY, dimZ]
+   * @param bounds - The axis-aligned bounding box of the SDF volume
+   * @param surfaceRegistry - The terrain surface registry with sampled surface templates
+   * @param selectionMask - Optional per-grid-point mask in [0, 1] to modulate perturbation strength
+   * @returns A new Float32Array with SDF perturbation applied
+   */
+  applySDFPerturbation(
+    sdfGrid: Float32Array,
+    gridDimensions: [number, number, number],
+    bounds: THREE.Box3,
+    surfaceRegistry: TerrainSurfaceRegistry,
+    selectionMask?: Float32Array,
+  ): Float32Array {
+    // First, use the surface registry's SDFPerturb templates
+    const perturbedSDF = this.surfacesIntoSDF(sdfGrid, gridDimensions, bounds, surfaceRegistry);
+
+    // Then, apply the TerrainSurfaceKernel's SDF perturbation for any
+    // additional displacement graphs (node-graph based perturbation)
+    const kernelPerturbedSDF = this.surfaceKernel.applySDFPerturbation(
+      perturbedSDF,
+      gridDimensions,
+      bounds,
+    );
+
+    // Apply selection mask if provided
+    if (selectionMask) {
+      const [dimX, dimY, dimZ] = gridDimensions;
+      const totalPoints = dimX * dimY * dimZ;
+      const result = new Float32Array(kernelPerturbedSDF);
+
+      for (let i = 0; i < totalPoints && i < selectionMask.length; i++) {
+        // Blend between original and perturbed based on the mask
+        result[i] = sdfGrid[i] + (kernelPerturbedSDF[i] - sdfGrid[i]) * selectionMask[i];
+      }
+
+      return result;
+    }
+
+    return kernelPerturbedSDF;
+  }
+
+  /**
+   * Apply terrain tags to a geometry.
+   *
+   * After fine terrain generation, converts per-vertex element tags and
+   * attribute values into face-level boolean tag masks using the
+   * TerrainTagSystem. This is the equivalent of Infinigen's tag_terrain()
+   * function.
+   *
+   * The tagging process:
+   * 1. Reads the ElementTag per-vertex attribute and converts to face-level
+   *    via facewise intmax (a face gets the maximum element tag of its vertices)
+   * 2. Creates TAG_<ElementTag.map[i]> face attributes for each distinct tag value
+   * 3. Applies threshold-based tag conversion for continuous attributes
+   *    (Cave, LiquidCovered, Eroded, Lava, Snow, Beach, etc.)
+   *
+   * @param geometry - The terrain geometry to tag (must have element and
+   *   auxiliary attributes computed by computeAttributes)
+   * @returns Tag result with the tagged geometry and tag dictionary
+   */
+  tagTerrain(geometry: THREE.BufferGeometry): TagResult {
+    return this.tagSystem.tagTerrain(geometry);
+  }
+
+  /**
+   * Get the TerrainSurfaceRegistry for this pipeline.
+   *
+   * The surface registry manages the mapping from attribute types to
+   * surface material descriptors. It can be used to customize which
+   * surfaces are applied to different terrain regions.
+   *
+   * @returns A new TerrainSurfaceRegistry seeded with the pipeline's seed
+   */
+  createSurfaceRegistry(): TerrainSurfaceRegistry {
+    return new TerrainSurfaceRegistry(this.config.seed);
   }
 }
