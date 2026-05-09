@@ -244,6 +244,292 @@ export function generateRockElements(
 }
 
 // ---------------------------------------------------------------------------
+// generateMountainElements
+// ---------------------------------------------------------------------------
+
+/**
+ * Mountain terrain feature classification
+ */
+export type MountainFeature = 'peak' | 'ridge' | 'saddle' | 'col' | 'arete' | 'cwm' | 'buttress';
+
+/** Configuration for mountain element generation */
+export interface MountainElementConfig {
+  seed: number;
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** Number of major peaks to generate */
+  peakCount: number;
+  /** Base height of the terrain */
+  baseHeight: number;
+  /** Minimum peak height */
+  minPeakHeight: number;
+  /** Maximum peak height */
+  maxPeakHeight: number;
+  /** Ridge density factor (0-1) */
+  ridgeDensity: number;
+  /** Scree/talus density at mountain bases */
+  screeDensity: number;
+  /** Height provider for terrain-following placement */
+  heightProvider?: (x: number, z: number) => number;
+}
+
+/**
+ * Generate mountain terrain elements including peaks, ridges, saddles,
+ * cols, aretes, cwms (corries), and buttresses.
+ *
+ * Matches the original Infinigen's Mountain element generator which produces
+ * large-scale mountain terrain features with multiple sub-elements.
+ *
+ * Features:
+ * - Major peaks: conical/pyramidal mountain tops with snow line
+ * - Ridges: elongated features connecting peaks
+ * - Saddles/cols: low points between peaks
+ * - Arete: sharp ridges between cwms
+ * - Cwm (corrie): armchair-shaped hollows on mountain sides
+ * - Buttresses: rock columns on steep faces
+ * - Scree slopes at mountain bases
+ *
+ * @param config - Mountain element configuration
+ * @returns Array of terrain elements representing mountain features
+ */
+export function generateMountainElements(
+  config: Partial<MountainElementConfig> = {},
+): TerrainElement[] {
+  const cfg: MountainElementConfig = {
+    seed: 42,
+    bounds: { minX: -100, maxX: 100, minZ: -100, maxZ: 100 },
+    peakCount: 5,
+    baseHeight: 0,
+    minPeakHeight: 15,
+    maxPeakHeight: 60,
+    ridgeDensity: 0.4,
+    screeDensity: 0.1,
+    ...config,
+  };
+
+  const rng = new SeededRandom(cfg.seed);
+  const elements: TerrainElement[] = [];
+  const getHeight = cfg.heightProvider ?? flatHeight;
+
+  // --- Generate Mountain Peaks ---
+  // Peaks are the primary features, placed with spacing to avoid overlap
+  const peaks: { x: number; z: number; height: number; radius: number }[] = [];
+
+  for (let i = 0; i < cfg.peakCount; i++) {
+    const x = rng.nextFloat(cfg.bounds.minX + 10, cfg.bounds.maxX - 10);
+    const z = rng.nextFloat(cfg.bounds.minZ + 10, cfg.bounds.maxZ - 10);
+    const baseY = getHeight(x, z);
+    const height = rng.nextFloat(cfg.minPeakHeight, cfg.maxPeakHeight);
+    const radius = height * rng.nextFloat(0.6, 1.2);
+
+    peaks.push({ x, z, height, radius });
+
+    // Mountain shape type
+    const mountainShape = rng.choice(['conical', 'pyramidal', 'dome', 'horn'] as const);
+
+    // Snow line: peaks above certain height get snow
+    const snowLine = cfg.maxPeakHeight * 0.6;
+    const hasSnowCap = height > snowLine;
+    const snowRatio = hasSnowCap ? (height - snowLine) / height : 0;
+
+    elements.push({
+      type: 'mountain_peak',
+      position: [x, baseY, z],
+      rotation: [0, rng.next() * Math.PI * 2, 0],
+      scale: [radius, height, radius],
+      properties: {
+        height,
+        radius,
+        shape: mountainShape,
+        hasSnowCap,
+        snowRatio,
+        material: hasSnowCap ? TERRAIN_MATERIALS.SNOW : TERRAIN_MATERIALS.STONE,
+        prominence: height * rng.nextFloat(0.5, 1.0),
+        slope: height / radius,
+      },
+    });
+  }
+
+  // --- Generate Ridges between Peaks ---
+  // Ridges connect nearby peaks, forming mountain ranges
+  for (let i = 0; i < peaks.length; i++) {
+    for (let j = i + 1; j < peaks.length; j++) {
+      const dist = Math.sqrt(
+        (peaks[i].x - peaks[j].x) ** 2 +
+        (peaks[i].z - peaks[j].z) ** 2
+      );
+
+      // Only connect peaks within reasonable distance
+      const maxRidgeDistance = (peaks[i].height + peaks[j].height) * 1.5;
+      if (dist > maxRidgeDistance) continue;
+      if (rng.next() > cfg.ridgeDensity) continue;
+
+      const ridgeMidX = (peaks[i].x + peaks[j].x) / 2;
+      const ridgeMidZ = (peaks[i].z + peaks[j].z) / 2;
+      const ridgeMidY = (peaks[i].height + peaks[j].height) * 0.3;
+
+      const ridgeWidth = rng.nextFloat(1, 4);
+      const ridgeLength = dist;
+      const ridgeAngle = Math.atan2(
+        peaks[j].z - peaks[i].z,
+        peaks[j].x - peaks[i].x
+      );
+
+      elements.push({
+        type: 'mountain_ridge',
+        position: [ridgeMidX, ridgeMidY, ridgeMidZ],
+        rotation: [0, ridgeAngle, 0],
+        scale: [ridgeLength, ridgeWidth * 0.5, ridgeWidth],
+        properties: {
+          width: ridgeWidth,
+          length: ridgeLength,
+          connects: [i, j],
+          material: TERRAIN_MATERIALS.STONE,
+          sharpness: rng.nextFloat(0.3, 0.9),
+        },
+      });
+
+      // --- Saddle/Col at midpoint ---
+      // Low point between two peaks on a ridge
+      if (rng.boolean(0.6)) {
+        elements.push({
+          type: 'mountain_saddle',
+          position: [ridgeMidX, ridgeMidY * 0.6, ridgeMidZ],
+          rotation: [0, ridgeAngle, 0],
+          scale: [ridgeWidth * 2, ridgeWidth, ridgeWidth * 2],
+          properties: {
+            elevation: ridgeMidY * 0.6,
+            width: ridgeWidth * 2,
+            material: TERRAIN_MATERIALS.SOIL,
+          },
+        });
+      }
+    }
+  }
+
+  // --- Generate Arete (sharp ridge features) ---
+  // Arete are narrow, sharp ridges typically found between two cwms
+  for (let i = 0; i < Math.floor(cfg.peakCount * 0.6); i++) {
+    const peakIdx = rng.nextInt(0, peaks.length - 1);
+    const peak = peaks[peakIdx];
+    const angle = rng.next() * Math.PI * 2;
+    const areteLength = rng.nextFloat(5, 15);
+    const areteSharpness = rng.nextFloat(0.7, 1.0);
+
+    elements.push({
+      type: 'mountain_arete',
+      position: [
+        peak.x + Math.cos(angle) * areteLength * 0.3,
+        peak.height * 0.7,
+        peak.z + Math.sin(angle) * areteLength * 0.3,
+      ],
+      rotation: [0, angle, 0],
+      scale: [areteLength, peak.height * 0.15, areteSharpness],
+      properties: {
+        length: areteLength,
+        sharpness: areteSharpness,
+        material: TERRAIN_MATERIALS.STONE,
+      },
+    });
+  }
+
+  // --- Generate Cwm (Corrie/Cirque) ---
+  // Bowl-shaped depressions on mountain sides, often containing small lakes
+  for (let i = 0; i < Math.floor(cfg.peakCount * 0.4); i++) {
+    const peakIdx = rng.nextInt(0, peaks.length - 1);
+    const peak = peaks[peakIdx];
+    const angle = rng.next() * Math.PI * 2;
+    const dist = peak.radius * rng.nextFloat(0.5, 0.9);
+
+    const cwmRadius = rng.nextFloat(3, 8);
+    const cwmDepth = rng.nextFloat(2, 6);
+    const hasLake = rng.boolean(0.4);
+
+    elements.push({
+      type: 'mountain_cwm',
+      position: [
+        peak.x + Math.cos(angle) * dist,
+        peak.height * 0.4,
+        peak.z + Math.sin(angle) * dist,
+      ],
+      rotation: [0, angle + Math.PI, 0],
+      scale: [cwmRadius, cwmDepth, cwmRadius * 0.8],
+      properties: {
+        radius: cwmRadius,
+        depth: cwmDepth,
+        hasLake,
+        material: TERRAIN_MATERIALS.STONE,
+        lakeMaterial: hasLake ? TERRAIN_MATERIALS.WATER : undefined,
+      },
+    });
+  }
+
+  // --- Generate Buttresses ---
+  // Rock columns on steep mountain faces
+  for (let i = 0; i < Math.floor(cfg.peakCount * 1.5); i++) {
+    const peakIdx = rng.nextInt(0, peaks.length - 1);
+    const peak = peaks[peakIdx];
+    const angle = rng.next() * Math.PI * 2;
+    const dist = peak.radius * rng.nextFloat(0.3, 0.8);
+
+    const buttressHeight = rng.nextFloat(3, 12);
+    const buttressWidth = rng.nextFloat(1, 4);
+
+    elements.push({
+      type: 'mountain_buttress',
+      position: [
+        peak.x + Math.cos(angle) * dist,
+        peak.height * rng.nextFloat(0.2, 0.6),
+        peak.z + Math.sin(angle) * dist,
+      ],
+      rotation: [0, angle, rng.nextFloat(-0.1, 0.1)],
+      scale: [buttressWidth, buttressHeight, buttressWidth * 0.5],
+      properties: {
+        height: buttressHeight,
+        width: buttressWidth,
+        material: TERRAIN_MATERIALS.COBBLESTONE,
+        steepness: rng.nextFloat(0.7, 1.0),
+      },
+    });
+  }
+
+  // --- Generate Scree Slopes at Mountain Bases ---
+  // Loose rock debris accumulated at the base of steep faces
+  const screeCount = Math.floor(
+    (cfg.bounds.maxX - cfg.bounds.minX) *
+    (cfg.bounds.maxZ - cfg.bounds.minZ) *
+    cfg.screeDensity
+  );
+
+  for (let i = 0; i < screeCount; i++) {
+    // Scree tends to cluster near peak bases
+    const peakIdx = rng.nextInt(0, peaks.length - 1);
+    const peak = peaks[peakIdx];
+    const angle = rng.next() * Math.PI * 2;
+    const dist = peak.radius * rng.nextFloat(0.8, 2.0);
+
+    const x = peak.x + Math.cos(angle) * dist;
+    const z = peak.z + Math.sin(angle) * dist;
+    const y = getHeight(x, z);
+
+    const screeSize = rng.nextFloat(0.05, 0.3);
+
+    elements.push({
+      type: 'mountain_scree',
+      position: [x, y + screeSize * 0.3, z],
+      rotation: [rng.nextFloat(-0.3, 0.3), rng.next() * Math.PI * 2, rng.nextFloat(-0.3, 0.3)],
+      scale: [screeSize * rng.nextFloat(0.8, 1.2), screeSize * rng.nextFloat(0.5, 0.8), screeSize * rng.nextFloat(0.8, 1.2)],
+      properties: {
+        size: screeSize,
+        angularity: rng.nextFloat(0.5, 0.9),
+        material: TERRAIN_MATERIALS.COBBLESTONE,
+      },
+    });
+  }
+
+  return elements;
+}
+
+// ---------------------------------------------------------------------------
 // generateCliffElements
 // ---------------------------------------------------------------------------
 

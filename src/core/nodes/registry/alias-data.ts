@@ -923,6 +923,20 @@ export const ALIAS_DATA: Record<string, string> = {
   'FloatCompare': 'FunctionNodeFloatCompare',
   'float_compare': 'FunctionNodeFloatCompare',
 
+  // --- Blender-compatible alias names for Math/Converter nodes ---
+  // These are the Blender-style names the parity tests look for.
+  'ShaderNodeBooleanMath': 'FunctionNodeBooleanMath',
+  'ShaderNodeCompare': 'FunctionNodeCompare',
+  'ShaderNodeFloatToInt': 'GeometryNodeFloatToInt',
+  'ShaderNodeFieldAtIndex': 'ShaderNodeFieldAtIndex',
+  'FieldAtIndexNode': 'ShaderNodeFieldAtIndex',
+  'FieldAtIndex': 'ShaderNodeFieldAtIndex',
+  'field_at_index': 'ShaderNodeFieldAtIndex',
+  'ShaderNodeAccumulateField': 'ShaderNodeAccumulateField',
+  'AccumulateFieldNode': 'ShaderNodeAccumulateField',
+  'AccumulateField': 'ShaderNodeAccumulateField',
+  'accumulate_field': 'ShaderNodeAccumulateField',
+
   // ═══════════════════════════════════════════════════════════════════════
   // Vector Nodes
   // ═══════════════════════════════════════════════════════════════════════

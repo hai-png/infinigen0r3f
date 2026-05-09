@@ -6,6 +6,15 @@
 import { Node, Variable, Domain, NumericDomain, BooleanDomain, ObjectSetDomain } from './types';
 
 /**
+ * Flexible state type for expression evaluation.
+ *
+ * Supports both Variable-keyed maps (legacy) and string-keyed maps (object set
+ * and quantifier expressions need to set dynamic keys like 'scene', 'obj',
+ * 'current_object').
+ */
+export type EvalState = Map<Variable | string, any>;
+
+/**
  * Base class for all expressions
  */
 export abstract class Expression extends Node {
@@ -17,7 +26,7 @@ export abstract class Expression extends Node {
   /**
    * Evaluate this expression given a state
    */
-  abstract evaluate(state: Map<Variable, any>): any;
+  abstract evaluate(state: EvalState): any;
 }
 
 /**
@@ -265,7 +274,7 @@ export class HingeLossExpression extends ScalarExpression {
     ]);
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     const val = this.value.evaluate(state);
     const low = this.low.evaluate(state);
     const high = this.high.evaluate(state);
@@ -302,7 +311,7 @@ export class ScalarConstant extends ScalarExpression {
     return new Map();
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     return this.value;
   }
 
@@ -328,7 +337,7 @@ export class BoolConstant extends BoolExpression {
     return new Map();
   }
 
-  evaluate(state: Map<Variable, any>): boolean {
+  evaluate(state: EvalState): boolean {
     return this.value;
   }
 
@@ -354,7 +363,7 @@ export class ScalarVariable extends ScalarExpression {
     return new Map();
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     const value = state.get(this.variable);
     if (typeof value !== 'number') {
       throw new Error(`Expected numeric value for variable ${this.variable.name}, got ${typeof value}`);
@@ -384,7 +393,7 @@ export class BoolVariable extends BoolExpression {
     return new Map();
   }
 
-  evaluate(state: Map<Variable, any>): boolean {
+  evaluate(state: EvalState): boolean {
     const value = state.get(this.variable);
     if (typeof value !== 'boolean') {
       throw new Error(`Expected boolean value for variable ${this.variable.name}, got ${typeof value}`);
@@ -441,7 +450,7 @@ export class ScalarOperatorExpression extends ScalarExpression {
     ]);
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     const leftVal = this.left.evaluate(state);
     const rightVal = this.right.evaluate(state);
 
@@ -503,7 +512,7 @@ export class BoolOperatorExpression extends BoolExpression {
     return children;
   }
 
-  evaluate(state: Map<Variable, any>): boolean {
+  evaluate(state: EvalState): boolean {
     const leftVal = this.left.evaluate(state);
 
     if (!this.right) {
@@ -564,7 +573,7 @@ export class ScalarNegateExpression extends ScalarExpression {
     return new Map([['operand', this.operand]]);
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     return -this.operand.evaluate(state);
   }
 
@@ -590,7 +599,7 @@ export class ScalarAbsExpression extends ScalarExpression {
     return new Map([['operand', this.operand]]);
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     return Math.abs(this.operand.evaluate(state));
   }
 
@@ -622,7 +631,7 @@ export class ScalarMinExpression extends ScalarExpression {
     ]);
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     return Math.min(this.left.evaluate(state), this.right.evaluate(state));
   }
 
@@ -657,7 +666,7 @@ export class ScalarMaxExpression extends ScalarExpression {
     ]);
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     return Math.max(this.left.evaluate(state), this.right.evaluate(state));
   }
 
@@ -686,7 +695,7 @@ export class BoolNotExpression extends BoolExpression {
     return new Map([['operand', this.operand]]);
   }
 
-  evaluate(state: Map<Variable, any>): boolean {
+  evaluate(state: EvalState): boolean {
     return !this.operand.evaluate(state);
   }
 
@@ -720,7 +729,7 @@ export class ScalarIfElse extends ScalarExpression {
     ]);
   }
 
-  evaluate(state: Map<Variable, any>): number {
+  evaluate(state: EvalState): number {
     return this.condition.evaluate(state)
       ? this.thenExpr.evaluate(state)
       : this.elseExpr.evaluate(state);
@@ -760,7 +769,7 @@ export class BoolIfElse extends BoolExpression {
     ]);
   }
 
-  evaluate(state: Map<Variable, any>): boolean {
+  evaluate(state: EvalState): boolean {
     return this.condition.evaluate(state)
       ? this.thenExpr.evaluate(state)
       : this.elseExpr.evaluate(state);
@@ -812,7 +821,7 @@ export class InRangeExpression extends BoolExpression {
     return children;
   }
 
-  evaluate(state: Map<Variable, any>): boolean {
+  evaluate(state: EvalState): boolean {
     const val = this.value.evaluate(state);
     const lo = this.low.evaluate(state);
     const hi = this.high.evaluate(state);
@@ -841,3 +850,548 @@ export type { InRange } from './types';
 
 // Re-export Constant type alias for convenience
 export type { Constant } from './types';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Object Set Expressions
+// Ported from infinigen/core/constraints/constraint_language/object_set.py
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Base class for expressions that evaluate to a set of scene objects.
+ *
+ * In the original Infinigen, object set expressions are central to the constraint
+ * language. They allow constraints to quantify over collections of objects:
+ *   - SceneSetExpression: all objects in the scene
+ *   - TaggedSetExpression: objects matching a tag predicate
+ *   - UnionObjects: union of two object sets
+ *   - ExcludesObjects: set difference (objects in A but not in B)
+ *
+ * These are used with quantifiers like ForAll, Exists, SumOver, MeanOver.
+ */
+export abstract class ObjectSetExpression extends Expression {
+  domain(): Domain {
+    return new ObjectSetDomain();
+  }
+
+  /**
+   * Union of this set with another set
+   */
+  union(other: ObjectSetExpression): UnionObjects {
+    return new UnionObjects(this, other);
+  }
+
+  /**
+   * Exclude objects in another set from this set
+   */
+  excludes(other: ObjectSetExpression): ExcludesObjects {
+    return new ExcludesObjects(this, other);
+  }
+
+  /**
+   * Intersection of this set with another set
+   */
+  intersect(other: ObjectSetExpression): IntersectionObjects {
+    return new IntersectionObjects(this, other);
+  }
+
+  /**
+   * Filter objects in this set by a boolean predicate
+   */
+  filter(predicate: (obj: any) => BoolExpression): FilteredSet {
+    return new FilteredSet(this, predicate);
+  }
+}
+
+/**
+ * Represents all objects in the scene.
+ *
+ * In the original Infinigen, this is written as `scene()` in the constraint DSL.
+ * It evaluates to the set of all objects currently in the scene graph.
+ *
+ * Example usage in constraints:
+ *   ForAll(scene(), lambda obj: obj.accessibility > 0.5)
+ */
+export class SceneSetExpression extends ObjectSetExpression {
+  readonly type = 'SceneSetExpression';
+
+  children(): Map<string, Node> {
+    return new Map();
+  }
+
+  evaluate(state: EvalState): any[] {
+    // Return all objects from the state's scene graph
+    const scene = state.get('scene');
+    if (Array.isArray(scene)) return scene;
+    if (scene && typeof scene === 'object' && 'objects' in scene) return scene.objects;
+    return [];
+  }
+
+  clone(): SceneSetExpression {
+    return new SceneSetExpression();
+  }
+
+  toString(): string {
+    return 'scene()';
+  }
+}
+
+/**
+ * Represents objects matching a specific tag or tag combination.
+ *
+ * In the original Infinigen, this is written as `tagged("furniture")` in the
+ * constraint DSL. It evaluates to the set of all objects whose tags include
+ * the specified tag expression.
+ *
+ * Supports:
+ * - Single tag: tagged("chair")
+ * - Tag union: tagged("chair", "table")
+ * - Tag negation: tagged("furniture").excludes(tagged("bed"))
+ *
+ * Example usage in constraints:
+ *   ForAll(tagged("furniture"), lambda obj: obj.in_room)
+ */
+export class TaggedSetExpression extends ObjectSetExpression {
+  readonly type = 'TaggedSetExpression';
+
+  constructor(
+    public readonly tags: string[],
+    public readonly matchMode: 'any' | 'all' | 'none' = 'any'
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map();
+  }
+
+  evaluate(state: EvalState): any[] {
+    const scene = state.get('scene');
+    const objects: any[] = Array.isArray(scene)
+      ? scene
+      : (scene && typeof scene === 'object' && 'objects' in scene) ? scene.objects : [];
+
+    return objects.filter((obj: any) => {
+      const objTags: string[] = obj.tags ?? obj.tag ?? [];
+      switch (this.matchMode) {
+        case 'any': return this.tags.some(t => objTags.includes(t));
+        case 'all': return this.tags.every(t => objTags.includes(t));
+        case 'none': return !this.tags.some(t => objTags.includes(t));
+        default: return false;
+      }
+    });
+  }
+
+  clone(): TaggedSetExpression {
+    return new TaggedSetExpression([...this.tags], this.matchMode);
+  }
+
+  toString(): string {
+    const tagStr = this.tags.map(t => `"${t}"`).join(', ');
+    return `tagged(${tagStr}, mode="${this.matchMode}")`;
+  }
+}
+
+/**
+ * Union of two object sets.
+ *
+ * Returns all objects that are in either set A or set B.
+ * In the original Infinigen DSL: `union_of(set_a, set_b)`
+ */
+export class UnionObjects extends ObjectSetExpression {
+  readonly type = 'UnionObjects';
+
+  constructor(
+    public readonly left: ObjectSetExpression,
+    public readonly right: ObjectSetExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([
+      ['left', this.left],
+      ['right', this.right]
+    ]);
+  }
+
+  evaluate(state: EvalState): any[] {
+    const leftResult = this.left.evaluate(state);
+    const rightResult = this.right.evaluate(state);
+    // Union by ID to avoid duplicates
+    const seen = new Set<string>();
+    const result: any[] = [];
+    for (const obj of [...leftResult, ...rightResult]) {
+      const id = obj.id ?? obj.name ?? String(obj);
+      if (!seen.has(id)) {
+        seen.add(id);
+        result.push(obj);
+      }
+    }
+    return result;
+  }
+
+  clone(): UnionObjects {
+    return new UnionObjects(
+      this.left.clone() as ObjectSetExpression,
+      this.right.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `union(${this.left}, ${this.right})`;
+  }
+}
+
+/**
+ * Set difference: objects in set A but not in set B.
+ *
+ * In the original Infinigen DSL: `excludes(set_a, set_b)` or `set_a - set_b`
+ */
+export class ExcludesObjects extends ObjectSetExpression {
+  readonly type = 'ExcludesObjects';
+
+  constructor(
+    public readonly include: ObjectSetExpression,
+    public readonly exclude: ObjectSetExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([
+      ['include', this.include],
+      ['exclude', this.exclude]
+    ]);
+  }
+
+  evaluate(state: EvalState): any[] {
+    const includeResult = this.include.evaluate(state);
+    const excludeResult = this.exclude.evaluate(state);
+    const excludeIds = new Set(
+      excludeResult.map((obj: any) => obj.id ?? obj.name ?? String(obj))
+    );
+    return includeResult.filter((obj: any) => {
+      const id = obj.id ?? obj.name ?? String(obj);
+      return !excludeIds.has(id);
+    });
+  }
+
+  clone(): ExcludesObjects {
+    return new ExcludesObjects(
+      this.include.clone() as ObjectSetExpression,
+      this.exclude.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `excludes(${this.include}, ${this.exclude})`;
+  }
+}
+
+/**
+ * Intersection of two object sets.
+ *
+ * Returns only objects that are in both set A and set B.
+ */
+export class IntersectionObjects extends ObjectSetExpression {
+  readonly type = 'IntersectionObjects';
+
+  constructor(
+    public readonly left: ObjectSetExpression,
+    public readonly right: ObjectSetExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([
+      ['left', this.left],
+      ['right', this.right]
+    ]);
+  }
+
+  evaluate(state: EvalState): any[] {
+    const leftResult = this.left.evaluate(state);
+    const rightResult = this.right.evaluate(state);
+    const rightIds = new Set(
+      rightResult.map((obj: any) => obj.id ?? obj.name ?? String(obj))
+    );
+    return leftResult.filter((obj: any) => {
+      const id = obj.id ?? obj.name ?? String(obj);
+      return rightIds.has(id);
+    });
+  }
+
+  clone(): IntersectionObjects {
+    return new IntersectionObjects(
+      this.left.clone() as ObjectSetExpression,
+      this.right.clone() as ObjectSetExpression
+    );
+  }
+
+  toString(): string {
+    return `intersection(${this.left}, ${this.right})`;
+  }
+}
+
+/**
+ * Filtered set: objects from a source set that satisfy a boolean predicate.
+ */
+export class FilteredSet extends ObjectSetExpression {
+  readonly type = 'FilteredSet';
+
+  constructor(
+    public readonly source: ObjectSetExpression,
+    public readonly predicate: (obj: any) => BoolExpression
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['source', this.source]]);
+  }
+
+  evaluate(state: EvalState): any[] {
+    const sourceResult = this.source.evaluate(state);
+    return sourceResult.filter((obj: any) => {
+      const predicateExpr = this.predicate(obj);
+      const objState = new Map(state);
+      objState.set('current_object', obj);
+      return predicateExpr.evaluate(objState);
+    });
+  }
+
+  clone(): FilteredSet {
+    return new FilteredSet(
+      this.source.clone() as ObjectSetExpression,
+      this.predicate
+    );
+  }
+
+  toString(): string {
+    return `filter(${this.source}, predicate)`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Quantifier Expressions
+// Ported from infinigen/core/constraints/constraint_language/quantifier.py
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * SumOver: aggregates a scalar expression over all objects in a set.
+ *
+ * In the original Infinigen, this is written as:
+ *   SumOver(object_set, lambda obj: expression(obj))
+ *
+ * It evaluates to the sum of applying a scalar expression to each object
+ * in the object set. This is essential for constraints like:
+ *   - "Total weight of all furniture should be less than 100"
+ *   - "Sum of areas covered by rugs should be at least 5m²"
+ *
+ * Mathematical definition:
+ *   SumOver(S, f) = Σ_{x ∈ S} f(x)
+ */
+export class SumOver extends ScalarExpression {
+  readonly type = 'SumOver';
+
+  constructor(
+    public readonly objectSet: ObjectSetExpression,
+    public readonly body: (obj: any) => ScalarExpression,
+    public readonly boundVarName: string = 'obj'
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objectSet', this.objectSet]]);
+  }
+
+  evaluate(state: EvalState): number {
+    const objects = this.objectSet.evaluate(state);
+    let total = 0;
+
+    for (const obj of objects) {
+      const bodyExpr = this.body(obj);
+      const objState = new Map(state);
+      objState.set(this.boundVarName, obj);
+      objState.set('current_object', obj);
+      total += bodyExpr.evaluate(objState);
+    }
+
+    return total;
+  }
+
+  clone(): SumOver {
+    return new SumOver(
+      this.objectSet.clone() as ObjectSetExpression,
+      this.body,
+      this.boundVarName
+    );
+  }
+
+  toString(): string {
+    return `SumOver(${this.objectSet}, ${this.boundVarName} => ...)`;
+  }
+}
+
+/**
+ * MeanOver: computes the mean of a scalar expression over all objects in a set.
+ *
+ * In the original Infinigen, this is written as:
+ *   MeanOver(object_set, lambda obj: expression(obj))
+ *
+ * It evaluates to the average value of applying a scalar expression to each
+ * object in the object set. Essential for constraints like:
+ *   - "Average distance between chairs should be around 1m"
+ *   - "Mean coverage of surfaces by objects should be between 30-60%"
+ *
+ * Mathematical definition:
+ *   MeanOver(S, f) = (1/|S|) * Σ_{x ∈ S} f(x)
+ *
+ * Returns 0 if the set is empty.
+ */
+export class MeanOver extends ScalarExpression {
+  readonly type = 'MeanOver';
+
+  constructor(
+    public readonly objectSet: ObjectSetExpression,
+    public readonly body: (obj: any) => ScalarExpression,
+    public readonly boundVarName: string = 'obj'
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objectSet', this.objectSet]]);
+  }
+
+  evaluate(state: EvalState): number {
+    const objects = this.objectSet.evaluate(state);
+
+    if (objects.length === 0) return 0;
+
+    let total = 0;
+    for (const obj of objects) {
+      const bodyExpr = this.body(obj);
+      const objState = new Map(state);
+      objState.set(this.boundVarName, obj);
+      objState.set('current_object', obj);
+      total += bodyExpr.evaluate(objState);
+    }
+
+    return total / objects.length;
+  }
+
+  clone(): MeanOver {
+    return new MeanOver(
+      this.objectSet.clone() as ObjectSetExpression,
+      this.body,
+      this.boundVarName
+    );
+  }
+
+  toString(): string {
+    return `MeanOver(${this.objectSet}, ${this.boundVarName} => ...)`;
+  }
+}
+
+/**
+ * MaxOver: finds the maximum value of a scalar expression over all objects in a set.
+ *
+ * Mathematical definition:
+ *   MaxOver(S, f) = max_{x ∈ S} f(x)
+ */
+export class MaxOver extends ScalarExpression {
+  readonly type = 'MaxOver';
+
+  constructor(
+    public readonly objectSet: ObjectSetExpression,
+    public readonly body: (obj: any) => ScalarExpression,
+    public readonly boundVarName: string = 'obj'
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objectSet', this.objectSet]]);
+  }
+
+  evaluate(state: EvalState): number {
+    const objects = this.objectSet.evaluate(state);
+    if (objects.length === 0) return -Infinity;
+
+    let maxVal = -Infinity;
+    for (const obj of objects) {
+      const bodyExpr = this.body(obj);
+      const objState = new Map(state);
+      objState.set(this.boundVarName, obj);
+      objState.set('current_object', obj);
+      maxVal = Math.max(maxVal, bodyExpr.evaluate(objState));
+    }
+
+    return maxVal;
+  }
+
+  clone(): MaxOver {
+    return new MaxOver(
+      this.objectSet.clone() as ObjectSetExpression,
+      this.body,
+      this.boundVarName
+    );
+  }
+
+  toString(): string {
+    return `MaxOver(${this.objectSet}, ${this.boundVarName} => ...)`;
+  }
+}
+
+/**
+ * MinOver: finds the minimum value of a scalar expression over all objects in a set.
+ *
+ * Mathematical definition:
+ *   MinOver(S, f) = min_{x ∈ S} f(x)
+ */
+export class MinOver extends ScalarExpression {
+  readonly type = 'MinOver';
+
+  constructor(
+    public readonly objectSet: ObjectSetExpression,
+    public readonly body: (obj: any) => ScalarExpression,
+    public readonly boundVarName: string = 'obj'
+  ) {
+    super();
+  }
+
+  children(): Map<string, Node> {
+    return new Map([['objectSet', this.objectSet]]);
+  }
+
+  evaluate(state: EvalState): number {
+    const objects = this.objectSet.evaluate(state);
+    if (objects.length === 0) return Infinity;
+
+    let minVal = Infinity;
+    for (const obj of objects) {
+      const bodyExpr = this.body(obj);
+      const objState = new Map(state);
+      objState.set(this.boundVarName, obj);
+      objState.set('current_object', obj);
+      minVal = Math.min(minVal, bodyExpr.evaluate(objState));
+    }
+
+    return minVal;
+  }
+
+  clone(): MinOver {
+    return new MinOver(
+      this.objectSet.clone() as ObjectSetExpression,
+      this.body,
+      this.boundVarName
+    );
+  }
+
+  toString(): string {
+    return `MinOver(${this.objectSet}, ${this.boundVarName} => ...)`;
+  }
+}
